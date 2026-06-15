@@ -6,10 +6,11 @@
 
 1. 책 제목으로 검색 → 카카오 책 API에서 표지·저자·출판사·소개글 자동 조회
 2. "읽고 있는 책" 목록 등록
-3. 목차(TOC)를 직접 입력/붙여넣기 → 챕터별 체크박스로 진행도 표시
-4. "다 읽었어요" → "내가 읽은 책"으로 이동, 완독 날짜 기록
+3. **목차 자동 가져오기** (알라딘 OpenAPI, ISBN 기반) + 직접 편집 지원
+4. 챕터별 체크박스로 진행도 표시
+5. "다 읽었어요" → "내가 읽은 책"으로 이동, 완독 날짜 기록
 
-> 카카오 책 API는 표지·저자·소개글까지만 제공하고 **목차는 직접 입력**이 필요합니다. 교보문고 목차 자동 가져오기는 다음 단계에서 추가 예정 (아래 [로드맵](#-다음-단계) 참고).
+> 알라딘에 목차가 없는 도서를 위해 추후 교보문고 프록시(Supabase Edge Function) 및 AI 추정 폴백 추가 예정.
 
 ## 🚀 실행 방법
 
@@ -17,9 +18,12 @@
 1. Flutter SDK 3.22+ 설치 (`flutter doctor`)
 2. 카카오 REST API 키 발급
    - https://developers.kakao.com → 내 애플리케이션 → REST API 키
-3. 프로젝트 루트에 `.env` 파일 생성:
+3. 알라딘 TTB 키 발급 (목차 자동 가져오기용)
+   - https://www.aladin.co.kr/ttb/wblog_manage.aspx → TTB Key 발급
+4. 프로젝트 루트에 `.env` 파일 생성:
    ```
-   KAKAO_REST_API_KEY=발급받은_키
+   KAKAO_REST_API_KEY=발급받은_카카오_키
+   ALADIN_TTB_KEY=발급받은_알라딘_키
    ```
 
 ### 첫 실행
@@ -54,6 +58,7 @@ lib/
         ├── models/book.dart
         ├── services/
         │   ├── book_search_service.dart   # 카카오 책 API
+        │   ├── book_toc_service.dart      # 알라딘 TOC API
         │   └── book_storage_service.dart  # SharedPreferences
         ├── providers/book_providers.dart  # Riverpod
         ├── widgets/book_cover.dart
@@ -65,8 +70,9 @@ lib/
 
 ## 🛣 다음 단계
 
-- [ ] 교보문고 목차 자동 수집 (백엔드 프록시 + 캐시)
-- [ ] AI 기반 목차 추정(검색 후 비공개 도서일 때 fallback)
+- [x] 알라딘 TOC 자동 가져오기
+- [ ] 교보문고 목차 자동 수집 (Supabase Edge Function 프록시 + 캐시)
+- [ ] AI 기반 목차 추정 (알라딘·교보문고에 모두 없을 때 fallback)
 - [ ] 일일 독서 시간 타이머
 - [ ] 독서 메모/하이라이트
 - [ ] 통계 대시보드 (월별 완독 수, 장르 분포)

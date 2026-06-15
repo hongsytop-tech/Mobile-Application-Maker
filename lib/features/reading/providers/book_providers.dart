@@ -4,9 +4,11 @@ import 'package:uuid/uuid.dart';
 import '../models/book.dart';
 import '../services/book_search_service.dart';
 import '../services/book_storage_service.dart';
+import '../services/book_toc_service.dart';
 
 final bookSearchServiceProvider = Provider((_) => BookSearchService());
 final bookStorageServiceProvider = Provider((_) => BookStorageService());
+final bookTocServiceProvider = Provider((_) => BookTocService());
 
 final booksProvider =
     AsyncNotifierProvider<BooksNotifier, List<Book>>(BooksNotifier.new);
