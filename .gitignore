@@ -34,3 +34,10 @@ coverage/
 supabase/.temp/
 supabase/.branches/
 .supabase/
+
+# Android signing — NEVER commit
+android/key.properties
+android/app/upload-keystore.jks
+*.jks
+*.keystore
+keystore_base64.txt
