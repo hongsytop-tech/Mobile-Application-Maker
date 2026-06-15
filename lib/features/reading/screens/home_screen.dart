@@ -42,11 +42,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       appBar: AppBar(
         title: const Text('내 책장'),
         actions: [
-          IconButton(
-            tooltip: '독서 통계',
-            icon: const Icon(Icons.bar_chart),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const StatsScreen()),
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: TextButton.icon(
+              icon: const Icon(Icons.bar_chart),
+              label: const Text('독서 통계'),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const StatsScreen()),
+              ),
             ),
           ),
         ],

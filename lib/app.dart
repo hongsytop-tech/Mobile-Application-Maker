@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'features/reading/screens/home_screen.dart';
+import 'shell/main_shell.dart';
 
 class SelfDevApp extends StatelessWidget {
   const SelfDevApp({super.key});
@@ -15,7 +15,7 @@ class SelfDevApp extends StatelessWidget {
         useMaterial3: true,
         fontFamily: 'Pretendard',
       ),
-      home: const HomeScreen(),
+      home: const MainShell(),
     );
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
+import 'features/quotes/services/notification_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -11,5 +12,6 @@ Future<void> main() async {
   } catch (_) {
     // .env 파일이 없어도 앱은 실행 (검색만 비활성)
   }
+  await NotificationService.init();
   runApp(const ProviderScope(child: SelfDevApp()));
 }
