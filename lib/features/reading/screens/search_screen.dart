@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/book_providers.dart';
 import '../services/book_search_service.dart';
 import '../widgets/book_cover.dart';
-import 'book_detail_screen.dart';
+import 'book_preview_screen.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -59,15 +59,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     }
   }
 
-  Future<void> _addBook(BookSearchResult r) async {
-    final notifier = ref.read(booksProvider.notifier);
-    final book = await notifier.addFromSearch(r);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('"${book.title}"을(를) 책장에 추가했어요')),
-    );
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => BookDetailScreen(bookId: book.id)),
+  void _openPreview(BookSearchResult r) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => BookPreviewScreen(result: r)),
     );
   }
 
@@ -118,10 +112,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          trailing: FilledButton.tonal(
-            onPressed: () => _addBook(r),
-            child: const Text('추가'),
-          ),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => _openPreview(r),
         );
       },
     );
