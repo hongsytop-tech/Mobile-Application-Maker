@@ -4,7 +4,7 @@ import 'package:uuid/uuid.dart';
 import '../models/book.dart';
 import '../services/book_search_service.dart';
 import '../services/book_storage_service.dart';
-import '../services/book_toc_service.dart';
+import '../services/book_toc_service.dart' show BookTocService, BookMetadata;
 
 final bookSearchServiceProvider = Provider((_) => BookSearchService());
 final bookStorageServiceProvider = Provider((_) => BookStorageService());
@@ -60,6 +60,24 @@ class BooksNotifier extends AsyncNotifier<List<Book>> {
     final list = state.value ?? const <Book>[];
     final book = list.firstWhere((b) => b.id == id);
     await updateBook(book.copyWith(toc: toc));
+  }
+
+  Future<void> applyMetadata(String id, BookMetadata m) async {
+    final list = state.value ?? const <Book>[];
+    final book = list.firstWhere((b) => b.id == id);
+    final existingMap = {for (final e in book.toc) e.title: e.isRead};
+    final newToc = m.toc.isNotEmpty
+        ? m.toc
+            .map((t) => TocItem(title: t, isRead: existingMap[t] ?? false))
+            .toList()
+        : book.toc;
+    await updateBook(book.copyWith(
+      toc: newToc,
+      priceStandard: m.priceStandard,
+      priceSales: m.priceSales,
+      aladinLink: m.aladinLink,
+      kyoboLink: m.kyoboLink,
+    ));
   }
 
   Future<void> toggleTocItem(String id, int index) async {

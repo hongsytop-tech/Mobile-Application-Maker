@@ -25,7 +25,7 @@ export async function fetchAladin(
     ItemId: clean,
     output: 'js',
     Version: '20131101',
-    OptResult: 'Toc,fulldescription,subInfo',
+    OptResult: 'Toc',
   });
 
   const res = await fetch(`${ENDPOINT}?${params.toString()}`);

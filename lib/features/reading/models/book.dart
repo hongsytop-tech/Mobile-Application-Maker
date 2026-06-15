@@ -30,6 +30,13 @@ class Book {
   final DateTime addedAt;
   final DateTime? finishedAt;
 
+  // 외부 메타데이터 (알라딘/교보문고/추후 쿠팡)
+  final int? priceStandard;
+  final int? priceSales;
+  final String? aladinLink;
+  final String? kyoboLink;
+  final String? coupangLink;
+
   const Book({
     required this.id,
     required this.title,
@@ -42,6 +49,11 @@ class Book {
     required this.status,
     required this.addedAt,
     this.finishedAt,
+    this.priceStandard,
+    this.priceSales,
+    this.aladinLink,
+    this.kyoboLink,
+    this.coupangLink,
   });
 
   double get progress {
@@ -54,6 +66,11 @@ class Book {
     List<TocItem>? toc,
     BookStatus? status,
     DateTime? finishedAt,
+    int? priceStandard,
+    int? priceSales,
+    String? aladinLink,
+    String? kyoboLink,
+    String? coupangLink,
   }) {
     return Book(
       id: id,
@@ -67,6 +84,11 @@ class Book {
       status: status ?? this.status,
       addedAt: addedAt,
       finishedAt: finishedAt ?? this.finishedAt,
+      priceStandard: priceStandard ?? this.priceStandard,
+      priceSales: priceSales ?? this.priceSales,
+      aladinLink: aladinLink ?? this.aladinLink,
+      kyoboLink: kyoboLink ?? this.kyoboLink,
+      coupangLink: coupangLink ?? this.coupangLink,
     );
   }
 
@@ -82,6 +104,11 @@ class Book {
         'status': status.name,
         'addedAt': addedAt.toIso8601String(),
         'finishedAt': finishedAt?.toIso8601String(),
+        'priceStandard': priceStandard,
+        'priceSales': priceSales,
+        'aladinLink': aladinLink,
+        'kyoboLink': kyoboLink,
+        'coupangLink': coupangLink,
       };
 
   factory Book.fromJson(Map<String, dynamic> j) => Book(
@@ -100,6 +127,11 @@ class Book {
         finishedAt: j['finishedAt'] == null
             ? null
             : DateTime.parse(j['finishedAt'] as String),
+        priceStandard: j['priceStandard'] as int?,
+        priceSales: j['priceSales'] as int?,
+        aladinLink: j['aladinLink'] as String?,
+        kyoboLink: j['kyoboLink'] as String?,
+        coupangLink: j['coupangLink'] as String?,
       );
 
   String toJsonString() => jsonEncode(toJson());

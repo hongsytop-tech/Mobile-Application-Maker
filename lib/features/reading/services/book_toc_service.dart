@@ -10,33 +10,42 @@ class TocServiceUnavailable implements Exception {
   String toString() => message;
 }
 
-class TocResult {
-  final String? source; // 'aladin' | 'kyobo' | null
+class BookMetadata {
   final List<String> toc;
+  final String? tocSource; // 'aladin' | null
   final int? priceStandard;
   final int? priceSales;
-  final String? link;
+  final String? aladinLink;
+  final String? kyoboLink;
 
-  const TocResult({
-    required this.source,
+  const BookMetadata({
     required this.toc,
+    this.tocSource,
     this.priceStandard,
     this.priceSales,
-    this.link,
+    this.aladinLink,
+    this.kyoboLink,
   });
 
-  factory TocResult.fromJson(Map<String, dynamic> j) => TocResult(
-        source: j['source'] as String?,
+  bool get hasAnything =>
+      toc.isNotEmpty ||
+      priceStandard != null ||
+      priceSales != null ||
+      aladinLink != null ||
+      kyoboLink != null;
+
+  factory BookMetadata.fromJson(Map<String, dynamic> j) => BookMetadata(
         toc: (j['toc'] as List? ?? []).cast<String>(),
+        tocSource: j['tocSource'] as String?,
         priceStandard: j['priceStandard'] as int?,
         priceSales: j['priceSales'] as int?,
-        link: j['link'] as String?,
+        aladinLink: j['aladinLink'] as String?,
+        kyoboLink: j['kyoboLink'] as String?,
       );
 }
 
-/// 책 목차 자동 조회 — Supabase Edge Function (book-toc) 프록시를 호출.
-///
-/// 프록시 내부 흐름: 알라딘 → 교보문고 (둘 다 실패 시 빈 결과)
+/// 책 메타데이터 조회 — Supabase Edge Function 프록시 호출.
+/// 알라딘(가격·링크·TOC) + 교보문고(정보 링크)
 class BookTocService {
   String get _proxyUrl {
     final url = dotenv.maybeGet('BOOK_TOC_PROXY_URL') ?? '';
@@ -48,7 +57,7 @@ class BookTocService {
     return url;
   }
 
-  Future<TocResult> fetch({String? isbn, String? title}) async {
+  Future<BookMetadata> fetch({String? isbn, String? title}) async {
     final params = <String, String>{};
     if (isbn != null && isbn.isNotEmpty) params['isbn'] = isbn;
     if (title != null && title.isNotEmpty) params['title'] = title;
@@ -66,18 +75,6 @@ class BookTocService {
     if (body['error'] != null) {
       throw TocServiceUnavailable('프록시: ${body['error']}');
     }
-    final result = TocResult.fromJson(body);
-    if (result.toc.isEmpty) {
-      throw const TocServiceUnavailable(
-        '알라딘·교보문고 어디에서도 목차를 찾지 못했어요.',
-      );
-    }
-    return result;
-  }
-
-  /// 기존 호출부 호환용 — 챕터 제목 리스트만 반환
-  Future<List<String>> fetchByIsbn(String isbn) async {
-    final r = await fetch(isbn: isbn);
-    return r.toc;
+    return BookMetadata.fromJson(body);
   }
 }

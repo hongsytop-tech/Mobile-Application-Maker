@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/book.dart';
 import '../providers/book_providers.dart';
@@ -15,8 +17,10 @@ class BookDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
-  bool _fetchingToc = false;
+  bool _fetching = false;
   bool _autoFetchAttempted = false;
+
+  static final _won = NumberFormat('#,###');
 
   @override
   Widget build(BuildContext context) {
@@ -27,11 +31,14 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
       return const Scaffold(body: Center(child: Text('책을 찾을 수 없어요')));
     }
 
-    // 처음 열었을 때 목차가 비어있고 ISBN이 있으면 1회 자동 시도
-    if (!_autoFetchAttempted && book.toc.isEmpty && book.isbn.isNotEmpty) {
+    // 최초 진입 시 메타데이터(가격·링크·TOC) 자동 시도
+    if (!_autoFetchAttempted &&
+        book.isbn.isNotEmpty &&
+        book.priceStandard == null &&
+        book.aladinLink == null) {
       _autoFetchAttempted = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _fetchToc(book, showErrorSnack: false);
+        _fetchMetadata(book, showErrorSnack: false);
       });
     }
 
@@ -52,6 +59,12 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           _BookHeader(book: book),
+          const SizedBox(height: 20),
+          _PriceAndLinks(
+            book: book,
+            fetching: _fetching,
+            onRefresh: () => _fetchMetadata(book),
+          ),
           if (book.description.isNotEmpty) ...[
             const SizedBox(height: 24),
             Text('소개', style: Theme.of(context).textTheme.titleMedium),
@@ -64,17 +77,6 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
               Text('목차', style: Theme.of(context).textTheme.titleMedium),
               const Spacer(),
               TextButton.icon(
-                icon: _fetchingToc
-                    ? const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.cloud_download_outlined, size: 18),
-                label: const Text('자동 가져오기'),
-                onPressed: _fetchingToc ? null : () => _fetchToc(book),
-              ),
-              TextButton.icon(
                 icon: const Icon(Icons.edit_outlined, size: 18),
                 label: const Text('편집'),
                 onPressed: () => _editToc(book),
@@ -86,7 +88,7 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 16),
               child: Text(
-                '아직 목차가 없어요. "자동 가져오기"로 알라딘에서 불러오거나 "편집"으로 직접 입력하세요.',
+                '목차를 직접 추가해 진행도를 관리할 수 있어요.\n"편집"을 눌러 한 줄에 하나씩 챕터를 입력하세요.',
                 style: TextStyle(color: Colors.grey.shade600),
               ),
             )
@@ -137,19 +139,19 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
     );
   }
 
-  Future<void> _fetchToc(Book book, {bool showErrorSnack = true}) async {
-    setState(() => _fetchingToc = true);
+  Future<void> _fetchMetadata(Book book, {bool showErrorSnack = true}) async {
+    setState(() => _fetching = true);
     try {
       final svc = ref.read(bookTocServiceProvider);
-      final titles = await svc.fetchByIsbn(book.isbn);
-      final existingMap = {for (final e in book.toc) e.title: e.isRead};
-      final newToc = titles
-          .map((t) => TocItem(title: t, isRead: existingMap[t] ?? false))
-          .toList();
-      await ref.read(booksProvider.notifier).setToc(book.id, newToc);
-      if (mounted) {
+      final meta = await svc.fetch(isbn: book.isbn, title: book.title);
+      await ref.read(booksProvider.notifier).applyMetadata(book.id, meta);
+      if (mounted && meta.hasAnything) {
+        final msgs = <String>[];
+        if (meta.toc.isNotEmpty) msgs.add('목차 ${meta.toc.length}개');
+        if (meta.priceSales != null) msgs.add('가격');
+        if (meta.aladinLink != null || meta.kyoboLink != null) msgs.add('구매 링크');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${newToc.length}개 챕터를 가져왔어요')),
+          SnackBar(content: Text('${msgs.join(' · ')} 가져왔어요')),
         );
       }
     } on TocServiceUnavailable catch (e) {
@@ -161,11 +163,11 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
     } catch (e) {
       if (showErrorSnack && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('자동 가져오기 실패: $e')),
+          SnackBar(content: Text('정보 가져오기 실패: $e')),
         );
       }
     } finally {
-      if (mounted) setState(() => _fetchingToc = false);
+      if (mounted) setState(() => _fetching = false);
     }
   }
 
@@ -277,4 +279,137 @@ class _BookHeader extends StatelessWidget {
       ],
     );
   }
+}
+
+class _PriceAndLinks extends StatelessWidget {
+  final Book book;
+  final bool fetching;
+  final VoidCallback onRefresh;
+
+  const _PriceAndLinks({
+    required this.book,
+    required this.fetching,
+    required this.onRefresh,
+  });
+
+  static final _won = NumberFormat('#,###');
+
+  @override
+  Widget build(BuildContext context) {
+    final hasPrice = book.priceStandard != null || book.priceSales != null;
+    final links = <_LinkSpec>[
+      if (book.aladinLink != null)
+        _LinkSpec(label: '알라딘에서 구매', url: book.aladinLink!, isPrimary: true),
+      if (book.kyoboLink != null)
+        _LinkSpec(label: '교보문고 정보', url: book.kyoboLink!),
+      if (book.coupangLink != null)
+        _LinkSpec(label: '쿠팡에서 구매', url: book.coupangLink!),
+    ];
+
+    if (!hasPrice && links.isEmpty) {
+      return OutlinedButton.icon(
+        onPressed: fetching ? null : onRefresh,
+        icon: fetching
+            ? const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.cloud_download_outlined, size: 18),
+        label: const Text('가격·구매 링크 가져오기'),
+      );
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              if (hasPrice) ...[
+                if (book.priceSales != null) ...[
+                  Text(
+                    '${_won.format(book.priceSales)}원',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                if (book.priceStandard != null &&
+                    book.priceStandard != book.priceSales)
+                  Text(
+                    '${_won.format(book.priceStandard)}원',
+                    style: const TextStyle(
+                      color: Colors.grey,
+                      fontSize: 13,
+                      decoration: TextDecoration.lineThrough,
+                    ),
+                  ),
+              ] else
+                const Text('가격 정보 없음',
+                    style: TextStyle(color: Colors.grey)),
+              const Spacer(),
+              IconButton(
+                tooltip: '다시 불러오기',
+                onPressed: fetching ? null : onRefresh,
+                icon: fetching
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.refresh, size: 18),
+              ),
+            ],
+          ),
+          if (links.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: links.map((l) => _linkButton(l)).toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _linkButton(_LinkSpec l) {
+    final onTap = () async {
+      final uri = Uri.parse(l.url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    };
+    return l.isPrimary
+        ? FilledButton.icon(
+            onPressed: onTap,
+            icon: const Icon(Icons.open_in_new, size: 16),
+            label: Text(l.label),
+          )
+        : OutlinedButton.icon(
+            onPressed: onTap,
+            icon: const Icon(Icons.open_in_new, size: 16),
+            label: Text(l.label),
+          );
+  }
+}
+
+class _LinkSpec {
+  final String label;
+  final String url;
+  final bool isPrimary;
+  const _LinkSpec({
+    required this.label,
+    required this.url,
+    this.isPrimary = false,
+  });
 }

@@ -1,9 +1,16 @@
-// 책 목차(TOC) 통합 프록시
+// 책 메타데이터 통합 프록시
 //
-// 흐름: 알라딘 → 교보문고 (둘 다 실패 시 빈 결과)
-// 응답: { source: 'aladin' | 'kyobo' | null, toc: string[], priceStandard?, priceSales?, link? }
+// 알라딘: TOC(있을 때) + 가격 + 구매 링크
+// 교보문고: 정보 보기 링크 (TOC 스크래핑 안 함)
 //
-// 디버그: ?debug=1 추가 시 알라딘·교보문고 양쪽 결과/에러를 그대로 반환.
+// 응답: {
+//   toc: string[],
+//   tocSource: 'aladin' | null,
+//   priceStandard?: number,
+//   priceSales?: number,
+//   aladinLink?: string,
+//   kyoboLink?: string,
+// }
 
 import { corsHeaders } from '../_shared/cors.ts';
 import { fetchAladin } from './aladin.ts';
@@ -24,48 +31,40 @@ Deno.serve(async (req) => {
       return json({ error: 'isbn or title is required' }, 400);
     }
 
-    let aladinResult: unknown = null;
-    let aladinError: string | null = null;
+    const out: Record<string, unknown> = {
+      toc: [],
+      tocSource: null,
+    };
+
     if (isbn) {
       try {
-        aladinResult = await fetchAladin(isbn, debug);
+        const a = await fetchAladin(isbn, debug);
+        if (Array.isArray(a.toc) && a.toc.length > 0) {
+          out.toc = a.toc;
+          out.tocSource = 'aladin';
+        }
+        if (a.priceStandard != null) out.priceStandard = a.priceStandard;
+        if (a.priceSales != null) out.priceSales = a.priceSales;
+        if (a.link) out.aladinLink = a.link;
+        if (debug) {
+          out._aladinDebug = { rawToc: a._rawToc, hasSubInfo: a._hasSubInfo };
+        }
       } catch (e) {
-        aladinError = String(e);
+        if (debug) out._aladinError = String(e);
         console.error('Aladin failed:', e);
       }
     }
 
-    let kyoboResult: unknown = null;
-    let kyoboError: string | null = null;
     try {
-      kyoboResult = await fetchKyobo(isbn, title, debug);
+      const k = await fetchKyobo(isbn, title, debug);
+      if (k.link) out.kyoboLink = k.link;
+      if (debug) out._kyoboDebug = k._debug;
     } catch (e) {
-      kyoboError = String(e);
+      if (debug) out._kyoboError = String(e);
       console.error('Kyobo failed:', e);
     }
 
-    if (debug) {
-      return json({
-        isbn,
-        title,
-        aladin: aladinResult,
-        aladinError,
-        kyobo: kyoboResult,
-        kyoboError,
-        hasAladinKey: !!Deno.env.get('ALADIN_TTB_KEY'),
-      });
-    }
-
-    const aladin = aladinResult as { toc?: string[] } | null;
-    if (aladin && Array.isArray(aladin.toc) && aladin.toc.length > 0) {
-      return json({ source: 'aladin', ...aladin });
-    }
-    const kyobo = kyoboResult as { toc?: string[] } | null;
-    if (kyobo && Array.isArray(kyobo.toc) && kyobo.toc.length > 0) {
-      return json({ source: 'kyobo', ...kyobo });
-    }
-
-    return json({ source: null, toc: [] });
+    return json(out);
   } catch (e) {
     console.error('Unhandled error:', e);
     return json({ error: String(e) }, 500);
