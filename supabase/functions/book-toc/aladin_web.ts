@@ -4,6 +4,8 @@ export interface AladinWebResult {
     htmlLength: number;
     itemId?: string;
     matchedPattern?: number;
+    tocKeywordIndices?: number[];
+    tocSnippets?: string[];
   };
 }
 
@@ -11,10 +13,6 @@ const UA =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ' +
   '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
-/**
- * 알라딘 상품 페이지(SSR)를 스크래핑하여 목차 추출.
- * API에서는 TOC를 제공하지 않는 책도 웹 페이지에 표시되는 경우가 많음.
- */
 export async function fetchAladinWebToc(
   aladinLink: string | undefined,
   debug = false,
@@ -33,12 +31,13 @@ export async function fetchAladinWebToc(
   });
   const html = await res.text();
 
-  // 알라딘 상세페이지 목차 섹션 후보 패턴
   const patterns: RegExp[] = [
     /<div[^>]*id="div_TOC_All"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/i,
     /<div[^>]*id="div_TOC[_A-Za-z0-9]*"[^>]*>([\s\S]*?)<\/div>/i,
+    /<div[^>]*id="Ere_prod_mconts_LF_T"[^>]*>([\s\S]*?)<\/div>/i,
+    /<div[^>]*class="[^"]*conts_info_list1[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
     /목차\s*<\/h[1-6][^>]*>\s*<div[^>]*>([\s\S]*?)<\/div>/i,
-    /<div[^>]*class="[^"]*Ere_prod_mconts_LF[^"]*"[^>]*>[\s\S]*?목차[\s\S]*?<div[^>]*>([\s\S]*?)<\/div>/i,
+    /목차\s*<\/(?:b|strong|span|h\d)>([\s\S]{50,5000}?)(?:저자\s*소개|책\s*속에서|출판사\s*리뷰|<\/section>)/i,
   ];
 
   let toc: string[] = [];
@@ -58,6 +57,20 @@ export async function fetchAladinWebToc(
     }
   }
 
+  let tocKeywordIndices: number[] | undefined;
+  let tocSnippets: string[] | undefined;
+  if (debug) {
+    tocKeywordIndices = [];
+    let i = -1;
+    while ((i = html.indexOf('목차', i + 1)) !== -1) {
+      tocKeywordIndices.push(i);
+      if (tocKeywordIndices.length >= 5) break;
+    }
+    tocSnippets = tocKeywordIndices.map((idx) =>
+      html.substring(idx, Math.min(idx + 1500, html.length)),
+    );
+  }
+
   return {
     toc,
     ...(debug
@@ -66,6 +79,8 @@ export async function fetchAladinWebToc(
             htmlLength: html.length,
             itemId,
             matchedPattern: matched,
+            tocKeywordIndices,
+            tocSnippets,
           },
         }
       : {}),
