@@ -29,9 +29,10 @@ Deno.serve(async (req) => {
     const isbn = url.searchParams.get('isbn')?.trim() ?? '';
     const title = url.searchParams.get('title')?.trim() ?? '';
     const debug = url.searchParams.get('debug') === '1';
+    const kyoboUrl = url.searchParams.get('kyoboUrl')?.trim() ?? '';
 
-    if (!isbn && !title) {
-      return json({ error: 'isbn or title is required' }, 400);
+    if (!isbn && !title && !kyoboUrl) {
+      return json({ error: 'isbn, title, or kyoboUrl is required' }, 400);
     }
 
     const out: Record<string, unknown> = {
@@ -93,14 +94,29 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 4. 교보문고 (정보 링크만)
-    try {
-      const k = await fetchKyobo(isbn, title, debug);
-      if (k.link) out.kyoboLink = k.link;
-      if (debug) out._kyoboDebug = k._debug;
-    } catch (e) {
-      if (debug) out._kyoboError = String(e);
-      console.error('Kyobo failed:', e);
+    // 4. 교보문고 (TOC 시도 + 정보 링크)
+    if ((out.toc as string[]).length === 0 || kyoboUrl) {
+      try {
+        const k = await fetchKyobo(isbn, title, debug, kyoboUrl || undefined);
+        if (k.toc.length > 0) {
+          out.toc = k.toc;
+          out.tocSource = 'kyobo';
+        }
+        if (k.link) out.kyoboLink = k.link;
+        if (debug) out._kyoboDebug = k._debug;
+      } catch (e) {
+        if (debug) out._kyoboError = String(e);
+        console.error('Kyobo failed:', e);
+      }
+    } else {
+      // TOC가 이미 있으면 링크만 가져옴
+      try {
+        const k = await fetchKyobo(isbn, title, debug);
+        if (k.link) out.kyoboLink = k.link;
+        if (debug) out._kyoboDebug = k._debug;
+      } catch (e) {
+        if (debug) out._kyoboError = String(e);
+      }
     }
 
     return json(out);
