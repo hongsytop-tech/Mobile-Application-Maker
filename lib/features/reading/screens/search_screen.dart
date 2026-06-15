@@ -9,7 +9,8 @@ import '../widgets/book_cover.dart';
 import 'book_preview_screen.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
-  const SearchScreen({super.key});
+  final String? initialQuery;
+  const SearchScreen({super.key, this.initialQuery});
 
   @override
   ConsumerState<SearchScreen> createState() => _SearchScreenState();
@@ -21,6 +22,16 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   bool _loading = false;
   String? _error;
   List<BookSearchResult> _results = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    final q = widget.initialQuery ?? '';
+    if (q.isNotEmpty) {
+      _controller.text = q;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _search(q));
+    }
+  }
 
   @override
   void dispose() {

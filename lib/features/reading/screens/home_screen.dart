@@ -25,6 +25,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     super.dispose();
   }
 
+  void _openSearch({String? initialQuery}) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => SearchScreen(initialQuery: initialQuery),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final asyncBooks = ref.watch(booksProvider);
@@ -32,20 +40,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('내 책장'),
-        bottom: TabBar(
-          controller: _tab,
-          tabs: const [
-            Tab(text: '읽고 있는 책'),
-            Tab(text: '내가 읽은 책'),
-          ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(112),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                child: SearchBar(
+                  leading: const Padding(
+                    padding: EdgeInsets.only(left: 8),
+                    child: Icon(Icons.search),
+                  ),
+                  hintText: '책 제목 검색',
+                  elevation: const WidgetStatePropertyAll(0),
+                  onTap: () => _openSearch(),
+                  onChanged: (q) {
+                    if (q.isNotEmpty) _openSearch(initialQuery: q);
+                  },
+                ),
+              ),
+              TabBar(
+                controller: _tab,
+                tabs: const [
+                  Tab(text: '읽고 있는 책'),
+                  Tab(text: '내가 읽은 책'),
+                ],
+              ),
+            ],
+          ),
         ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const SearchScreen()),
-        ),
-        icon: const Icon(Icons.search),
-        label: const Text('책 검색'),
       ),
       body: asyncBooks.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -56,8 +79,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           return TabBarView(
             controller: _tab,
             children: [
-              _BookList(books: reading, emptyText: '아직 읽고 있는 책이 없어요.\n오른쪽 아래에서 책을 검색해 보세요.'),
-              _BookList(books: finished, emptyText: '완독한 책이 표시됩니다.', showProgress: false),
+              _BookList(
+                books: reading,
+                emptyText: '아직 읽고 있는 책이 없어요.\n위의 검색창에서 책을 찾아보세요.',
+              ),
+              _BookList(
+                books: finished,
+                emptyText: '완독한 책이 표시됩니다.',
+                showProgress: false,
+              ),
             ],
           );
         },
@@ -66,7 +96,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 }
 
-class _BookList extends StatelessWidget {
+class _BookList extends ConsumerWidget {
   final List<Book> books;
   final String emptyText;
   final bool showProgress;
@@ -78,7 +108,7 @@ class _BookList extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (books.isEmpty) {
       return Center(
         child: Padding(
@@ -98,36 +128,107 @@ class _BookList extends StatelessWidget {
       separatorBuilder: (_, __) => const Divider(height: 1),
       itemBuilder: (context, i) {
         final b = books[i];
-        return ListTile(
-          leading: BookCover(url: b.thumbnail),
-          title: Text(b.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-          subtitle: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(b.authors.join(', '),
-                  maxLines: 1, overflow: TextOverflow.ellipsis),
-              const SizedBox(height: 4),
-              if (showProgress)
-                Row(
-                  children: [
-                    Expanded(
-                      child: LinearProgressIndicator(
-                        value: b.progress,
-                        minHeight: 6,
-                        backgroundColor: Colors.grey.shade200,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text('${(b.progress * 100).round()}%'),
-                  ],
-                )
-              else if (b.finishedAt != null)
-                Text('완독: ${df.format(b.finishedAt!)}',
-                    style: const TextStyle(fontSize: 12)),
-            ],
+        return Dismissible(
+          key: ValueKey(b.id),
+          direction: DismissDirection.endToStart,
+          background: Container(
+            color: Colors.red.shade400,
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: const Icon(Icons.delete, color: Colors.white),
           ),
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => BookDetailScreen(bookId: b.id)),
+          confirmDismiss: (_) async {
+            return await showDialog<bool>(
+              context: context,
+              builder: (_) => AlertDialog(
+                title: Text('"${b.title}"을(를) 삭제할까요?'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('취소'),
+                  ),
+                  FilledButton.tonal(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text('삭제'),
+                  ),
+                ],
+              ),
+            );
+          },
+          onDismissed: (_) =>
+              ref.read(booksProvider.notifier).remove(b.id),
+          child: ListTile(
+            leading: BookCover(url: b.thumbnail),
+            title: Text(b.title,
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(b.authors.join(', '),
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 4),
+                if (showProgress)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: LinearProgressIndicator(
+                          value: b.progress,
+                          minHeight: 6,
+                          backgroundColor: Colors.grey.shade200,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text('${(b.progress * 100).round()}%'),
+                    ],
+                  )
+                else if (b.finishedAt != null)
+                  Text('완독: ${df.format(b.finishedAt!)}',
+                      style: const TextStyle(fontSize: 12)),
+              ],
+            ),
+            trailing: PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert),
+              onSelected: (v) async {
+                if (v == 'delete') {
+                  final ok = await showDialog<bool>(
+                    context: context,
+                    builder: (_) => AlertDialog(
+                      title: Text('"${b.title}"을(를) 삭제할까요?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('취소'),
+                        ),
+                        FilledButton.tonal(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: const Text('삭제'),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (ok == true) {
+                    await ref.read(booksProvider.notifier).remove(b.id);
+                  }
+                } else if (v == 'edit') {
+                  if (context.mounted) {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => BookDetailScreen(bookId: b.id),
+                      ),
+                    );
+                  }
+                }
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'edit', child: Text('편집/상세')),
+                PopupMenuItem(value: 'delete', child: Text('삭제')),
+              ],
+            ),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => BookDetailScreen(bookId: b.id),
+              ),
+            ),
           ),
         );
       },

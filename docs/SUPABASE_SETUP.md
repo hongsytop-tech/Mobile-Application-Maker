@@ -37,13 +37,18 @@ supabase login
 supabase link --project-ref 복사한_REFERENCE_ID
 ```
 
-## 4. 시크릿 등록 (알라딘 키)
+## 4. 시크릿 등록
 
 ```bash
+# 알라딘 (가격·링크·TOC 일부)
 supabase secrets set ALADIN_TTB_KEY=발급받은_알라딘_TTB_키
+
+# 국립중앙도서관 서지정보유통지원시스템 (TOC 폴백, 선택)
+# 신청: https://www.nl.go.kr/seoji/contents/S80100000000.do
+supabase secrets set NLK_CERT_KEY=발급받은_seoji_인증키
 ```
 
-> 알라딘 키가 더 이상 클라이언트(.env)에 노출되지 않습니다. 보안 ↑
+> NLK_CERT_KEY가 없어도 함수는 동작 (알라딘만 사용). 있으면 TOC 커버리지가 더 넓어집니다.
 
 ## 5. Edge Function 배포
 
