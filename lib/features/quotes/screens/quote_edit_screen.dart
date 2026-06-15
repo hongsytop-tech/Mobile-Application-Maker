@@ -80,7 +80,7 @@ class _QuoteEditScreenState extends ConsumerState<QuoteEditScreen> {
           notifyEnabled: _notifyEnabled,
         );
       } else {
-        await notifier.update(
+        await notifier.save(
           widget.quote!.copyWith(
             text: text,
             notifyHour: hour,

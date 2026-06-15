@@ -45,7 +45,7 @@ class QuotesNotifier extends AsyncNotifier<List<Quote>> {
     return q;
   }
 
-  Future<void> update(Quote updated) async {
+  Future<void> save(Quote updated) async {
     final list = (state.value ?? const <Quote>[])
         .map((q) => q.id == updated.id ? updated : q)
         .toList();
