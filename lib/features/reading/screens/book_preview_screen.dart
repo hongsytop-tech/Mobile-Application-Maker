@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../models/book.dart';
 import '../providers/book_providers.dart';
 import '../services/book_search_service.dart';
 import '../services/book_toc_service.dart';
@@ -138,37 +139,48 @@ class _BookPreviewScreenState extends ConsumerState<BookPreviewScreen> {
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: FilledButton.icon(
-            icon: _adding
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
+          child: _adding
+              ? const Center(
+                  heightFactor: 1.4,
+                  child: CircularProgressIndicator(),
+                )
+              : Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.bookmark_add_outlined),
+                        label: const Text('위시리스트'),
+                        onPressed: () => _add(BookStatus.wishlist),
+                      ),
                     ),
-                  )
-                : const Icon(Icons.add),
-            label: const Text('내 책장에 추가'),
-            onPressed: _adding ? null : _add,
-          ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton.icon(
+                        icon: const Icon(Icons.menu_book),
+                        label: const Text('읽기 시작'),
+                        onPressed: () => _add(BookStatus.reading),
+                      ),
+                    ),
+                  ],
+                ),
         ),
       ),
     );
   }
 
-  Future<void> _add() async {
+  Future<void> _add(BookStatus status) async {
     setState(() => _adding = true);
     try {
       final notifier = ref.read(booksProvider.notifier);
-      final book = await notifier.addFromSearch(widget.result);
+      final book = await notifier.addFromSearch(widget.result, status: status);
       // 미리보기에서 이미 가져온 메타데이터를 즉시 반영
       if (_meta != null) {
         await notifier.applyMetadata(book.id, _meta!);
       }
       if (!mounted) return;
+      final label = status == BookStatus.wishlist ? '위시리스트' : '책장';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('"${book.title}"을(를) 책장에 추가했어요')),
+        SnackBar(content: Text('"${book.title}"을(를) $label에 담았어요')),
       );
       Navigator.of(context).pop();
       Navigator.of(context).pushReplacement(

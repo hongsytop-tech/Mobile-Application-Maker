@@ -17,7 +17,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen>
     with SingleTickerProviderStateMixin {
-  late final TabController _tab = TabController(length: 2, vsync: this);
+  late final TabController _tab = TabController(length: 3, vsync: this);
 
   @override
   void dispose() {
@@ -61,7 +61,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               ),
               TabBar(
                 controller: _tab,
+                isScrollable: false,
+                labelPadding: EdgeInsets.zero,
                 tabs: const [
+                  Tab(text: '위시리스트'),
                   Tab(text: '읽고 있는 책'),
                   Tab(text: '내가 읽은 책'),
                 ],
@@ -74,11 +77,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('오류: $e')),
         data: (_) {
+          final wishlist = ref.watch(wishlistBooksProvider);
           final reading = ref.watch(readingBooksProvider);
           final finished = ref.watch(finishedBooksProvider);
           return TabBarView(
             controller: _tab,
             children: [
+              _BookList(
+                books: wishlist,
+                emptyText: '읽고 싶은 책을 위시리스트에 담아보세요.\n검색 후 "위시리스트 담기"를 누르면 됩니다.',
+                showProgress: false,
+              ),
               _BookList(
                 books: reading,
                 emptyText: '아직 읽고 있는 책이 없어요.\n위의 검색창에서 책을 찾아보세요.',
@@ -106,6 +115,8 @@ class _BookList extends ConsumerWidget {
     required this.emptyText,
     this.showProgress = true,
   });
+
+  static final _won = NumberFormat('#,###');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -181,6 +192,10 @@ class _BookList extends ConsumerWidget {
                       Text('${(b.progress * 100).round()}%'),
                     ],
                   )
+                else if (b.status == BookStatus.wishlist && b.priceSales != null)
+                  Text('${_won.format(b.priceSales)}원',
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600))
                 else if (b.finishedAt != null)
                   Text('완독: ${df.format(b.finishedAt!)}',
                       style: const TextStyle(fontSize: 12)),
@@ -217,11 +232,15 @@ class _BookList extends ConsumerWidget {
                       ),
                     );
                   }
+                } else if (v == 'start') {
+                  await ref.read(booksProvider.notifier).markReading(b.id);
                 }
               },
-              itemBuilder: (_) => const [
-                PopupMenuItem(value: 'edit', child: Text('편집/상세')),
-                PopupMenuItem(value: 'delete', child: Text('삭제')),
+              itemBuilder: (_) => [
+                if (b.status == BookStatus.wishlist)
+                  const PopupMenuItem(value: 'start', child: Text('읽기 시작')),
+                const PopupMenuItem(value: 'edit', child: Text('편집/상세')),
+                const PopupMenuItem(value: 'delete', child: Text('삭제')),
               ],
             ),
             onTap: () => Navigator.of(context).push(

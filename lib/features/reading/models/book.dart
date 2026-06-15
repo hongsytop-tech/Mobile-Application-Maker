@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-enum BookStatus { reading, finished }
+enum BookStatus { wishlist, reading, finished }
 
 class TocItem {
   final String title;

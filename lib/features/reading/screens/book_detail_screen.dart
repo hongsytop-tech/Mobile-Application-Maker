@@ -114,7 +114,20 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
               );
             }),
           const SizedBox(height: 32),
-          if (isReading)
+          if (book.status == BookStatus.wishlist)
+            FilledButton.icon(
+              icon: const Icon(Icons.menu_book),
+              label: const Text('읽기 시작'),
+              onPressed: () async {
+                await ref.read(booksProvider.notifier).markReading(book.id);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('"읽고 있는 책"으로 옮겼어요')),
+                  );
+                }
+              },
+            )
+          else if (isReading)
             FilledButton.icon(
               icon: const Icon(Icons.check_circle_outline),
               label: const Text('다 읽었어요'),

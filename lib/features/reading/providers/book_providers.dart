@@ -27,7 +27,10 @@ class BooksNotifier extends AsyncNotifier<List<Book>> {
     await ref.read(bookStorageServiceProvider).saveAll(books);
   }
 
-  Future<Book> addFromSearch(BookSearchResult r) async {
+  Future<Book> addFromSearch(
+    BookSearchResult r, {
+    BookStatus status = BookStatus.reading,
+  }) async {
     final existing = state.value ?? const <Book>[];
     if (r.isbn.isNotEmpty &&
         existing.any((b) => b.isbn == r.isbn)) {
@@ -42,7 +45,7 @@ class BooksNotifier extends AsyncNotifier<List<Book>> {
       description: r.contents,
       isbn: r.isbn,
       toc: const [],
-      status: BookStatus.reading,
+      status: status,
       addedAt: DateTime.now(),
     );
     await _persist([...existing, book]);
@@ -113,6 +116,13 @@ class BooksNotifier extends AsyncNotifier<List<Book>> {
     await _persist(list);
   }
 }
+
+final wishlistBooksProvider = Provider<List<Book>>((ref) {
+  return ref.watch(booksProvider).value
+          ?.where((b) => b.status == BookStatus.wishlist)
+          .toList() ??
+      const [];
+});
 
 final readingBooksProvider = Provider<List<Book>>((ref) {
   return ref.watch(booksProvider).value
