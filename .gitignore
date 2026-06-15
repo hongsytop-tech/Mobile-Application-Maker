@@ -29,3 +29,8 @@ ios/Flutter/Flutter.podspec
 *.g.dart
 *.freezed.dart
 coverage/
+
+# Supabase
+supabase/.temp/
+supabase/.branches/
+.supabase/

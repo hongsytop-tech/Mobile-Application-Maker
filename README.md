@@ -20,11 +20,14 @@
    - https://developers.kakao.com → 내 애플리케이션 → REST API 키
 3. 알라딘 TTB 키 발급 (목차 자동 가져오기용)
    - https://www.aladin.co.kr/ttb/wblog_manage.aspx → TTB Key 발급
-4. 프로젝트 루트에 `.env` 파일 생성:
+4. **Supabase Edge Function 셋업** — [`docs/SUPABASE_SETUP.md`](./docs/SUPABASE_SETUP.md)
+   - 알라딘/교보문고 호출은 CORS로 직접 불가하므로 Supabase 프록시를 거침
+5. 프로젝트 루트에 `.env` 파일 생성:
    ```
    KAKAO_REST_API_KEY=발급받은_카카오_키
-   ALADIN_TTB_KEY=발급받은_알라딘_키
+   BOOK_TOC_PROXY_URL=https://<프로젝트>.supabase.co/functions/v1/book-toc
    ```
+   > 알라딘 TTB 키는 Supabase secret으로 보관 (클라이언트에 노출 X)
 
 ### 첫 실행
 ```bash
@@ -57,9 +60,18 @@ lib/
     └── reading/
         ├── models/book.dart
         ├── services/
-        │   ├── book_search_service.dart   # 카카오 책 API
-        │   ├── book_toc_service.dart      # 알라딘 TOC API
+        │   ├── book_search_service.dart   # 카카오 책 API (직접)
+        │   ├── book_toc_service.dart      # Supabase 프록시 → 알라딘/교보문고
         │   └── book_storage_service.dart  # SharedPreferences
+
+supabase/
+├── config.toml
+└── functions/
+    ├── _shared/cors.ts
+    └── book-toc/
+        ├── index.ts       # 프록시 엔트리포인트
+        ├── aladin.ts      # 알라딘 ItemLookUp
+        └── kyobo.ts       # 교보문고 스크래핑 (best-effort)
         ├── providers/book_providers.dart  # Riverpod
         ├── widgets/book_cover.dart
         └── screens/
@@ -71,8 +83,9 @@ lib/
 ## 🛣 다음 단계
 
 - [x] 알라딘 TOC 자동 가져오기
-- [ ] 교보문고 목차 자동 수집 (Supabase Edge Function 프록시 + 캐시)
-- [ ] AI 기반 목차 추정 (알라딘·교보문고에 모두 없을 때 fallback)
+- [x] 교보문고 TOC 폴백 (Supabase Edge Function 프록시)
+- [ ] 프록시에 캐싱 추가 (KV 또는 Postgres)
+- [ ] AI 기반 목차 추정 (모든 소스 실패 시 fallback)
 - [ ] 일일 독서 시간 타이머
 - [ ] 독서 메모/하이라이트
 - [ ] 통계 대시보드 (월별 완독 수, 장르 분포)

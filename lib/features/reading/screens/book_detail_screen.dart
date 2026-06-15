@@ -149,7 +149,7 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
       await ref.read(booksProvider.notifier).setToc(book.id, newToc);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('알라딘에서 ${newToc.length}개 챕터를 가져왔어요')),
+          SnackBar(content: Text('${newToc.length}개 챕터를 가져왔어요')),
         );
       }
     } on TocServiceUnavailable catch (e) {
