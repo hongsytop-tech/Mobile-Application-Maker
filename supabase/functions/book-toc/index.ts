@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
     let aladinError: string | null = null;
     if (isbn) {
       try {
-        aladinResult = await fetchAladin(isbn);
+        aladinResult = await fetchAladin(isbn, debug);
       } catch (e) {
         aladinError = String(e);
         console.error('Aladin failed:', e);
@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
     let kyoboResult: unknown = null;
     let kyoboError: string | null = null;
     try {
-      kyoboResult = await fetchKyobo(isbn, title);
+      kyoboResult = await fetchKyobo(isbn, title, debug);
     } catch (e) {
       kyoboError = String(e);
       console.error('Kyobo failed:', e);

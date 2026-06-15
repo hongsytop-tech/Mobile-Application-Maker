@@ -3,11 +3,16 @@ export interface AladinResult {
   priceStandard?: number;
   priceSales?: number;
   link?: string;
+  _rawToc?: string;
+  _hasSubInfo?: boolean;
 }
 
 const ENDPOINT = 'https://www.aladin.co.kr/ttb/api/ItemLookUp.aspx';
 
-export async function fetchAladin(isbn: string): Promise<AladinResult> {
+export async function fetchAladin(
+  isbn: string,
+  debug = false,
+): Promise<AladinResult> {
   const ttbKey = Deno.env.get('ALADIN_TTB_KEY') ?? '';
   if (!ttbKey) throw new Error('ALADIN_TTB_KEY is not set on Supabase secrets');
 
@@ -20,7 +25,7 @@ export async function fetchAladin(isbn: string): Promise<AladinResult> {
     ItemId: clean,
     output: 'js',
     Version: '20131101',
-    OptResult: 'Toc',
+    OptResult: 'Toc,fulldescription,subInfo',
   });
 
   const res = await fetch(`${ENDPOINT}?${params.toString()}`);
@@ -44,6 +49,12 @@ export async function fetchAladin(isbn: string): Promise<AladinResult> {
     priceStandard: item.priceStandard,
     priceSales: item.priceSales,
     link: item.link,
+    ...(debug
+      ? {
+          _rawToc: typeof sub.toc === 'string' ? sub.toc.slice(0, 500) : '',
+          _hasSubInfo: !!item.subInfo,
+        }
+      : {}),
   };
 }
 

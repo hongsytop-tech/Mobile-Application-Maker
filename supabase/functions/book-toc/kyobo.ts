@@ -1,6 +1,12 @@
 export interface KyoboResult {
   toc: string[];
   link?: string;
+  _debug?: {
+    htmlLength: number;
+    hasTocKeyword: boolean;
+    snippet?: string;
+    productMatched?: boolean;
+  };
 }
 
 const UA =
@@ -18,6 +24,7 @@ const UA =
 export async function fetchKyobo(
   isbn: string,
   title: string,
+  debug = false,
 ): Promise<KyoboResult> {
   const keyword = isbn || title;
   if (!keyword) return { toc: [] };
@@ -32,14 +39,36 @@ export async function fetchKyobo(
   const productMatch = searchHtml.match(
     /https:\/\/product\.kyobobook\.co\.kr\/detail\/[A-Z0-9]+/i,
   );
-  if (!productMatch) return { toc: [] };
+  if (!productMatch) {
+    return debug
+      ? {
+          toc: [],
+          _debug: {
+            htmlLength: searchHtml.length,
+            hasTocKeyword: false,
+            productMatched: false,
+          },
+        }
+      : { toc: [] };
+  }
   const productUrl = productMatch[0];
 
   // 2. 상세 페이지에서 목차 추출
   const productHtml = await fetchText(productUrl);
   const toc = extractToc(productHtml);
 
-  return { toc, link: productUrl };
+  const result: KyoboResult = { toc, link: productUrl };
+  if (debug) {
+    const idx = productHtml.indexOf('목차');
+    result._debug = {
+      htmlLength: productHtml.length,
+      hasTocKeyword: idx >= 0,
+      snippet:
+        idx >= 0 ? productHtml.substring(idx, Math.min(idx + 800, productHtml.length)) : undefined,
+      productMatched: true,
+    };
+  }
+  return result;
 }
 
 async function fetchText(url: string): Promise<string> {
