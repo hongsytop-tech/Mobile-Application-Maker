@@ -63,7 +63,7 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
           _PriceAndLinks(
             book: book,
             fetching: _fetching,
-            onRefresh: () => _fetchMetadata(book),
+            onRefresh: () => _fetchMetadata(book, forceRefresh: true),
           ),
           if (book.description.isNotEmpty) ...[
             const SizedBox(height: 24),
@@ -139,11 +139,19 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
     );
   }
 
-  Future<void> _fetchMetadata(Book book, {bool showErrorSnack = true}) async {
+  Future<void> _fetchMetadata(
+    Book book, {
+    bool showErrorSnack = true,
+    bool forceRefresh = false,
+  }) async {
     setState(() => _fetching = true);
     try {
       final svc = ref.read(bookTocServiceProvider);
-      final meta = await svc.fetch(isbn: book.isbn, title: book.title);
+      final meta = await svc.fetch(
+        isbn: book.isbn,
+        title: book.title,
+        forceRefresh: forceRefresh,
+      );
       await ref.read(booksProvider.notifier).applyMetadata(book.id, meta);
       if (mounted && meta.hasAnything) {
         final msgs = <String>[];

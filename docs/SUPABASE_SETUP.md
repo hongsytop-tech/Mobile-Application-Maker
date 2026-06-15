@@ -50,6 +50,20 @@ supabase secrets set NLK_CERT_KEY=발급받은_seoji_인증키
 
 > NLK_CERT_KEY가 없어도 함수는 동작 (알라딘만 사용). 있으면 TOC 커버리지가 더 넓어집니다.
 
+## 4-1. DB 마이그레이션 (캐시 테이블 생성)
+
+책 메타데이터를 ISBN 단위로 캐싱하여 외부 API 호출을 줄입니다.
+
+```bash
+# 저장소 루트에서
+supabase db push
+```
+
+또는 Supabase 대시보드 → SQL Editor에서 `supabase/migrations/0001_book_toc_cache.sql` 내용을 붙여넣어 실행해도 됩니다.
+
+> 캐시 테이블은 RLS가 켜져 있어 Edge Function(service_role)만 접근합니다.
+> `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`는 Edge Function에 자동 주입되므로 별도 설정 불필요.
+
 ## 5. Edge Function 배포
 
 ```bash

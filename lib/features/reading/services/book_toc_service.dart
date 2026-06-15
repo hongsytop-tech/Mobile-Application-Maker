@@ -57,10 +57,15 @@ class BookTocService {
     return url;
   }
 
-  Future<BookMetadata> fetch({String? isbn, String? title}) async {
+  Future<BookMetadata> fetch({
+    String? isbn,
+    String? title,
+    bool forceRefresh = false,
+  }) async {
     final params = <String, String>{};
     if (isbn != null && isbn.isNotEmpty) params['isbn'] = isbn;
     if (title != null && title.isNotEmpty) params['title'] = title;
+    if (forceRefresh) params['nocache'] = '1';
     if (params.isEmpty) {
       throw const TocServiceUnavailable('ISBN 또는 제목이 필요합니다.');
     }
