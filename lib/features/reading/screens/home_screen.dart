@@ -7,6 +7,7 @@ import '../providers/book_providers.dart';
 import '../widgets/book_cover.dart';
 import 'book_detail_screen.dart';
 import 'search_screen.dart';
+import 'stats_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -40,6 +41,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('내 책장'),
+        actions: [
+          IconButton(
+            tooltip: '독서 통계',
+            icon: const Icon(Icons.bar_chart),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const StatsScreen()),
+            ),
+          ),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(112),
           child: Column(
