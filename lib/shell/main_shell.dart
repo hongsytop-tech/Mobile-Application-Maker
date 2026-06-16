@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../features/auth/screens/profile_screen.dart';
 import '../features/diary/screens/diary_calendar_screen.dart';
+import '../features/kakao/services/kakao_link_service.dart';
 import '../features/quotes/screens/quotes_screen.dart';
 import '../features/reading/screens/home_screen.dart';
 import '../features/todo/screens/todo_home_screen.dart';
@@ -17,6 +18,28 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _handleKakaoCallback());
+  }
+
+  Future<void> _handleKakaoCallback() async {
+    final result = await KakaoLinkService.handleRedirectIfAny();
+    if (result == null || !mounted) return;
+    final msg = result.ok
+        ? (result.hasTalkMessage
+            ? '✅ 카카오톡 알림 연동 완료!'
+            : '⚠️ 연동됐지만 "메시지 전송" 동의가 빠졌어요. 마이페이지에서 다시 연동해주세요.')
+        : '❌ 카카오 연동 실패: ${result.error}';
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(
+        content: Text(msg),
+        duration: const Duration(seconds: 5),
+      ));
+  }
 
   @override
   Widget build(BuildContext context) {
