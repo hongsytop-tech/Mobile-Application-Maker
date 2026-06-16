@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -12,6 +13,8 @@ class UpdateBanner extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // 웹에선 OS 인스톨러 흐름이 없으므로 배너 자체 숨김
+    if (kIsWeb) return const SizedBox.shrink();
     final asyncInfo = ref.watch(updateCheckProvider);
     return asyncInfo.when(
       loading: () => _DebugBanner(text: '업데이트 확인 중...', color: Colors.orange),

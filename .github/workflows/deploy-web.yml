@@ -1,0 +1,74 @@
+name: Deploy Web to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  REPO_NAME: ${{ github.event.repository.name }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.22.x
+          cache: true
+
+      - name: Flutter version
+        run: flutter --version
+
+      - name: Generate web platform
+        run: flutter create . --project-name self_dev_app --org com.selfdev --platforms=web
+
+      - name: Create .env
+        run: |
+          cat > .env <<EOF
+          KAKAO_REST_API_KEY=${{ secrets.KAKAO_REST_API_KEY }}
+          BOOK_TOC_PROXY_URL=${{ secrets.BOOK_TOC_PROXY_URL }}
+          SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+          GOOGLE_WEB_CLIENT_ID=${{ secrets.GOOGLE_WEB_CLIENT_ID }}
+          EOF
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build web
+        run: |
+          flutter build web --release \
+            --base-href "/${REPO_NAME}/" \
+            --build-number=${{ github.run_number }}
+
+      - name: Add 404 fallback (SPA routing)
+        run: cp build/web/index.html build/web/404.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
