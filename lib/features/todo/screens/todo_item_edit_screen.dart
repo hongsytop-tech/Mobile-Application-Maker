@@ -205,14 +205,25 @@ class _TodoItemEditScreenState extends ConsumerState<TodoItemEditScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          TextField(
-            controller: _textCtrl,
-            maxLines: 1,
-            autofocus: _isNew,
-            textInputAction: TextInputAction.done,
-            decoration: const InputDecoration(
-              hintText: '할 일 / 목표를 입력하세요',
-              border: OutlineInputBorder(),
+          SizedBox(
+            height: 56,
+            child: TextField(
+              controller: _textCtrl,
+              maxLines: 1,
+              autofocus: _isNew,
+              keyboardType: TextInputType.text,
+              textInputAction: TextInputAction.done,
+              textAlignVertical: TextAlignVertical.center,
+              autocorrect: false,
+              enableSuggestions: false,
+              onSubmitted: (_) => _save(),
+              decoration: const InputDecoration(
+                hintText: '할 일 / 목표를 입력하세요',
+                border: OutlineInputBorder(),
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 16),
+              ),
             ),
           ),
           const SizedBox(height: 20),
