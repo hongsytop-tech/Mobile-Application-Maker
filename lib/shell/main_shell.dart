@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../features/auth/screens/profile_screen.dart';
 import '../features/diary/screens/diary_calendar_screen.dart';
 import '../features/quotes/screens/quotes_screen.dart';
 import '../features/reading/screens/home_screen.dart';
@@ -32,6 +33,7 @@ class _MainShellState extends State<MainShell> {
                   TodoHomeScreen(),
                   DiaryCalendarScreen(),
                   QuotesScreen(),
+                  ProfileScreen(),
                 ],
               ),
             ),
@@ -61,6 +63,11 @@ class _MainShellState extends State<MainShell> {
             icon: Icon(Icons.format_quote_outlined),
             selectedIcon: Icon(Icons.format_quote),
             label: '문구',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: '마이',
           ),
         ],
       ),
