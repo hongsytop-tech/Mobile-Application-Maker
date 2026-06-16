@@ -21,6 +21,9 @@ class Quote {
   final int? intervalHours;
   final int? intervalMinutes;
 
+  /// 상단 고정 시각 (null이면 미고정). 여러 고정 항목 간 순서에 사용.
+  final DateTime? pinnedAt;
+
   const Quote({
     required this.id,
     required this.text,
@@ -31,7 +34,10 @@ class Quote {
     this.notifyMinute,
     this.intervalHours,
     this.intervalMinutes,
+    this.pinnedAt,
   });
+
+  bool get isPinned => pinnedAt != null;
 
   TimeOfDay? get notifyTime {
     if (notifyHour == null || notifyMinute == null) return null;
@@ -86,8 +92,10 @@ class Quote {
     int? notifyMinute,
     int? intervalHours,
     int? intervalMinutes,
+    DateTime? pinnedAt,
     bool clearDailyTime = false,
     bool clearInterval = false,
+    bool clearPin = false,
   }) {
     return Quote(
       id: id,
@@ -102,6 +110,7 @@ class Quote {
           clearInterval ? null : (intervalHours ?? this.intervalHours),
       intervalMinutes:
           clearInterval ? null : (intervalMinutes ?? this.intervalMinutes),
+      pinnedAt: clearPin ? null : (pinnedAt ?? this.pinnedAt),
     );
   }
 
@@ -115,6 +124,7 @@ class Quote {
         'notifyMinute': notifyMinute,
         'intervalHours': intervalHours,
         'intervalMinutes': intervalMinutes,
+        'pinnedAt': pinnedAt?.toIso8601String(),
       };
 
   factory Quote.fromJson(Map<String, dynamic> j) => Quote(
@@ -130,6 +140,9 @@ class Quote {
         notifyMinute: j['notifyMinute'] as int?,
         intervalHours: j['intervalHours'] as int?,
         intervalMinutes: j['intervalMinutes'] as int?,
+        pinnedAt: j['pinnedAt'] == null
+            ? null
+            : DateTime.parse(j['pinnedAt'] as String),
       );
 
   String toJsonString() => jsonEncode(toJson());

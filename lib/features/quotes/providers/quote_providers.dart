@@ -61,4 +61,37 @@ class QuotesNotifier extends AsyncNotifier<List<Quote>> {
     }
     await _persist(list.where((e) => e.id != id).toList());
   }
+
+  Future<void> togglePin(String id) async {
+    final list = (state.value ?? const <Quote>[]);
+    final updated = list.map((q) {
+      if (q.id != id) return q;
+      return q.copyWith(
+        pinnedAt: q.isPinned ? null : DateTime.now(),
+        clearPin: q.isPinned,
+      );
+    }).toList();
+    await _persist(updated);
+  }
 }
+
+/// 고정·미고정으로 분리된 정렬 결과.
+class SortedQuotes {
+  final List<Quote> pinned;
+  final List<Quote> others;
+
+  const SortedQuotes({required this.pinned, required this.others});
+
+  int get total => pinned.length + others.length;
+  bool get isEmpty => total == 0;
+}
+
+/// 고정된 것 우선, 각 그룹 안에서는 최신순.
+final sortedQuotesProvider = Provider<SortedQuotes>((ref) {
+  final all = ref.watch(quotesProvider).value ?? const <Quote>[];
+  final pinned = all.where((q) => q.isPinned).toList()
+    ..sort((a, b) => b.pinnedAt!.compareTo(a.pinnedAt!));
+  final others = all.where((q) => !q.isPinned).toList()
+    ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  return SortedQuotes(pinned: pinned, others: others);
+});

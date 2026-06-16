@@ -12,6 +12,7 @@ class QuotesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final asyncQuotes = ref.watch(quotesProvider);
+    final sorted = ref.watch(sortedQuotesProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('기억하고 싶은 문구')),
@@ -25,8 +26,8 @@ class QuotesScreen extends ConsumerWidget {
       body: asyncQuotes.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('오류: $e')),
-        data: (quotes) {
-          if (quotes.isEmpty) {
+        data: (_) {
+          if (sorted.isEmpty) {
             return const Center(
               child: Padding(
                 padding: EdgeInsets.all(32),
@@ -38,15 +39,62 @@ class QuotesScreen extends ConsumerWidget {
               ),
             );
           }
-          final sorted = [...quotes]
-            ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-          return ListView.separated(
+          return ListView(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 88),
-            itemCount: sorted.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (_, i) => _QuoteCard(quote: sorted[i]),
+            children: [
+              if (sorted.pinned.isNotEmpty) ...[
+                _SectionLabel(
+                  icon: Icons.push_pin,
+                  text: '고정됨 (${sorted.pinned.length})',
+                ),
+                const SizedBox(height: 8),
+                ...sorted.pinned.map((q) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: _QuoteCard(quote: q),
+                    )),
+                if (sorted.others.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  _SectionLabel(
+                    icon: Icons.history,
+                    text: '전체 (${sorted.others.length})',
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ],
+              ...sorted.others.map((q) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: _QuoteCard(quote: q),
+                  )),
+            ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  const _SectionLabel({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: Colors.grey.shade700),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade700,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -59,6 +107,9 @@ class _QuoteCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final df = DateFormat('yyyy.MM.dd');
+    final primary = Theme.of(context).colorScheme.primary;
+    final isPinned = quote.isPinned;
+
     return Dismissible(
       key: ValueKey(quote.id),
       direction: DismissDirection.endToStart,
@@ -89,7 +140,7 @@ class _QuoteCard extends ConsumerWidget {
       ),
       onDismissed: (_) => ref.read(quotesProvider.notifier).remove(quote.id),
       child: Material(
-        color: Colors.white,
+        color: isPinned ? primary.withOpacity(0.06) : Colors.white,
         elevation: 0,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
@@ -101,16 +152,43 @@ class _QuoteCard extends ConsumerWidget {
           ),
           child: Container(
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade300),
+              border: Border.all(
+                color: isPinned
+                    ? primary.withOpacity(0.4)
+                    : Colors.grey.shade300,
+              ),
               borderRadius: BorderRadius.circular(12),
             ),
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  quote.text,
-                  style: const TextStyle(fontSize: 15, height: 1.5),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        quote.text,
+                        style: const TextStyle(fontSize: 15, height: 1.5),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    InkWell(
+                      onTap: () =>
+                          ref.read(quotesProvider.notifier).togglePin(quote.id),
+                      borderRadius: BorderRadius.circular(20),
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: Icon(
+                          isPinned
+                              ? Icons.push_pin
+                              : Icons.push_pin_outlined,
+                          size: 20,
+                          color: isPinned ? primary : Colors.grey.shade400,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -126,13 +204,13 @@ class _QuoteCard extends ConsumerWidget {
                     if (quote.hasSchedule) ...[
                       const SizedBox(width: 12),
                       Icon(Icons.notifications_active,
-                          size: 14, color: Theme.of(context).colorScheme.primary),
+                          size: 14, color: primary),
                       const SizedBox(width: 4),
                       Text(
                         quote.scheduleLabel(null) ?? '',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Theme.of(context).colorScheme.primary,
+                          color: primary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
