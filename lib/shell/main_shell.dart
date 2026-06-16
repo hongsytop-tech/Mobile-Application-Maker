@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../features/quotes/screens/quotes_screen.dart';
 import '../features/reading/screens/home_screen.dart';
+import '../features/update/widgets/update_banner.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -16,11 +17,18 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _index,
-        children: const [
-          HomeScreen(),
-          QuotesScreen(),
+      body: Column(
+        children: [
+          const UpdateBanner(),
+          Expanded(
+            child: IndexedStack(
+              index: _index,
+              children: const [
+                HomeScreen(),
+                QuotesScreen(),
+              ],
+            ),
+          ),
         ],
       ),
       bottomNavigationBar: NavigationBar(
