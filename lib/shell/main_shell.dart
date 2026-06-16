@@ -18,20 +18,23 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
-        children: [
-          const UpdateBanner(),
-          Expanded(
-            child: IndexedStack(
-              index: _index,
-              children: const [
-                HomeScreen(),
-                DiaryCalendarScreen(),
-                QuotesScreen(),
-              ],
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            const UpdateBanner(),
+            Expanded(
+              child: IndexedStack(
+                index: _index,
+                children: const [
+                  HomeScreen(),
+                  DiaryCalendarScreen(),
+                  QuotesScreen(),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
