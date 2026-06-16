@@ -5,8 +5,7 @@ import '../models/quote.dart';
 import '../services/notification_service.dart';
 import '../services/quote_storage_service.dart';
 
-final quoteStorageServiceProvider =
-    Provider((_) => QuoteStorageService());
+final quoteStorageServiceProvider = Provider((_) => QuoteStorageService());
 
 final quotesProvider =
     AsyncNotifierProvider<QuotesNotifier, List<Quote>>(QuotesNotifier.new);
@@ -24,23 +23,21 @@ class QuotesNotifier extends AsyncNotifier<List<Quote>> {
     await ref.read(quoteStorageServiceProvider).saveAll(quotes);
   }
 
-  Future<Quote> add({
-    required String text,
-    int? notifyHour,
-    int? notifyMinute,
-    bool notifyEnabled = false,
-  }) async {
+  Future<Quote> add(Quote draft) async {
     final q = Quote(
       id: _uuid.v4(),
-      text: text,
+      text: draft.text,
       createdAt: DateTime.now(),
-      notifyHour: notifyHour,
-      notifyMinute: notifyMinute,
-      notifyEnabled: notifyEnabled,
+      notifyEnabled: draft.notifyEnabled,
+      notifyMode: draft.notifyMode,
+      notifyHour: draft.notifyHour,
+      notifyMinute: draft.notifyMinute,
+      intervalHours: draft.intervalHours,
+      intervalMinutes: draft.intervalMinutes,
     );
     await _persist([...(state.value ?? const <Quote>[]), q]);
     if (q.hasSchedule) {
-      await NotificationService.scheduleDaily(q);
+      await NotificationService.scheduleForQuote(q);
     }
     return q;
   }
@@ -50,10 +47,9 @@ class QuotesNotifier extends AsyncNotifier<List<Quote>> {
         .map((q) => q.id == updated.id ? updated : q)
         .toList();
     await _persist(list);
-    // 알림 재스케줄
     await NotificationService.cancel(updated.notificationId);
     if (updated.hasSchedule) {
-      await NotificationService.scheduleDaily(updated);
+      await NotificationService.scheduleForQuote(updated);
     }
   }
 

@@ -17,7 +17,10 @@ class QuoteEditScreen extends ConsumerStatefulWidget {
 class _QuoteEditScreenState extends ConsumerState<QuoteEditScreen> {
   late final TextEditingController _textCtrl;
   late bool _notifyEnabled;
+  late NotifyMode _mode;
   TimeOfDay? _time;
+  int _intervalHours = 0;
+  int _intervalMinutes = 30;
   bool _saving = false;
 
   bool get _isNew => widget.quote == null;
@@ -28,7 +31,10 @@ class _QuoteEditScreenState extends ConsumerState<QuoteEditScreen> {
     final q = widget.quote;
     _textCtrl = TextEditingController(text: q?.text ?? '');
     _notifyEnabled = q?.notifyEnabled ?? false;
-    _time = q?.notifyTime;
+    _mode = q?.notifyMode ?? NotifyMode.daily;
+    _time = q?.notifyTime ?? const TimeOfDay(hour: 9, minute: 0);
+    _intervalHours = q?.intervalHours ?? 0;
+    _intervalMinutes = q?.intervalMinutes ?? 30;
   }
 
   @override
@@ -54,12 +60,18 @@ class _QuoteEditScreenState extends ConsumerState<QuoteEditScreen> {
       return;
     }
 
+    if (_notifyEnabled && _mode == NotifyMode.interval) {
+      final total = _intervalHours * 60 + _intervalMinutes;
+      if (total < 1) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('알림 간격을 1분 이상으로 설정해 주세요')),
+        );
+        return;
+      }
+    }
+
     setState(() => _saving = true);
     try {
-      // 알림 켰는데 시간 미설정이면 9시로 기본
-      final hour = _notifyEnabled ? (_time?.hour ?? 9) : null;
-      final minute = _notifyEnabled ? (_time?.minute ?? 0) : null;
-
       if (_notifyEnabled && NotificationService.supported) {
         final granted = await NotificationService.requestPermission();
         if (!granted && mounted) {
@@ -72,21 +84,34 @@ class _QuoteEditScreenState extends ConsumerState<QuoteEditScreen> {
       }
 
       final notifier = ref.read(quotesProvider.notifier);
+      final isDaily = _mode == NotifyMode.daily;
+
+      final draft = Quote(
+        id: widget.quote?.id ?? 'draft',
+        text: text,
+        createdAt: widget.quote?.createdAt ?? DateTime.now(),
+        notifyEnabled: _notifyEnabled,
+        notifyMode: _mode,
+        notifyHour: _notifyEnabled && isDaily ? _time!.hour : null,
+        notifyMinute: _notifyEnabled && isDaily ? _time!.minute : null,
+        intervalHours: _notifyEnabled && !isDaily ? _intervalHours : null,
+        intervalMinutes: _notifyEnabled && !isDaily ? _intervalMinutes : null,
+      );
+
       if (_isNew) {
-        await notifier.add(
-          text: text,
-          notifyHour: hour,
-          notifyMinute: minute,
-          notifyEnabled: _notifyEnabled,
-        );
+        await notifier.add(draft);
       } else {
         await notifier.save(
           widget.quote!.copyWith(
             text: text,
-            notifyHour: hour,
-            notifyMinute: minute,
             notifyEnabled: _notifyEnabled,
-            clearNotifyTime: !_notifyEnabled,
+            notifyMode: _mode,
+            notifyHour: draft.notifyHour,
+            notifyMinute: draft.notifyMinute,
+            intervalHours: draft.intervalHours,
+            intervalMinutes: draft.intervalMinutes,
+            clearDailyTime: !isDaily || !_notifyEnabled,
+            clearInterval: isDaily || !_notifyEnabled,
           ),
         );
       }
@@ -130,24 +155,102 @@ class _QuoteEditScreenState extends ConsumerState<QuoteEditScreen> {
             child: Column(
               children: [
                 SwitchListTile(
-                  title: const Text('매일 알림 받기'),
-                  subtitle: const Text('지정한 시간에 이 문구를 알려드려요'),
+                  title: const Text('알림 받기'),
+                  subtitle: const Text('지정한 방식으로 이 문구를 알려드려요'),
                   value: _notifyEnabled,
                   onChanged: (v) => setState(() => _notifyEnabled = v),
                 ),
                 if (_notifyEnabled) ...[
                   const Divider(height: 1),
-                  ListTile(
-                    leading: const Icon(Icons.access_time),
-                    title: const Text('알림 시간'),
-                    trailing: Text(
-                      _time != null
-                          ? _time!.format(context)
-                          : '시간 선택',
-                      style: const TextStyle(fontSize: 16),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                    child: SegmentedButton<NotifyMode>(
+                      segments: const [
+                        ButtonSegment(
+                          value: NotifyMode.daily,
+                          label: Text('매일 지정 시간'),
+                          icon: Icon(Icons.schedule),
+                        ),
+                        ButtonSegment(
+                          value: NotifyMode.interval,
+                          label: Text('반복 간격'),
+                          icon: Icon(Icons.repeat),
+                        ),
+                      ],
+                      selected: {_mode},
+                      showSelectedIcon: false,
+                      onSelectionChanged: (s) =>
+                          setState(() => _mode = s.first),
                     ),
-                    onTap: _pickTime,
                   ),
+                  if (_mode == NotifyMode.daily) ...[
+                    ListTile(
+                      leading: const Icon(Icons.access_time),
+                      title: const Text('알림 시간'),
+                      trailing: Text(
+                        _time != null
+                            ? _time!.format(context)
+                            : '시간 선택',
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                      onTap: _pickTime,
+                    ),
+                  ] else ...[
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            '반복 간격',
+                            style: TextStyle(
+                                fontSize: 14, fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _NumberStepper(
+                                  label: '시간',
+                                  value: _intervalHours,
+                                  min: 0,
+                                  max: 23,
+                                  onChanged: (v) =>
+                                      setState(() => _intervalHours = v),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _NumberStepper(
+                                  label: '분',
+                                  value: _intervalMinutes,
+                                  min: 0,
+                                  max: 59,
+                                  step: 5,
+                                  onChanged: (v) =>
+                                      setState(() => _intervalMinutes = v),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            _intervalSummary(),
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '💡 너무 짧은 간격(1~5분)은 배터리 소모가 큽니다.',
+                            style: TextStyle(
+                                fontSize: 11, color: Colors.grey.shade600),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ],
             ),
@@ -159,6 +262,78 @@ class _QuoteEditScreenState extends ConsumerState<QuoteEditScreen> {
               style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  String _intervalSummary() {
+    final total = _intervalHours * 60 + _intervalMinutes;
+    if (total < 1) return '간격을 설정해 주세요';
+    final parts = <String>[];
+    if (_intervalHours > 0) parts.add('${_intervalHours}시간');
+    if (_intervalMinutes > 0) parts.add('${_intervalMinutes}분');
+    return '${parts.join(' ')}마다 알림';
+  }
+}
+
+class _NumberStepper extends StatelessWidget {
+  final String label;
+  final int value;
+  final int min;
+  final int max;
+  final int step;
+  final ValueChanged<int> onChanged;
+
+  const _NumberStepper({
+    required this.label,
+    required this.value,
+    required this.min,
+    required this.max,
+    this.step = 1,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+      child: Column(
+        children: [
+          Text(label,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              IconButton(
+                onPressed: value > min
+                    ? () => onChanged(
+                        (value - step).clamp(min, max))
+                    : null,
+                icon: const Icon(Icons.remove_circle_outline),
+                visualDensity: VisualDensity.compact,
+              ),
+              Text(
+                '$value',
+                style: const TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              IconButton(
+                onPressed: value < max
+                    ? () => onChanged(
+                        (value + step).clamp(min, max))
+                    : null,
+                icon: const Icon(Icons.add_circle_outline),
+                visualDensity: VisualDensity.compact,
+              ),
+            ],
+          ),
         ],
       ),
     );

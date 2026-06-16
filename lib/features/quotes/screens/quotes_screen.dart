@@ -129,7 +129,7 @@ class _QuoteCard extends ConsumerWidget {
                           size: 14, color: Theme.of(context).colorScheme.primary),
                       const SizedBox(width: 4),
                       Text(
-                        '매일 ${quote.notifyTime!.format(context)}',
+                        quote.scheduleLabel(null) ?? '',
                         style: TextStyle(
                           fontSize: 12,
                           color: Theme.of(context).colorScheme.primary,
