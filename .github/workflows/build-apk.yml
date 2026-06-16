@@ -1,10 +1,6 @@
 name: Build Android APK
 
 on:
-  push:
-    branches:
-      - main
-      - 'claude/**'
   workflow_dispatch:
 
 permissions:

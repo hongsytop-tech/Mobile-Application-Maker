@@ -37,6 +37,66 @@ jobs:
       - name: Generate web platform
         run: flutter create . --project-name self_dev_app --org com.selfdev --platforms=web
 
+      - name: Customize PWA manifest
+        run: |
+          cat > web/manifest.json <<'EOF'
+          {
+              "name": "Self-Dev",
+              "short_name": "Self-Dev",
+              "start_url": "./",
+              "display": "standalone",
+              "background_color": "#FFFFFF",
+              "theme_color": "#3F51B5",
+              "description": "자기계발을 위한 통합 앱 (독서·할일·문구·일기)",
+              "orientation": "portrait-primary",
+              "prefer_related_applications": false,
+              "icons": [
+                  {
+                      "src": "icons/Icon-192.png",
+                      "sizes": "192x192",
+                      "type": "image/png"
+                  },
+                  {
+                      "src": "icons/Icon-512.png",
+                      "sizes": "512x512",
+                      "type": "image/png"
+                  },
+                  {
+                      "src": "icons/Icon-maskable-192.png",
+                      "sizes": "192x192",
+                      "type": "image/png",
+                      "purpose": "maskable"
+                  },
+                  {
+                      "src": "icons/Icon-maskable-512.png",
+                      "sizes": "512x512",
+                      "type": "image/png",
+                      "purpose": "maskable"
+                  }
+              ]
+          }
+          EOF
+
+      - name: Inject iOS PWA meta tags
+        run: |
+          python3 - <<'PY'
+          import re, pathlib
+          p = pathlib.Path('web/index.html')
+          html = p.read_text(encoding='utf-8')
+          inject = '''
+            <meta name="apple-mobile-web-app-capable" content="yes">
+            <meta name="apple-mobile-web-app-status-bar-style" content="default">
+            <meta name="apple-mobile-web-app-title" content="Self-Dev">
+            <meta name="mobile-web-app-capable" content="yes">
+            <meta name="theme-color" content="#3F51B5">
+            <link rel="apple-touch-icon" href="icons/Icon-192.png">
+          '''
+          if 'apple-mobile-web-app-capable' not in html:
+              html = re.sub(r'(<title>.*?</title>)', inject + r'\1', html, count=1, flags=re.S)
+          p.write_text(html, encoding='utf-8')
+          print('iOS PWA meta tags injected')
+          PY
+
       - name: Create .env
         run: |
           cat > .env <<EOF
