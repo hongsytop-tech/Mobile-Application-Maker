@@ -219,6 +219,35 @@ class _ItemTile extends ConsumerWidget {
   const _ItemTile(
       {required this.item, required this.color, required this.index});
 
+  Future<void> _confirmDelete(
+      BuildContext context, WidgetRef ref, TodoItem it) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('이 항목을 삭제할까요?'),
+        content: Text(it.text,
+            maxLines: 3, overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 13, color: Colors.grey)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('취소'),
+          ),
+          FilledButton.tonal(
+            style: FilledButton.styleFrom(
+                backgroundColor: Colors.red.shade50,
+                foregroundColor: Colors.red.shade700),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await ref.read(todoItemsProvider.notifier).remove(it.id);
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final df = DateFormat('MM.dd HH:mm');
@@ -289,6 +318,16 @@ class _ItemTile extends ConsumerWidget {
                     ],
                   ),
                 ],
+              ),
+            ),
+            InkWell(
+              onTap: () => _confirmDelete(context, ref, item),
+              borderRadius: BorderRadius.circular(20),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 4, vertical: 8),
+                child: Icon(Icons.delete_outline,
+                    size: 20, color: Colors.red.shade400),
               ),
             ),
             ReorderableDragStartListener(

@@ -19,12 +19,15 @@ class QuotesScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('기억하고 싶은 문구'),
         actions: [
-          IconButton(
-            tooltip: '순차 알림 설정',
-            icon: const Icon(Icons.campaign_outlined),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const QuoteRotationSettingsScreen(),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            child: FilledButton.tonalIcon(
+              icon: const Icon(Icons.campaign, size: 18),
+              label: const Text('순차 알림'),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const QuoteRotationSettingsScreen(),
+                ),
               ),
             ),
           ),
@@ -164,6 +167,35 @@ class _QuoteCard extends ConsumerWidget {
   final int index;
   const _QuoteCard({required this.quote, required this.index});
 
+  Future<void> _confirmDelete(
+      BuildContext context, WidgetRef ref, Quote q) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('이 문구를 삭제할까요?'),
+        content: Text(q.text,
+            maxLines: 4, overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 13, color: Colors.grey)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('취소'),
+          ),
+          FilledButton.tonal(
+            style: FilledButton.styleFrom(
+                backgroundColor: Colors.red.shade50,
+                foregroundColor: Colors.red.shade700),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await ref.read(quotesProvider.notifier).remove(q.id);
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final df = DateFormat('yyyy.MM.dd');
@@ -246,6 +278,18 @@ class _QuoteCard extends ConsumerWidget {
                               : Icons.push_pin_outlined,
                           size: 20,
                           color: isPinned ? primary : Colors.grey.shade400,
+                        ),
+                      ),
+                    ),
+                    InkWell(
+                      onTap: () => _confirmDelete(context, ref, quote),
+                      borderRadius: BorderRadius.circular(20),
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: Icon(
+                          Icons.delete_outline,
+                          size: 20,
+                          color: Colors.red.shade400,
                         ),
                       ),
                     ),
