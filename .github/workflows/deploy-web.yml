@@ -116,6 +116,48 @@ jobs:
             --base-href "/${REPO_NAME}/" \
             --build-number=${{ github.run_number }}
 
+      - name: Patch service worker for instant updates
+        run: |
+          python3 - <<'PY'
+          import pathlib, re
+          sw = pathlib.Path('build/web/flutter_service_worker.js')
+          src = sw.read_text(encoding='utf-8')
+          # 새 SW 다운로드 즉시 활성화 + 기존 클라이언트 점유
+          if 'self.skipWaiting()' not in src:
+              src = re.sub(
+                  r'(self\.addEventListener\("install",\s*\([^)]*\)\s*=>\s*\{)',
+                  r'\1\n  self.skipWaiting();',
+                  src, count=1)
+          if 'self.clients.claim()' not in src:
+              src = re.sub(
+                  r'(self\.addEventListener\("activate",\s*\([^)]*\)\s*=>\s*\{)',
+                  r'\1\n  self.clients.claim();',
+                  src, count=1)
+          sw.write_text(src, encoding='utf-8')
+          print('flutter_service_worker.js patched (skipWaiting + clients.claim)')
+
+          # index.html 에 controllerchange 시 자동 새로고침 스크립트 주입
+          idx = pathlib.Path('build/web/index.html')
+          html = idx.read_text(encoding='utf-8')
+          marker = '__sw_reload_injected__'
+          if marker not in html:
+              snippet = f'''<script>
+            // {marker}
+            if ('serviceWorker' in navigator) {{
+              let reloaded = false;
+              navigator.serviceWorker.addEventListener('controllerchange', () => {{
+                if (reloaded) return;
+                reloaded = true;
+                window.location.reload();
+              }});
+            }}
+          </script>
+          </body>'''
+              html = html.replace('</body>', snippet, 1)
+              idx.write_text(html, encoding='utf-8')
+              print('index.html patched (controllerchange auto-reload)')
+          PY
+
       - name: Add 404 fallback (SPA routing)
         run: cp build/web/index.html build/web/404.html
 
