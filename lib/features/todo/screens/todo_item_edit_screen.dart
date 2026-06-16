@@ -160,9 +160,10 @@ class _TodoItemEditScreenState extends ConsumerState<TodoItemEditScreen> {
         children: [
           TextField(
             controller: _textCtrl,
-            maxLines: 3,
-            minLines: 1,
+            maxLines: 1,
             autofocus: _isNew,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => _save(),
             decoration: const InputDecoration(
               hintText: '할 일을 입력하세요',
               border: OutlineInputBorder(),
