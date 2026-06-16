@@ -5,6 +5,8 @@ import 'package:intl/date_symbol_data_local.dart';
 
 import 'app.dart';
 import 'features/auth/services/supabase_service.dart';
+import 'features/auth/services/sync_web_stub.dart'
+    if (dart.library.html) 'features/auth/services/sync_web.dart';
 import 'features/quotes/services/notification_service.dart';
 
 Future<void> main() async {
@@ -17,5 +19,6 @@ Future<void> main() async {
   await initializeDateFormatting('ko_KR');
   await NotificationService.init();
   await SupabaseService.init();
+  setupSyncTabCloseFlush();
   runApp(const ProviderScope(child: SelfDevApp()));
 }

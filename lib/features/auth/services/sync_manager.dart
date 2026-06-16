@@ -15,7 +15,10 @@ class SyncManager {
   SyncManager._();
   static final SyncManager instance = SyncManager._();
 
-  static const _debounce = Duration(seconds: 3);
+  /// 웹은 모바일 브라우저가 백그라운드에서 탭을 임의 종료할 수 있어
+  /// 디바운스를 매우 짧게(거의 즉시) 한다. 네이티브는 잦은 push 부담 방지로 3초.
+  static final Duration _debounce =
+      kIsWeb ? const Duration(milliseconds: 300) : const Duration(seconds: 3);
 
   Timer? _timer;
   bool _busy = false;
