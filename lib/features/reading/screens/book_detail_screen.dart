@@ -211,21 +211,25 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
                 dense: true,
               );
             }),
-          if (_hasDraftChanges) ...[
+          if (book.toc.isNotEmpty) ...[
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Theme.of(context)
-                    .colorScheme
-                    .primary
-                    .withOpacity(0.08),
+                color: _hasDraftChanges
+                    ? Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withOpacity(0.08)
+                    : Colors.grey.shade100,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .primary
-                      .withOpacity(0.3),
+                  color: _hasDraftChanges
+                      ? Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withOpacity(0.4)
+                      : Colors.grey.shade300,
                 ),
               ),
               child: Column(
@@ -234,17 +238,25 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
                   Row(
                     children: [
                       Icon(
-                        Icons.edit_note,
+                        _hasDraftChanges
+                            ? Icons.edit_note
+                            : Icons.check_circle_outline,
                         size: 18,
-                        color: Theme.of(context).colorScheme.primary,
+                        color: _hasDraftChanges
+                            ? Theme.of(context).colorScheme.primary
+                            : Colors.grey.shade600,
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        '${_draftToc!.length}개 항목 변경됨',
+                        _hasDraftChanges
+                            ? '${_draftToc!.length}개 항목 변경됨'
+                            : '저장된 상태입니다',
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: Theme.of(context).colorScheme.primary,
+                          color: _hasDraftChanges
+                              ? Theme.of(context).colorScheme.primary
+                              : Colors.grey.shade700,
                         ),
                       ),
                     ],
@@ -254,7 +266,9 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
                     children: [
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: _savingToc ? null : _discardDraft,
+                          onPressed: (_hasDraftChanges && !_savingToc)
+                              ? _discardDraft
+                              : null,
                           child: const Text('취소'),
                         ),
                       ),
@@ -263,7 +277,9 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
                         flex: 2,
                         child: FilledButton.icon(
                           onPressed:
-                              _savingToc ? null : () => _saveDraft(book),
+                              (_hasDraftChanges && !_savingToc)
+                                  ? () => _saveDraft(book)
+                                  : null,
                           icon: _savingToc
                               ? const SizedBox(
                                   width: 14,
