@@ -8,6 +8,8 @@ import 'features/auth/services/supabase_service.dart';
 import 'features/auth/services/sync_web_stub.dart'
     if (dart.library.html) 'features/auth/services/sync_web.dart';
 import 'features/quotes/services/notification_service.dart';
+import 'features/update/services/web_update_detector_stub.dart'
+    if (dart.library.html) 'features/update/services/web_update_detector_web.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,5 +22,6 @@ Future<void> main() async {
   await NotificationService.init();
   await SupabaseService.init();
   setupSyncTabCloseFlush();
+  WebUpdateDetector.init();
   runApp(const ProviderScope(child: SelfDevApp()));
 }

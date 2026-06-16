@@ -136,26 +136,7 @@ jobs:
           sw.write_text(src, encoding='utf-8')
           print('flutter_service_worker.js patched (skipWaiting + clients.claim)')
 
-          # index.html 에 controllerchange 시 자동 새로고침 스크립트 주입
-          idx = pathlib.Path('build/web/index.html')
-          html = idx.read_text(encoding='utf-8')
-          marker = '__sw_reload_injected__'
-          if marker not in html:
-              snippet = f'''<script>
-            // {marker}
-            if ('serviceWorker' in navigator) {{
-              let reloaded = false;
-              navigator.serviceWorker.addEventListener('controllerchange', () => {{
-                if (reloaded) return;
-                reloaded = true;
-                window.location.reload();
-              }});
-            }}
-          </script>
-          </body>'''
-              html = html.replace('</body>', snippet, 1)
-              idx.write_text(html, encoding='utf-8')
-              print('index.html patched (controllerchange auto-reload)')
+          # (자동 새로고침은 사용자 입력을 끊을 수 있어 제거 — Dart 측 배너가 처리)
           PY
 
       - name: Add 404 fallback (SPA routing)

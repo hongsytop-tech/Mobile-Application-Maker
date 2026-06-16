@@ -6,6 +6,7 @@ import '../features/quotes/screens/quotes_screen.dart';
 import '../features/reading/screens/home_screen.dart';
 import '../features/todo/screens/todo_home_screen.dart';
 import '../features/update/widgets/update_banner.dart';
+import '../features/update/widgets/web_update_banner.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -25,6 +26,7 @@ class _MainShellState extends State<MainShell> {
         child: Column(
           children: [
             const UpdateBanner(),
+            const WebUpdateBanner(),
             Expanded(
               child: IndexedStack(
                 index: _index,
