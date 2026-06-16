@@ -45,6 +45,30 @@ class TodoCategoriesNotifier extends AsyncNotifier<List<TodoCategory>> {
     await _persist(list);
   }
 
+  /// 주어진 ID 순서대로 order = 0,1,2,... 재할당
+  Future<void> reorder(List<String> orderedIds) async {
+    final list = [...(state.value ?? const <TodoCategory>[])];
+    final byId = {for (final c in list) c.id: c};
+    final updated = <TodoCategory>[];
+    for (int i = 0; i < orderedIds.length; i++) {
+      final c = byId[orderedIds[i]];
+      if (c != null) {
+        updated.add(c.copyWith(order: i));
+        byId.remove(orderedIds[i]);
+      }
+    }
+    updated.addAll(byId.values);
+    await _persist(updated);
+  }
+
+  Future<void> toggleCollapsed(String id) async {
+    final list = (state.value ?? const <TodoCategory>[]).map((c) {
+      if (c.id != id) return c;
+      return c.copyWith(collapsed: !c.collapsed);
+    }).toList();
+    await _persist(list);
+  }
+
   Future<void> remove(String id) async {
     // 카테고리 삭제 시 그 카테고리의 항목들도 함께 삭제 + 알림 취소
     await ref.read(todoItemsProvider.notifier).removeByCategory(id);

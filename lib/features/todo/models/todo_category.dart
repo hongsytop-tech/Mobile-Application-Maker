@@ -15,6 +15,7 @@ class TodoCategory {
   final int colorIndex;
   final DateTime createdAt;
   final int order;
+  final bool collapsed;
 
   const TodoCategory({
     required this.id,
@@ -22,18 +23,21 @@ class TodoCategory {
     required this.colorIndex,
     required this.createdAt,
     required this.order,
+    this.collapsed = false,
   });
 
   int get colorValue =>
       todoCategoryColors[colorIndex.clamp(0, todoCategoryColors.length - 1)];
 
-  TodoCategory copyWith({String? name, int? colorIndex, int? order}) {
+  TodoCategory copyWith(
+      {String? name, int? colorIndex, int? order, bool? collapsed}) {
     return TodoCategory(
       id: id,
       name: name ?? this.name,
       colorIndex: colorIndex ?? this.colorIndex,
       createdAt: createdAt,
       order: order ?? this.order,
+      collapsed: collapsed ?? this.collapsed,
     );
   }
 
@@ -43,6 +47,7 @@ class TodoCategory {
         'colorIndex': colorIndex,
         'createdAt': createdAt.toIso8601String(),
         'order': order,
+        'collapsed': collapsed,
       };
 
   factory TodoCategory.fromJson(Map<String, dynamic> j) => TodoCategory(
@@ -51,6 +56,7 @@ class TodoCategory {
         colorIndex: j['colorIndex'] as int? ?? 0,
         createdAt: DateTime.parse(j['createdAt'] as String),
         order: j['order'] as int? ?? 0,
+        collapsed: j['collapsed'] as bool? ?? false,
       );
 
   String toJsonString() => jsonEncode(toJson());

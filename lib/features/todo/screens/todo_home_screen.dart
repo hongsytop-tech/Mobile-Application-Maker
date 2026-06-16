@@ -60,12 +60,34 @@ class TodoHomeScreen extends ConsumerWidget {
           }
           final sorted = [...categories]
             ..sort((a, b) => a.order.compareTo(b.order));
-          return ListView(
+          return ReorderableListView.builder(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 80),
-            children: sorted.map((cat) {
+            buildDefaultDragHandles: false,
+            itemCount: sorted.length,
+            onReorder: (oldIdx, newIdx) {
+              if (newIdx > oldIdx) newIdx -= 1;
+              final ids = sorted.map((c) => c.id).toList();
+              final moved = ids.removeAt(oldIdx);
+              ids.insert(newIdx, moved);
+              ref
+                  .read(todoCategoriesProvider.notifier)
+                  .reorder(ids);
+            },
+            proxyDecorator: (child, index, animation) => Material(
+              color: Colors.transparent,
+              elevation: 6,
+              borderRadius: BorderRadius.circular(14),
+              child: child,
+            ),
+            itemBuilder: (context, i) {
+              final cat = sorted[i];
               final items = itemsByCat[cat.id] ?? const <TodoItem>[];
-              return _CategorySection(category: cat, items: items);
-            }).toList(),
+              return KeyedSubtree(
+                key: ValueKey(cat.id),
+                child: _CategorySection(
+                    category: cat, items: items, sectionIndex: i),
+              );
+            },
           );
         },
       ),
@@ -76,8 +98,13 @@ class TodoHomeScreen extends ConsumerWidget {
 class _CategorySection extends ConsumerWidget {
   final TodoCategory category;
   final List<TodoItem> items;
+  final int sectionIndex;
 
-  const _CategorySection({required this.category, required this.items});
+  const _CategorySection({
+    required this.category,
+    required this.items,
+    required this.sectionIndex,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -95,7 +122,14 @@ class _CategorySection extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           InkWell(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+            borderRadius: BorderRadius.vertical(
+              top: const Radius.circular(14),
+              bottom:
+                  category.collapsed ? const Radius.circular(14) : Radius.zero,
+            ),
+            onTap: () => ref
+                .read(todoCategoriesProvider.notifier)
+                .toggleCollapsed(category.id),
             onLongPress: () => showCategoryEditDialog(
               context,
               ref,
@@ -137,8 +171,21 @@ class _CategorySection extends ConsumerWidget {
                             fontWeight: FontWeight.bold,
                           )),
                     ),
+                  // 펼침/접힘 아이콘
                   IconButton(
                     visualDensity: VisualDensity.compact,
+                    tooltip: category.collapsed ? '펼치기' : '접기',
+                    onPressed: () => ref
+                        .read(todoCategoriesProvider.notifier)
+                        .toggleCollapsed(category.id),
+                    icon: Icon(category.collapsed
+                        ? Icons.expand_more
+                        : Icons.expand_less),
+                  ),
+                  // 카테고리 편집 메뉴
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    tooltip: '카테고리 편집',
                     onPressed: () => showCategoryEditDialog(
                       context,
                       ref,
@@ -146,11 +193,23 @@ class _CategorySection extends ConsumerWidget {
                     ),
                     icon: const Icon(Icons.more_horiz),
                   ),
+                  // 카테고리 드래그 핸들
+                  ReorderableDragStartListener(
+                    index: sectionIndex,
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(
+                          horizontal: 4, vertical: 6),
+                      child: Icon(Icons.drag_handle,
+                          size: 22, color: Colors.grey),
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
-          if (items.isEmpty)
+          if (category.collapsed)
+            const SizedBox.shrink()
+          else if (items.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(
                   horizontal: 14, vertical: 10),
@@ -188,7 +247,8 @@ class _CategorySection extends ConsumerWidget {
                 );
               },
             ),
-          Padding(
+          if (!category.collapsed)
+            Padding(
             padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
             child: Align(
               alignment: Alignment.centerLeft,
