@@ -33,7 +33,11 @@ class UpdateService {
     }
 
     final pkg = await PackageInfo.fromPlatform();
-    final currentBuild = int.tryParse(pkg.buildNumber) ?? 0;
+    final rawBuild = int.tryParse(pkg.buildNumber) ?? 0;
+    // Flutter --split-per-abi가 versionCode에 ABI prefix를 붙임
+    //   armeabi-v7a → +1000, arm64-v8a → +2000, x86_64 → +4000
+    // (개인 사용 범위에서 base buildNumber는 1000 미만으로 가정)
+    final currentBuild = rawBuild >= 1000 ? rawBuild % 1000 : rawBuild;
 
     final res = await http.get(
       Uri.parse(
