@@ -199,4 +199,121 @@ class NotificationService {
     await init();
     await _plugin.cancelAll();
   }
+
+  // ---- Todo 알림 (지정 시각에 매일/주간/월간) ----
+
+  static const _todoAndroidDetails = AndroidNotificationDetails(
+    'todo',
+    '할 일 알림',
+    channelDescription: '할 일 데드라인 알림',
+    importance: Importance.high,
+    priority: Priority.high,
+  );
+  static const _todoDetails = NotificationDetails(
+    android: _todoAndroidDetails,
+    iOS: _iosDetails,
+  );
+
+  static Future<void> scheduleTodoDaily({
+    required int id,
+    required String title,
+    required String body,
+    required int hour,
+    required int minute,
+  }) async {
+    if (!supported) return;
+    await init();
+    final now = tz.TZDateTime.now(tz.local);
+    var scheduled =
+        tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+    if (!scheduled.isAfter(now)) {
+      scheduled = scheduled.add(const Duration(days: 1));
+    }
+    await _plugin.zonedSchedule(
+      id,
+      title,
+      body,
+      scheduled,
+      _todoDetails,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.time,
+    );
+  }
+
+  /// 매주 특정 요일(1=Mon..7=Sun) hour:minute에
+  static Future<void> scheduleTodoWeekly({
+    required int id,
+    required String title,
+    required String body,
+    required int weekDay,
+    required int hour,
+    required int minute,
+  }) async {
+    if (!supported) return;
+    await init();
+    final now = tz.TZDateTime.now(tz.local);
+    var scheduled =
+        tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+    while (scheduled.weekday != weekDay || !scheduled.isAfter(now)) {
+      scheduled = scheduled.add(const Duration(days: 1));
+    }
+    await _plugin.zonedSchedule(
+      id,
+      title,
+      body,
+      scheduled,
+      _todoDetails,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+    );
+  }
+
+  /// 매월 특정 일자 hour:minute에 (해당 월에 그 일자가 없으면 그 달은 건너뜀)
+  static Future<void> scheduleTodoMonthly({
+    required int id,
+    required String title,
+    required String body,
+    required int dayOfMonth,
+    required int hour,
+    required int minute,
+  }) async {
+    if (!supported) return;
+    await init();
+    final now = tz.TZDateTime.now(tz.local);
+    var year = now.year;
+    var month = now.month;
+    tz.TZDateTime? scheduled;
+    for (int i = 0; i < 13; i++) {
+      final daysInMonth = DateTime(year, month + 1, 0).day;
+      if (dayOfMonth <= daysInMonth) {
+        final candidate = tz.TZDateTime(
+            tz.local, year, month, dayOfMonth, hour, minute);
+        if (candidate.isAfter(now)) {
+          scheduled = candidate;
+          break;
+        }
+      }
+      month++;
+      if (month > 12) {
+        month = 1;
+        year++;
+      }
+    }
+    if (scheduled == null) return;
+    await _plugin.zonedSchedule(
+      id,
+      title,
+      body,
+      scheduled,
+      _todoDetails,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.dayOfMonthAndTime,
+    );
+  }
 }
