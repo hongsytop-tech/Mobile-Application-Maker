@@ -71,6 +71,11 @@ class TodoItemsNotifier extends AsyncNotifier<List<TodoItem>> {
   }
 
   Future<TodoItem> add(TodoItem draft) async {
+    final existing = state.value ?? const <TodoItem>[];
+    final inCat = existing.where((i) => i.categoryId == draft.categoryId);
+    final minOrder = inCat.isEmpty
+        ? 0
+        : inCat.map((i) => i.order).reduce((a, b) => a < b ? a : b);
     final item = TodoItem(
       id: _uuid.v4(),
       categoryId: draft.categoryId,
@@ -78,13 +83,34 @@ class TodoItemsNotifier extends AsyncNotifier<List<TodoItem>> {
       repeat: draft.repeat,
       weekDays: draft.weekDays,
       monthDay: draft.monthDay,
+      deadline: draft.deadline,
+      notifyEnabled: draft.notifyEnabled,
+      notifyDate: draft.notifyDate,
       notifyHour: draft.notifyHour,
       notifyMinute: draft.notifyMinute,
       createdAt: DateTime.now(),
+      order: minOrder - 1,
     );
-    await _persist([...(state.value ?? const <TodoItem>[]), item]);
+    await _persist([...existing, item]);
     await _scheduleNotifications(item);
     return item;
+  }
+
+  /// 카테고리 내 항목들을 주어진 ID 순서대로 재정렬.
+  Future<void> reorderInCategory(
+      String categoryId, List<String> orderedIds) async {
+    final list = [...(state.value ?? const <TodoItem>[])];
+    final byId = {for (final i in list) i.id: i};
+    final updated = <TodoItem>[];
+    for (int i = 0; i < orderedIds.length; i++) {
+      final item = byId[orderedIds[i]];
+      if (item != null && item.categoryId == categoryId) {
+        updated.add(item.copyWith(order: i));
+        byId.remove(orderedIds[i]);
+      }
+    }
+    updated.addAll(byId.values);
+    await _persist(updated);
   }
 
   Future<void> save(TodoItem updated) async {
@@ -200,13 +226,13 @@ final todoItemsByCategoryProvider =
   for (final i in items) {
     map.putIfAbsent(i.categoryId, () => []).add(i);
   }
-  // 각 카테고리 안에서 미완료 → 완료 순, 그 안에서 최신순
+  // 각 카테고리 안에서 미완료 → 완료, 같은 그룹은 수동 order 순
   for (final entry in map.entries) {
     entry.value.sort((a, b) {
       final aDone = a.isCompletedNow ? 1 : 0;
       final bDone = b.isCompletedNow ? 1 : 0;
       if (aDone != bDone) return aDone - bDone;
-      return b.createdAt.compareTo(a.createdAt);
+      return a.order.compareTo(b.order);
     });
   }
   return map;

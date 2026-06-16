@@ -32,6 +32,10 @@ class QuotesNotifier extends AsyncNotifier<List<Quote>> {
   }
 
   Future<Quote> add(Quote draft) async {
+    final existing = state.value ?? const <Quote>[];
+    final minOrder = existing.isEmpty
+        ? 0
+        : existing.map((q) => q.order).reduce((a, b) => a < b ? a : b);
     final q = Quote(
       id: _uuid.v4(),
       text: draft.text,
@@ -42,12 +46,30 @@ class QuotesNotifier extends AsyncNotifier<List<Quote>> {
       notifyMinute: draft.notifyMinute,
       intervalHours: draft.intervalHours,
       intervalMinutes: draft.intervalMinutes,
+      order: minOrder - 1,
     );
-    await _persist([...(state.value ?? const <Quote>[]), q]);
+    await _persist([...existing, q]);
     if (q.hasSchedule) {
       await NotificationService.scheduleForQuote(q);
     }
     return q;
+  }
+
+  /// 주어진 ID 순서대로 order = 0,1,2,... 재할당 (드래그 정렬용).
+  /// orderedIds에 없는 항목은 기존 order 유지.
+  Future<void> reorder(List<String> orderedIds) async {
+    final list = [...(state.value ?? const <Quote>[])];
+    final byId = {for (final q in list) q.id: q};
+    final updated = <Quote>[];
+    for (int i = 0; i < orderedIds.length; i++) {
+      final q = byId[orderedIds[i]];
+      if (q != null) {
+        updated.add(q.copyWith(order: i));
+        byId.remove(orderedIds[i]);
+      }
+    }
+    updated.addAll(byId.values);
+    await _persist(updated);
   }
 
   Future<void> save(Quote updated) async {
@@ -98,8 +120,8 @@ class SortedQuotes {
 final sortedQuotesProvider = Provider<SortedQuotes>((ref) {
   final all = ref.watch(quotesProvider).value ?? const <Quote>[];
   final pinned = all.where((q) => q.isPinned).toList()
-    ..sort((a, b) => b.pinnedAt!.compareTo(a.pinnedAt!));
+    ..sort((a, b) => a.order.compareTo(b.order));
   final others = all.where((q) => !q.isPinned).toList()
-    ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    ..sort((a, b) => a.order.compareTo(b.order));
   return SortedQuotes(pinned: pinned, others: others);
 });

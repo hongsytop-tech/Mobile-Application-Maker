@@ -24,6 +24,9 @@ class Quote {
   /// 상단 고정 시각 (null이면 미고정). 여러 고정 항목 간 순서에 사용.
   final DateTime? pinnedAt;
 
+  /// 수동 정렬 순서 (작을수록 위). 기본값은 fromJson에서 createdAt 기반 음수로 대체.
+  final int order;
+
   const Quote({
     required this.id,
     required this.text,
@@ -35,6 +38,7 @@ class Quote {
     this.intervalHours,
     this.intervalMinutes,
     this.pinnedAt,
+    this.order = 0,
   });
 
   bool get isPinned => pinnedAt != null;
@@ -93,6 +97,7 @@ class Quote {
     int? intervalHours,
     int? intervalMinutes,
     DateTime? pinnedAt,
+    int? order,
     bool clearDailyTime = false,
     bool clearInterval = false,
     bool clearPin = false,
@@ -111,6 +116,7 @@ class Quote {
       intervalMinutes:
           clearInterval ? null : (intervalMinutes ?? this.intervalMinutes),
       pinnedAt: clearPin ? null : (pinnedAt ?? this.pinnedAt),
+      order: order ?? this.order,
     );
   }
 
@@ -125,6 +131,7 @@ class Quote {
         'intervalHours': intervalHours,
         'intervalMinutes': intervalMinutes,
         'pinnedAt': pinnedAt?.toIso8601String(),
+        'order': order,
       };
 
   factory Quote.fromJson(Map<String, dynamic> j) => Quote(
@@ -143,6 +150,9 @@ class Quote {
         pinnedAt: j['pinnedAt'] == null
             ? null
             : DateTime.parse(j['pinnedAt'] as String),
+        order: j['order'] as int? ??
+            -DateTime.parse(j['createdAt'] as String)
+                .millisecondsSinceEpoch,
       );
 
   String toJsonString() => jsonEncode(toJson());

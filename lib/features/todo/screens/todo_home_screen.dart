@@ -161,7 +161,33 @@ class _CategorySection extends ConsumerWidget {
               ),
             )
           else
-            ...items.map((it) => _ItemTile(item: it, color: color)),
+            ReorderableListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              buildDefaultDragHandles: false,
+              itemCount: items.length,
+              onReorder: (oldIdx, newIdx) {
+                if (newIdx > oldIdx) newIdx -= 1;
+                final ids = items.map((e) => e.id).toList();
+                final moved = ids.removeAt(oldIdx);
+                ids.insert(newIdx, moved);
+                ref
+                    .read(todoItemsProvider.notifier)
+                    .reorderInCategory(category.id, ids);
+              },
+              proxyDecorator: (child, index, animation) => Material(
+                color: Colors.transparent,
+                elevation: 4,
+                child: child,
+              ),
+              itemBuilder: (context, i) {
+                final it = items[i];
+                return KeyedSubtree(
+                  key: ValueKey(it.id),
+                  child: _ItemTile(item: it, color: color, index: i),
+                );
+              },
+            ),
           Padding(
             padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
             child: Align(
@@ -188,8 +214,10 @@ class _CategorySection extends ConsumerWidget {
 class _ItemTile extends ConsumerWidget {
   final TodoItem item;
   final Color color;
+  final int index;
 
-  const _ItemTile({required this.item, required this.color});
+  const _ItemTile(
+      {required this.item, required this.color, required this.index});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -261,6 +289,14 @@ class _ItemTile extends ConsumerWidget {
                     ],
                   ),
                 ],
+              ),
+            ),
+            ReorderableDragStartListener(
+              index: index,
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                child: Icon(Icons.drag_handle,
+                    size: 22, color: Colors.grey),
               ),
             ),
           ],

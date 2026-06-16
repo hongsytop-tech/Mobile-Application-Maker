@@ -46,6 +46,9 @@ class TodoItem {
   /// 완료 이력 (오래된 순)
   final List<DateTime> completions;
 
+  /// 같은 카테고리 내 수동 정렬 순서 (작을수록 위)
+  final int order;
+
   const TodoItem({
     required this.id,
     required this.categoryId,
@@ -60,6 +63,7 @@ class TodoItem {
     this.notifyMinute = 0,
     required this.createdAt,
     this.completions = const [],
+    this.order = 0,
   });
 
   /// 마감시한 D-day (오늘 기준). 마감 없으면 null.
@@ -176,6 +180,7 @@ class TodoItem {
     int? notifyHour,
     int? notifyMinute,
     List<DateTime>? completions,
+    int? order,
     bool clearMonthDay = false,
     bool clearDeadline = false,
     bool clearNotifyDate = false,
@@ -194,6 +199,7 @@ class TodoItem {
       notifyMinute: notifyMinute ?? this.notifyMinute,
       createdAt: createdAt,
       completions: completions ?? this.completions,
+      order: order ?? this.order,
     );
   }
 
@@ -217,6 +223,7 @@ class TodoItem {
         'notifyMinute': notifyMinute,
         'createdAt': createdAt.toIso8601String(),
         'completions': completions.map((d) => d.toIso8601String()).toList(),
+        'order': order,
       };
 
   factory TodoItem.fromJson(Map<String, dynamic> j) => TodoItem(
@@ -244,6 +251,9 @@ class TodoItem {
         completions: ((j['completions'] as List?) ?? const [])
             .map((e) => DateTime.parse(e as String))
             .toList(),
+        order: j['order'] as int? ??
+            -DateTime.parse(j['createdAt'] as String)
+                .millisecondsSinceEpoch,
       );
 
   String toJsonString() => jsonEncode(toJson());

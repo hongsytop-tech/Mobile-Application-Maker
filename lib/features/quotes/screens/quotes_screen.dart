@@ -62,10 +62,16 @@ class QuotesScreen extends ConsumerWidget {
                   text: '고정됨 (${sorted.pinned.length})',
                 ),
                 const SizedBox(height: 8),
-                ...sorted.pinned.map((q) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: _QuoteCard(quote: q),
-                    )),
+                _ReorderableQuotes(
+                  quotes: sorted.pinned,
+                  onReorder: (oldIdx, newIdx) {
+                    if (newIdx > oldIdx) newIdx -= 1;
+                    final ids = sorted.pinned.map((q) => q.id).toList();
+                    final moved = ids.removeAt(oldIdx);
+                    ids.insert(newIdx, moved);
+                    ref.read(quotesProvider.notifier).reorder(ids);
+                  },
+                ),
                 if (sorted.others.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   _SectionLabel(
@@ -75,14 +81,53 @@ class QuotesScreen extends ConsumerWidget {
                   const SizedBox(height: 8),
                 ],
               ],
-              ...sorted.others.map((q) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: _QuoteCard(quote: q),
-                  )),
+              if (sorted.others.isNotEmpty)
+                _ReorderableQuotes(
+                  quotes: sorted.others,
+                  onReorder: (oldIdx, newIdx) {
+                    if (newIdx > oldIdx) newIdx -= 1;
+                    final ids = sorted.others.map((q) => q.id).toList();
+                    final moved = ids.removeAt(oldIdx);
+                    ids.insert(newIdx, moved);
+                    ref.read(quotesProvider.notifier).reorder(ids);
+                  },
+                ),
             ],
           );
         },
       ),
+    );
+  }
+}
+
+class _ReorderableQuotes extends ConsumerWidget {
+  final List<Quote> quotes;
+  final void Function(int oldIdx, int newIdx) onReorder;
+
+  const _ReorderableQuotes({required this.quotes, required this.onReorder});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ReorderableListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      buildDefaultDragHandles: false,
+      itemCount: quotes.length,
+      onReorder: onReorder,
+      proxyDecorator: (child, index, animation) => Material(
+        color: Colors.transparent,
+        elevation: 4,
+        borderRadius: BorderRadius.circular(12),
+        child: child,
+      ),
+      itemBuilder: (context, i) {
+        final q = quotes[i];
+        return Padding(
+          key: ValueKey(q.id),
+          padding: const EdgeInsets.only(bottom: 8),
+          child: _QuoteCard(quote: q, index: i),
+        );
+      },
     );
   }
 }
@@ -116,7 +161,8 @@ class _SectionLabel extends StatelessWidget {
 
 class _QuoteCard extends ConsumerWidget {
   final Quote quote;
-  const _QuoteCard({required this.quote});
+  final int index;
+  const _QuoteCard({required this.quote, required this.index});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -125,7 +171,7 @@ class _QuoteCard extends ConsumerWidget {
     final isPinned = quote.isPinned;
 
     return Dismissible(
-      key: ValueKey(quote.id),
+      key: ValueKey('dismiss_${quote.id}'),
       direction: DismissDirection.endToStart,
       background: Container(
         decoration: BoxDecoration(
@@ -188,8 +234,9 @@ class _QuoteCard extends ConsumerWidget {
                     ),
                     const SizedBox(width: 8),
                     InkWell(
-                      onTap: () =>
-                          ref.read(quotesProvider.notifier).togglePin(quote.id),
+                      onTap: () => ref
+                          .read(quotesProvider.notifier)
+                          .togglePin(quote.id),
                       borderRadius: BorderRadius.circular(20),
                       child: Padding(
                         padding: const EdgeInsets.all(4),
@@ -199,6 +246,17 @@ class _QuoteCard extends ConsumerWidget {
                               : Icons.push_pin_outlined,
                           size: 20,
                           color: isPinned ? primary : Colors.grey.shade400,
+                        ),
+                      ),
+                    ),
+                    ReorderableDragStartListener(
+                      index: index,
+                      child: const Padding(
+                        padding: EdgeInsets.all(4),
+                        child: Icon(
+                          Icons.drag_handle,
+                          size: 22,
+                          color: Colors.grey,
                         ),
                       ),
                     ),
