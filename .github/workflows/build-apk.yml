@@ -44,6 +44,8 @@ jobs:
           cat > .env <<EOF
           KAKAO_REST_API_KEY=${{ secrets.KAKAO_REST_API_KEY }}
           BOOK_TOC_PROXY_URL=${{ secrets.BOOK_TOC_PROXY_URL }}
+          SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
           EOF
 
       - name: Decode keystore

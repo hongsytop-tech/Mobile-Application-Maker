@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../auth/screens/profile_screen.dart';
 import '../models/book.dart';
 import '../providers/book_providers.dart';
 import '../widgets/book_cover.dart';
@@ -42,16 +43,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       appBar: AppBar(
         title: const Text('내 책장'),
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: TextButton.icon(
-              icon: const Icon(Icons.bar_chart),
-              label: const Text('독서 통계'),
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const StatsScreen()),
-              ),
+          TextButton.icon(
+            icon: const Icon(Icons.bar_chart),
+            label: const Text('독서 통계'),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const StatsScreen()),
             ),
           ),
+          IconButton(
+            tooltip: '내 정보 · 백업',
+            icon: const Icon(Icons.account_circle_outlined),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ProfileScreen()),
+            ),
+          ),
+          const SizedBox(width: 4),
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(112),
