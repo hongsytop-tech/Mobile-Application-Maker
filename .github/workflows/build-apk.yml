@@ -46,6 +46,7 @@ jobs:
           BOOK_TOC_PROXY_URL=${{ secrets.BOOK_TOC_PROXY_URL }}
           SUPABASE_URL=${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+          GOOGLE_WEB_CLIENT_ID=${{ secrets.GOOGLE_WEB_CLIENT_ID }}
           EOF
 
       - name: Decode keystore
