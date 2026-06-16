@@ -74,6 +74,17 @@ jobs:
           flutter build apk --release \
             --build-number=${{ github.run_number }}
 
+      - name: Verify APK signing (SHA-256 fingerprint)
+        run: |
+          set -e
+          echo "::group::Built APK signatures"
+          for apk in build/app/outputs/flutter-apk/*.apk; do
+            echo "▶ $apk"
+            $JAVA_HOME/bin/keytool -printcert -jarfile "$apk" 2>/dev/null \
+              | grep -E "SHA256:|소유자|Owner" || true
+          done
+          echo "::endgroup::"
+
       - name: Collect APKs
         run: |
           mkdir -p out
