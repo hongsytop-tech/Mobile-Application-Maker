@@ -1,5 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../auth/services/sync_manager.dart';
 import '../models/todo_category.dart';
 import '../models/todo_item.dart';
 
@@ -17,6 +18,7 @@ class TodoStorageService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(
         _categoriesKey, categories.map((c) => c.toJsonString()).toList());
+    SyncManager.instance.markDirty();
   }
 
   Future<List<TodoItem>> loadItems() async {
@@ -29,5 +31,6 @@ class TodoStorageService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(
         _itemsKey, items.map((i) => i.toJsonString()).toList());
+    SyncManager.instance.markDirty();
   }
 }

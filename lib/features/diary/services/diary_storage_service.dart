@@ -1,5 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../auth/services/sync_manager.dart';
 import '../models/diary.dart';
 
 class DiaryStorageService {
@@ -15,5 +16,6 @@ class DiaryStorageService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(
         _key, diaries.map((e) => e.toJsonString()).toList());
+    SyncManager.instance.markDirty();
   }
 }

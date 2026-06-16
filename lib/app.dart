@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'features/auth/widgets/sync_gate.dart';
 import 'shell/main_shell.dart';
 
 class SelfDevApp extends StatelessWidget {
@@ -15,7 +16,7 @@ class SelfDevApp extends StatelessWidget {
         useMaterial3: true,
         fontFamily: 'Pretendard',
       ),
-      home: const MainShell(),
+      home: const SyncGate(child: MainShell()),
     );
   }
 }

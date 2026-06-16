@@ -1,5 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../auth/services/sync_manager.dart';
 import '../models/book.dart';
 
 class BookStorageService {
@@ -14,5 +15,6 @@ class BookStorageService {
   Future<void> saveAll(List<Book> books) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(_key, books.map((e) => e.toJsonString()).toList());
+    SyncManager.instance.markDirty();
   }
 }

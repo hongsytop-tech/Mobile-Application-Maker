@@ -1,5 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../auth/services/sync_manager.dart';
 import '../models/quote.dart';
 
 class QuoteStorageService {
@@ -15,5 +16,6 @@ class QuoteStorageService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(
         _key, quotes.map((e) => e.toJsonString()).toList());
+    SyncManager.instance.markDirty();
   }
 }

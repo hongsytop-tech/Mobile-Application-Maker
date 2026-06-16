@@ -7,6 +7,7 @@ import '../../reading/providers/book_providers.dart';
 import '../../todo/providers/todo_providers.dart';
 import '../providers/auth_providers.dart';
 import '../services/supabase_service.dart';
+import '../services/sync_manager.dart';
 import '../services/sync_service.dart';
 import 'auth_screen.dart';
 
@@ -168,12 +169,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ],
                 ),
               ),
+              const SizedBox(height: 16),
+              const _AutoSyncCard(),
               const SizedBox(height: 24),
-              Text('클라우드 백업',
+              Text('수동 백업 / 복원',
                   style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 4),
               Text(
-                '폰의 모든 데이터(책장·문구·일기·할 일)를 클라우드에 안전하게 보관하세요.',
+                '평소엔 자동으로 동기화됩니다. 아래는 즉시 강제 실행용입니다.',
                 style: TextStyle(
                     fontSize: 12, color: Colors.grey.shade700),
               ),
@@ -181,7 +184,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               FilledButton.icon(
                 onPressed: _busy ? null : _backup,
                 icon: const Icon(Icons.cloud_upload),
-                label: const Text('지금 백업하기 (폰 → 클라우드)'),
+                label: const Text('지금 백업하기 (기기 → 클라우드)'),
               ),
               const SizedBox(height: 8),
               OutlinedButton.icon(
@@ -212,8 +215,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                'ℹ️ 앱 업데이트 전 "백업하기"를 누르면 데이터가 클라우드에 저장됩니다.\n'
-                '앱 재설치 후 다시 로그인하고 "복원" 누르면 데이터가 돌아옵니다.',
+                'ℹ️ 로그인 상태에서는 데이터가 자동으로 클라우드에 동기화됩니다.\n'
+                '다른 기기·웹에서 같은 계정으로 로그인하면 데이터가 자동으로 불러와집니다.',
                 style: TextStyle(
                     fontSize: 11, color: Colors.grey.shade600, height: 1.5),
               ),
@@ -254,5 +257,79 @@ class _LoggedOutView extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _AutoSyncCard extends StatelessWidget {
+  const _AutoSyncCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<SyncStatus>(
+      valueListenable: SyncManager.instance.status,
+      builder: (context, status, _) {
+        return ValueListenableBuilder<DateTime?>(
+          valueListenable: SyncManager.instance.lastSyncedAt,
+          builder: (context, lastAt, __) {
+            final (icon, color, text) = switch (status) {
+              SyncStatus.syncing => (
+                  Icons.cloud_sync,
+                  Colors.blue,
+                  '동기화 중...'
+                ),
+              SyncStatus.synced => (
+                  Icons.cloud_done,
+                  Colors.green,
+                  lastAt != null
+                      ? '동기화됨 · ${_time(lastAt)}'
+                      : '동기화됨'
+                ),
+              SyncStatus.error => (
+                  Icons.cloud_off,
+                  Colors.red,
+                  '동기화 오류 (다시 시도됩니다)'
+                ),
+              SyncStatus.offline => (
+                  Icons.cloud_off,
+                  Colors.grey,
+                  '오프라인'
+                ),
+              SyncStatus.idle => (
+                  Icons.cloud_queue,
+                  Colors.grey,
+                  '자동 동기화 켜짐'
+                ),
+            };
+            return Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: color.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  Icon(icon, color: color, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      text,
+                      style: TextStyle(
+                          color: color, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  static String _time(DateTime d) {
+    final h = d.hour.toString().padLeft(2, '0');
+    final m = d.minute.toString().padLeft(2, '0');
+    return '$h:$m';
   }
 }
