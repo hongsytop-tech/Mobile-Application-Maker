@@ -18,7 +18,7 @@ class TodoHomeScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('할 일'),
+        title: const Text('할일 / 목표'),
         actions: [
           IconButton(
             tooltip: '카테고리 추가',
@@ -238,6 +238,14 @@ class _ItemTile extends ConsumerWidget {
                         text: item.repeatLabel,
                         color: color,
                       ),
+                      if (item.deadlineLabel != null)
+                        _badge(
+                          icon: Icons.flag,
+                          text: item.deadlineLabel!,
+                          color: (item.daysLeft ?? 1) < 0
+                              ? Colors.red.shade600
+                              : Colors.orange.shade800,
+                        ),
                       if (next != null && !done)
                         _badge(
                           icon: Icons.alarm,

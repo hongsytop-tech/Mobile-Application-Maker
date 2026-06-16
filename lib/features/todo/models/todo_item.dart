@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-enum TodoRepeat { once, daily, weekly, monthly }
+enum TodoRepeat { once, daily, weekly, monthly, longterm }
 
 extension TodoRepeatLabel on TodoRepeat {
   String get label => switch (this) {
@@ -8,6 +8,7 @@ extension TodoRepeatLabel on TodoRepeat {
         TodoRepeat.daily => '매일',
         TodoRepeat.weekly => '주간',
         TodoRepeat.monthly => '월간',
+        TodoRepeat.longterm => '장기 목표',
       };
 }
 
@@ -31,6 +32,15 @@ class TodoItem {
   final int notifyHour;
   final int notifyMinute;
 
+  /// 마감시한 (반복 주기와 별개, 날짜만 사용). 없으면 null.
+  final DateTime? deadline;
+
+  /// 알림 사용 여부
+  final bool notifyEnabled;
+
+  /// 즉시(once) 알림 날짜 (반복형은 무시). 없으면 오늘로 간주.
+  final DateTime? notifyDate;
+
   final DateTime createdAt;
 
   /// 완료 이력 (오래된 순)
@@ -43,11 +53,34 @@ class TodoItem {
     required this.repeat,
     this.weekDays = const {},
     this.monthDay,
+    this.deadline,
+    this.notifyEnabled = false,
+    this.notifyDate,
     this.notifyHour = 9,
     this.notifyMinute = 0,
     required this.createdAt,
     this.completions = const [],
   });
+
+  /// 마감시한 D-day (오늘 기준). 마감 없으면 null.
+  int? get daysLeft {
+    if (deadline == null) return null;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final d = DateTime(deadline!.year, deadline!.month, deadline!.day);
+    return d.difference(today).inDays;
+  }
+
+  String? get deadlineLabel {
+    if (deadline == null) return null;
+    final dateStr =
+        '${deadline!.year}.${deadline!.month.toString().padLeft(2, '0')}.${deadline!.day.toString().padLeft(2, '0')}';
+    final left = daysLeft;
+    if (left == null) return dateStr;
+    if (left > 0) return '$dateStr (D-$left)';
+    if (left == 0) return '$dateStr (D-day)';
+    return '$dateStr (D+${-left})';
+  }
 
   DateTime? get lastCompletedAt =>
       completions.isEmpty ? null : completions.last;
@@ -55,13 +88,16 @@ class TodoItem {
   bool _isSameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
 
-  /// 즉시(once): 한 번이라도 완료되면 true
+  /// 즉시(once)·장기목표(longterm): 한 번이라도 완료되면 true
   /// 반복: 오늘 완료한 기록이 있으면 true
   bool get isCompletedNow {
     if (completions.isEmpty) return false;
-    if (repeat == TodoRepeat.once) return true;
+    if (repeat == TodoRepeat.once || repeat == TodoRepeat.longterm) {
+      return true;
+    }
     return _isSameDay(completions.last, DateTime.now());
   }
+
 
   /// 반복 항목의 다음 알림/데드라인 (반복 없으면 null)
   DateTime? get nextDeadline {
@@ -71,7 +107,11 @@ class TodoItem {
 
     switch (repeat) {
       case TodoRepeat.once:
-        return null;
+        if (!notifyEnabled) return null;
+        final d = notifyDate ?? now;
+        final at =
+            DateTime(d.year, d.month, d.day, notifyHour, notifyMinute);
+        return at.isAfter(now) ? at : null;
       case TodoRepeat.daily:
         return base.isAfter(now) ? base : base.add(const Duration(days: 1));
       case TodoRepeat.weekly:
@@ -101,6 +141,9 @@ class TodoItem {
           }
         }
         return null;
+      case TodoRepeat.longterm:
+        // 장기 목표는 마감일·알림이 없는 지속 목표
+        return null;
     }
   }
 
@@ -117,6 +160,8 @@ class TodoItem {
       case TodoRepeat.monthly:
         if (monthDay == null) return '월간';
         return '매월 ${monthDay}일';
+      case TodoRepeat.longterm:
+        return '장기 목표';
     }
   }
 
@@ -125,10 +170,15 @@ class TodoItem {
     TodoRepeat? repeat,
     Set<int>? weekDays,
     int? monthDay,
+    DateTime? deadline,
+    bool? notifyEnabled,
+    DateTime? notifyDate,
     int? notifyHour,
     int? notifyMinute,
     List<DateTime>? completions,
     bool clearMonthDay = false,
+    bool clearDeadline = false,
+    bool clearNotifyDate = false,
   }) {
     return TodoItem(
       id: id,
@@ -137,6 +187,9 @@ class TodoItem {
       repeat: repeat ?? this.repeat,
       weekDays: weekDays ?? this.weekDays,
       monthDay: clearMonthDay ? null : (monthDay ?? this.monthDay),
+      deadline: clearDeadline ? null : (deadline ?? this.deadline),
+      notifyEnabled: notifyEnabled ?? this.notifyEnabled,
+      notifyDate: clearNotifyDate ? null : (notifyDate ?? this.notifyDate),
       notifyHour: notifyHour ?? this.notifyHour,
       notifyMinute: notifyMinute ?? this.notifyMinute,
       createdAt: createdAt,
@@ -157,6 +210,9 @@ class TodoItem {
         'repeat': repeat.name,
         'weekDays': weekDays.toList(),
         'monthDay': monthDay,
+        'deadline': deadline?.toIso8601String(),
+        'notifyEnabled': notifyEnabled,
+        'notifyDate': notifyDate?.toIso8601String(),
         'notifyHour': notifyHour,
         'notifyMinute': notifyMinute,
         'createdAt': createdAt.toIso8601String(),
@@ -175,6 +231,13 @@ class TodoItem {
             .map((e) => e as int)
             .toSet(),
         monthDay: j['monthDay'] as int?,
+        deadline: j['deadline'] == null
+            ? null
+            : DateTime.parse(j['deadline'] as String),
+        notifyEnabled: j['notifyEnabled'] as bool? ?? false,
+        notifyDate: j['notifyDate'] == null
+            ? null
+            : DateTime.parse(j['notifyDate'] as String),
         notifyHour: j['notifyHour'] as int? ?? 9,
         notifyMinute: j['notifyMinute'] as int? ?? 0,
         createdAt: DateTime.parse(j['createdAt'] as String),

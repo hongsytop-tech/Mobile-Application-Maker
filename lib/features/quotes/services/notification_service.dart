@@ -279,6 +279,29 @@ class NotificationService {
     iOS: _iosDetails,
   );
 
+  /// 특정 일시에 1회 알림 (즉시형 할 일)
+  static Future<void> scheduleTodoOnce({
+    required int id,
+    required String title,
+    required String body,
+    required DateTime when,
+  }) async {
+    if (!supported) return;
+    await init();
+    if (!when.isAfter(DateTime.now())) return;
+    final scheduled = tz.TZDateTime.from(when, tz.local);
+    await _plugin.zonedSchedule(
+      id,
+      title,
+      body,
+      scheduled,
+      _todoDetails,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+    );
+  }
+
   static Future<void> scheduleTodoDaily({
     required int id,
     required String title,

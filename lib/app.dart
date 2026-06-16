@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'features/auth/widgets/sync_gate.dart';
 import 'shell/main_shell.dart';
@@ -11,6 +12,13 @@ class SelfDevApp extends StatelessWidget {
     return MaterialApp(
       title: '자기계발 앱',
       debugShowCheckedModeBanner: false,
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [Locale('ko'), Locale('en')],
+      locale: const Locale('ko'),
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF4F46E5)),
         useMaterial3: true,

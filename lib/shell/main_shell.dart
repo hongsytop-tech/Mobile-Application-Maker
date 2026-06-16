@@ -52,7 +52,7 @@ class _MainShellState extends State<MainShell> {
           NavigationDestination(
             icon: Icon(Icons.checklist_outlined),
             selectedIcon: Icon(Icons.checklist),
-            label: '할 일',
+            label: '할일/목표',
           ),
           NavigationDestination(
             icon: Icon(Icons.calendar_month_outlined),

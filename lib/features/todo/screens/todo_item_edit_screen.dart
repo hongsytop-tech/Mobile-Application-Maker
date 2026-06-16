@@ -21,20 +21,33 @@ class _TodoItemEditScreenState extends ConsumerState<TodoItemEditScreen> {
   late TodoRepeat _repeat;
   late Set<int> _weekDays;
   late int _monthDay;
+
+  DateTime? _deadline;
+  bool _notifyEnabled = false;
+  late DateTime _notifyDate;
   late int _notifyHour;
   late int _notifyMinute;
+
   bool _saving = false;
 
   bool get _isNew => widget.item == null;
+
+  /// 마감/알림 섹션을 보여줄지 (장기목표는 제외)
+  bool get _showScheduling => _repeat != TodoRepeat.longterm;
 
   @override
   void initState() {
     super.initState();
     final it = widget.item;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
     _textCtrl = TextEditingController(text: it?.text ?? '');
     _repeat = it?.repeat ?? TodoRepeat.once;
     _weekDays = {...(it?.weekDays ?? const <int>{})};
     _monthDay = it?.monthDay ?? 1;
+    _deadline = it?.deadline;
+    _notifyEnabled = it?.notifyEnabled ?? false;
+    _notifyDate = it?.notifyDate ?? today;
     _notifyHour = it?.notifyHour ?? 9;
     _notifyMinute = it?.notifyMinute ?? 0;
   }
@@ -45,7 +58,31 @@ class _TodoItemEditScreenState extends ConsumerState<TodoItemEditScreen> {
     super.dispose();
   }
 
-  Future<void> _pickTime() async {
+  Future<void> _pickDeadline() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _deadline ?? now,
+      firstDate: DateTime(now.year - 1),
+      lastDate: DateTime(now.year + 10),
+      locale: const Locale('ko'),
+    );
+    if (picked != null) setState(() => _deadline = picked);
+  }
+
+  Future<void> _pickNotifyDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _notifyDate,
+      firstDate: DateTime(now.year - 1),
+      lastDate: DateTime(now.year + 10),
+      locale: const Locale('ko'),
+    );
+    if (picked != null) setState(() => _notifyDate = picked);
+  }
+
+  Future<void> _pickNotifyTime() async {
     final picked = await showTimePicker(
       context: context,
       initialTime: TimeOfDay(hour: _notifyHour, minute: _notifyMinute),
@@ -75,7 +112,8 @@ class _TodoItemEditScreenState extends ConsumerState<TodoItemEditScreen> {
 
     setState(() => _saving = true);
     try {
-      if (_repeat != TodoRepeat.once && NotificationService.supported) {
+      final notify = _showScheduling && _notifyEnabled;
+      if (notify && NotificationService.supported) {
         await NotificationService.requestPermission();
       }
 
@@ -84,9 +122,11 @@ class _TodoItemEditScreenState extends ConsumerState<TodoItemEditScreen> {
         categoryId: widget.categoryId,
         text: text,
         repeat: _repeat,
-        weekDays:
-            _repeat == TodoRepeat.weekly ? _weekDays : const <int>{},
+        weekDays: _repeat == TodoRepeat.weekly ? _weekDays : const <int>{},
         monthDay: _repeat == TodoRepeat.monthly ? _monthDay : null,
+        deadline: _showScheduling ? _deadline : null,
+        notifyEnabled: notify,
+        notifyDate: _repeat == TodoRepeat.once ? _notifyDate : null,
         notifyHour: _notifyHour,
         notifyMinute: _notifyMinute,
         createdAt: widget.item?.createdAt ?? DateTime.now(),
@@ -102,6 +142,11 @@ class _TodoItemEditScreenState extends ConsumerState<TodoItemEditScreen> {
           repeat: _repeat,
           weekDays: draft.weekDays,
           monthDay: draft.monthDay,
+          deadline: _showScheduling ? _deadline : null,
+          clearDeadline: !_showScheduling || _deadline == null,
+          notifyEnabled: notify,
+          notifyDate: _repeat == TodoRepeat.once ? _notifyDate : null,
+          clearNotifyDate: _repeat != TodoRepeat.once,
           notifyHour: _notifyHour,
           notifyMinute: _notifyMinute,
           clearMonthDay: _repeat != TodoRepeat.monthly,
@@ -117,7 +162,7 @@ class _TodoItemEditScreenState extends ConsumerState<TodoItemEditScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('이 할 일을 삭제할까요?'),
+        title: const Text('이 항목을 삭제할까요?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -138,11 +183,13 @@ class _TodoItemEditScreenState extends ConsumerState<TodoItemEditScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final df = DateFormat('yyyy.MM.dd HH:mm');
+    final dfDate = DateFormat('yyyy.MM.dd (E)', 'ko_KR');
+    final dfFull = DateFormat('yyyy.MM.dd HH:mm');
     final item = widget.item;
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isNew ? '할 일 추가' : '할 일 편집'),
+        title: Text(_isNew ? '항목 추가' : '항목 편집'),
         actions: [
           if (!_isNew)
             IconButton(
@@ -163,25 +210,38 @@ class _TodoItemEditScreenState extends ConsumerState<TodoItemEditScreen> {
             maxLines: 1,
             autofocus: _isNew,
             textInputAction: TextInputAction.done,
-            onSubmitted: (_) => _save(),
             decoration: const InputDecoration(
-              hintText: '할 일을 입력하세요',
+              hintText: '할 일 / 목표를 입력하세요',
               border: OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 20),
-          Text('반복 주기',
+
+          // 반복 주기
+          Text('유형 / 반복 주기',
               style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
-          SegmentedButton<TodoRepeat>(
-            segments: TodoRepeat.values
-                .map((r) => ButtonSegment(value: r, label: Text(r.label)))
-                .toList(),
-            selected: {_repeat},
-            showSelectedIcon: false,
-            onSelectionChanged: (s) => setState(() => _repeat = s.first),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: TodoRepeat.values.map((r) {
+              return ChoiceChip(
+                label: Text(r.label),
+                selected: _repeat == r,
+                onSelected: (_) => setState(() => _repeat = r),
+              );
+            }).toList(),
           ),
+          if (_repeat == TodoRepeat.longterm) ...[
+            const SizedBox(height: 8),
+            Text(
+              '💡 장기 목표는 마감일·알림 없이 꾸준히 관리하는 목표입니다.',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+          ],
           const SizedBox(height: 20),
+
+          // 주간: 요일 선택
           if (_repeat == TodoRepeat.weekly) ...[
             Text('요일 선택',
                 style: Theme.of(context).textTheme.titleSmall),
@@ -189,25 +249,25 @@ class _TodoItemEditScreenState extends ConsumerState<TodoItemEditScreen> {
             Wrap(
               spacing: 6,
               children: List.generate(7, (i) {
-                final day = i + 1; // 1..7
+                final day = i + 1;
                 final selected = _weekDays.contains(day);
                 return FilterChip(
                   label: Text(weekDayLabel(day)),
                   selected: selected,
-                  onSelected: (v) {
-                    setState(() {
-                      if (v) {
-                        _weekDays.add(day);
-                      } else {
-                        _weekDays.remove(day);
-                      }
-                    });
-                  },
+                  onSelected: (v) => setState(() {
+                    if (v) {
+                      _weekDays.add(day);
+                    } else {
+                      _weekDays.remove(day);
+                    }
+                  }),
                 );
               }),
             ),
             const SizedBox(height: 20),
           ],
+
+          // 월간: 일자 선택
           if (_repeat == TodoRepeat.monthly) ...[
             Text('매월 며칠',
                 style: Theme.of(context).textTheme.titleSmall),
@@ -234,38 +294,90 @@ class _TodoItemEditScreenState extends ConsumerState<TodoItemEditScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text('$_monthDay일',
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold)),
+                      style:
+                          const TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
-            const SizedBox(height: 4),
-            Text(
-              '💡 해당 일이 없는 달(예: 2월 31일)은 자동으로 건너뜁니다.',
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-            ),
             const SizedBox(height: 20),
           ],
-          if (_repeat != TodoRepeat.once) ...[
+
+          // 마감시한 (장기목표 제외)
+          if (_showScheduling) ...[
+            Text('마감시한 (선택)',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
             Container(
               decoration: BoxDecoration(
                 color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: ListTile(
-                leading: const Icon(Icons.access_time),
-                title: const Text('알림 시각'),
-                subtitle: const Text('이 시간에 푸시 알림 (기본 09:00)'),
-                trailing: Text(
-                  '${_notifyHour.toString().padLeft(2, '0')}:${_notifyMinute.toString().padLeft(2, '0')}',
-                  style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                onTap: _pickTime,
+                leading: const Icon(Icons.event),
+                title: const Text('마감 날짜'),
+                subtitle: _deadline == null
+                    ? const Text('설정 안 함')
+                    : Text(item?.deadlineLabel ?? dfDate.format(_deadline!)),
+                trailing: _deadline == null
+                    ? const Icon(Icons.chevron_right)
+                    : IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () => setState(() => _deadline = null),
+                      ),
+                onTap: _pickDeadline,
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // 알림 (날짜 + 시간)
+            Text('알림',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  SwitchListTile(
+                    title: const Text('알림 받기'),
+                    subtitle: const Text('지정한 날짜·시각에 푸시 알림'),
+                    value: _notifyEnabled,
+                    onChanged: (v) => setState(() => _notifyEnabled = v),
+                  ),
+                  if (_notifyEnabled) ...[
+                    const Divider(height: 1),
+                    // 즉시형만 날짜 선택 (반복형은 주기로 결정)
+                    if (_repeat == TodoRepeat.once)
+                      ListTile(
+                        leading: const Icon(Icons.calendar_today),
+                        title: const Text('알림 날짜'),
+                        trailing: Text(
+                          dfDate.format(_notifyDate),
+                          style: const TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.bold),
+                        ),
+                        onTap: _pickNotifyDate,
+                      ),
+                    ListTile(
+                      leading: const Icon(Icons.access_time),
+                      title: const Text('알림 시각'),
+                      trailing: Text(
+                        '${_notifyHour.toString().padLeft(2, '0')}:${_notifyMinute.toString().padLeft(2, '0')}',
+                        style: const TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      onTap: _pickNotifyTime,
+                    ),
+                  ],
+                ],
               ),
             ),
             const SizedBox(height: 20),
           ],
+
+          // 완료 이력
           if (item != null && item.completions.isNotEmpty) ...[
             Text('완료 이력',
                 style: Theme.of(context).textTheme.titleMedium),
@@ -282,13 +394,15 @@ class _TodoItemEditScreenState extends ConsumerState<TodoItemEditScreen> {
                 children: item.completions.reversed
                     .take(20)
                     .map((d) => Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 3),
+                          padding:
+                              const EdgeInsets.symmetric(vertical: 3),
                           child: Row(
                             children: [
                               Icon(Icons.check_circle,
-                                  size: 14, color: Colors.green.shade600),
+                                  size: 14,
+                                  color: Colors.green.shade600),
                               const SizedBox(width: 6),
-                              Text(df.format(d),
+                              Text(dfFull.format(d),
                                   style: const TextStyle(fontSize: 13)),
                             ],
                           ),
@@ -298,11 +412,17 @@ class _TodoItemEditScreenState extends ConsumerState<TodoItemEditScreen> {
             ),
             if (item.completions.length > 20) ...[
               const SizedBox(height: 4),
-              Text(
-                '… 외 ${item.completions.length - 20}회',
-                style: const TextStyle(fontSize: 11, color: Colors.grey),
-              ),
+              Text('… 외 ${item.completions.length - 20}회',
+                  style: const TextStyle(fontSize: 11, color: Colors.grey)),
             ],
+          ],
+
+          if (!NotificationService.supported && _showScheduling) ...[
+            const SizedBox(height: 8),
+            Text(
+              'ℹ️ 웹에서는 알림이 동작하지 않습니다. 모바일 앱에서 사용해 주세요.',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+            ),
           ],
         ],
       ),

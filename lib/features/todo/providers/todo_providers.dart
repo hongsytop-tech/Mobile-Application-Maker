@@ -140,8 +140,21 @@ class TodoItemsNotifier extends AsyncNotifier<List<TodoItem>> {
 
   Future<void> _scheduleNotifications(TodoItem item) async {
     switch (item.repeat) {
+      case TodoRepeat.longterm:
+        return; // 장기 목표는 알림 없음
       case TodoRepeat.once:
-        return; // 즉시는 알림 없음
+        if (item.notifyEnabled) {
+          final d = item.notifyDate ?? DateTime.now();
+          final when = DateTime(d.year, d.month, d.day, item.notifyHour,
+              item.notifyMinute);
+          await NotificationService.scheduleTodoOnce(
+            id: item.notificationId(),
+            title: '🗒️ 할 일 알림',
+            body: item.text,
+            when: when,
+          );
+        }
+        return;
       case TodoRepeat.daily:
         await NotificationService.scheduleTodoDaily(
           id: item.notificationId(),
