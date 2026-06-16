@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../diary/providers/diary_providers.dart';
+import '../../quotes/models/quote.dart';
 import '../../quotes/providers/quote_providers.dart';
+import '../../quotes/services/quote_rotation_service.dart';
 import '../../reading/providers/book_providers.dart';
 import '../../todo/providers/todo_providers.dart';
 import '../providers/auth_providers.dart';
@@ -35,6 +37,13 @@ class _SyncGateState extends ConsumerState<SyncGate> {
         ref.invalidate(diariesProvider);
         ref.invalidate(todoCategoriesProvider);
         ref.invalidate(todoItemsProvider);
+
+        // 문구 순차 알림 재스케줄 (설정 + 문구 목록 둘 다 복원됨)
+        try {
+          final quotes =
+              await ref.read(quotesProvider.future) as List<Quote>;
+          await QuoteRotationService.reschedule(quotes);
+        } catch (_) {}
       }
     } finally {
       _pulling = false;

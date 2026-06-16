@@ -75,9 +75,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 isScrollable: false,
                 labelPadding: EdgeInsets.zero,
                 tabs: const [
-                  Tab(text: '위시리스트'),
                   Tab(text: '읽고 있는 책'),
                   Tab(text: '내가 읽은 책'),
+                  Tab(text: '위시리스트'),
                 ],
               ),
             ],
@@ -95,17 +95,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             controller: _tab,
             children: [
               _BookList(
-                books: wishlist,
-                emptyText: '읽고 싶은 책을 위시리스트에 담아보세요.\n검색 후 "위시리스트 담기"를 누르면 됩니다.',
-                showProgress: false,
-              ),
-              _BookList(
                 books: reading,
                 emptyText: '아직 읽고 있는 책이 없어요.\n위의 검색창에서 책을 찾아보세요.',
               ),
               _BookList(
                 books: finished,
                 emptyText: '완독한 책이 표시됩니다.',
+                showProgress: false,
+              ),
+              _BookList(
+                books: wishlist,
+                emptyText: '읽고 싶은 책을 위시리스트에 담아보세요.\n검색 후 "위시리스트 담기"를 누르면 됩니다.',
                 showProgress: false,
               ),
             ],

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../auth/services/sync_manager.dart';
 import '../models/quote.dart';
 import 'notification_service.dart';
 
@@ -114,6 +115,7 @@ class QuoteRotationService {
   static Future<void> save(QuoteRotationSettings s) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_settingsKey, jsonEncode(s.toJson()));
+    SyncManager.instance.markDirty();
   }
 
   /// 기존 순환 알림 모두 취소 후, enabled면 다시 스케줄.
