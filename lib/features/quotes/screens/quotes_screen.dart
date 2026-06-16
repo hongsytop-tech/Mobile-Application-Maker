@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../models/quote.dart';
 import '../providers/quote_providers.dart';
 import 'quote_edit_screen.dart';
+import 'quote_rotation_settings_screen.dart';
 
 class QuotesScreen extends ConsumerWidget {
   const QuotesScreen({super.key});
@@ -15,7 +16,20 @@ class QuotesScreen extends ConsumerWidget {
     final sorted = ref.watch(sortedQuotesProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('기억하고 싶은 문구')),
+      appBar: AppBar(
+        title: const Text('기억하고 싶은 문구'),
+        actions: [
+          IconButton(
+            tooltip: '순차 알림 설정',
+            icon: const Icon(Icons.campaign_outlined),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const QuoteRotationSettingsScreen(),
+              ),
+            ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const QuoteEditScreen()),

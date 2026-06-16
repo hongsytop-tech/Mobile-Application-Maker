@@ -200,6 +200,71 @@ class NotificationService {
     await _plugin.cancelAll();
   }
 
+  // ---- 문구 순차 알림 (시각적으로 크게 보이도록 BigTextStyle) ----
+
+  static const _rotationAndroid = AndroidNotificationDetails(
+    'quote_rotation',
+    '문구 순차 알림',
+    channelDescription: '저장한 문구를 매일 지정 시각에 순환 알림합니다',
+    importance: Importance.max,
+    priority: Priority.high,
+    enableLights: true,
+    enableVibration: true,
+    color: Color(0xFF4F46E5),
+    colorized: true,
+    visibility: NotificationVisibility.public,
+    category: AndroidNotificationCategory.reminder,
+  );
+  static const _rotationIos = DarwinNotificationDetails(
+    presentAlert: true,
+    presentBadge: true,
+    presentSound: true,
+    interruptionLevel: InterruptionLevel.timeSensitive,
+  );
+
+  static Future<void> scheduleQuoteRotation({
+    required int id,
+    required String title,
+    required String body,
+    required DateTime when,
+  }) async {
+    if (!supported) return;
+    await init();
+    final scheduled = tz.TZDateTime.from(when, tz.local);
+
+    final androidDetails = AndroidNotificationDetails(
+      _rotationAndroid.channelId,
+      _rotationAndroid.channelName,
+      channelDescription: _rotationAndroid.channelDescription,
+      importance: _rotationAndroid.importance,
+      priority: _rotationAndroid.priority,
+      enableLights: true,
+      enableVibration: true,
+      color: const Color(0xFF4F46E5),
+      colorized: true,
+      visibility: NotificationVisibility.public,
+      category: AndroidNotificationCategory.reminder,
+      styleInformation: BigTextStyleInformation(
+        body,
+        contentTitle: title,
+        summaryText: '오늘의 문구',
+        htmlFormatBigText: false,
+        htmlFormatContentTitle: false,
+      ),
+    );
+
+    await _plugin.zonedSchedule(
+      id,
+      title,
+      body,
+      scheduled,
+      NotificationDetails(android: androidDetails, iOS: _rotationIos),
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+    );
+  }
+
   // ---- Todo 알림 (지정 시각에 매일/주간/월간) ----
 
   static const _todoAndroidDetails = AndroidNotificationDetails(

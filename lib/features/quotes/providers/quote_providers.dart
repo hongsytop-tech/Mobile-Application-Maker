@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/quote.dart';
 import '../services/notification_service.dart';
+import '../services/quote_rotation_service.dart';
 import '../services/quote_storage_service.dart';
 
 final quoteStorageServiceProvider = Provider((_) => QuoteStorageService());
@@ -15,12 +18,17 @@ class QuotesNotifier extends AsyncNotifier<List<Quote>> {
 
   @override
   Future<List<Quote>> build() async {
-    return ref.read(quoteStorageServiceProvider).loadAll();
+    final quotes = await ref.read(quoteStorageServiceProvider).loadAll();
+    // 앱 시작 시 순환 알림 재스케줄 (시스템 재부팅·앱 업데이트 대비)
+    unawaited(QuoteRotationService.reschedule(quotes));
+    return quotes;
   }
 
   Future<void> _persist(List<Quote> quotes) async {
     state = AsyncData(quotes);
     await ref.read(quoteStorageServiceProvider).saveAll(quotes);
+    // 문구 목록 바뀌면 순환 알림 재스케줄
+    unawaited(QuoteRotationService.reschedule(quotes));
   }
 
   Future<Quote> add(Quote draft) async {
