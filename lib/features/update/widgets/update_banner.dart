@@ -31,6 +31,7 @@ class UpdateBanner extends ConsumerWidget {
             text:
                 '최신 버전입니다 (현재 #${info.currentBuild} / 최신 #${info.latestBuild})',
             color: Colors.green,
+            tappable: false,
           );
         }
         final primary = Theme.of(context).colorScheme.primary;
@@ -89,33 +90,44 @@ class UpdateBanner extends ConsumerWidget {
 class _DebugBanner extends ConsumerWidget {
   final String text;
   final Color color;
-  const _DebugBanner({required this.text, required this.color});
+
+  /// false면 클릭·새로고침 아이콘 모두 표시 안 함 (최신 버전 등 액션 불필요한 상태)
+  final bool tappable;
+
+  const _DebugBanner({
+    required this.text,
+    required this.color,
+    this.tappable = true,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final content = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, color: color, size: 16),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(color: color, fontSize: 12),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (tappable) Icon(Icons.refresh, color: color, size: 16),
+        ],
+      ),
+    );
     return Material(
       color: color.withOpacity(0.1),
-      child: InkWell(
-        onTap: () => ref.invalidate(updateCheckProvider),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            children: [
-              Icon(Icons.info_outline, color: color, size: 16),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  text,
-                  style: TextStyle(color: color, fontSize: 12),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              Icon(Icons.refresh, color: color, size: 16),
-            ],
-          ),
-        ),
-      ),
+      child: tappable
+          ? InkWell(
+              onTap: () => ref.invalidate(updateCheckProvider),
+              child: content,
+            )
+          : content,
     );
   }
 }
