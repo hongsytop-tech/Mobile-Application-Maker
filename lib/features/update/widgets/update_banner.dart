@@ -14,11 +14,21 @@ class UpdateBanner extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final asyncInfo = ref.watch(updateCheckProvider);
     return asyncInfo.when(
-      loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
+      loading: () => _DebugBanner(text: '업데이트 확인 중...', color: Colors.orange),
+      error: (e, _) =>
+          _DebugBanner(text: '업데이트 확인 실패: $e', color: Colors.red),
       data: (info) {
-        if (info == null || !info.hasUpdate || info.apkUrl.isEmpty) {
-          return const SizedBox.shrink();
+        if (info == null) {
+          return const _DebugBanner(
+              text: '업데이트 확인됨 (정보 없음 — 안드로이드 외 플랫폼?)',
+              color: Colors.grey);
+        }
+        if (!info.hasUpdate || info.apkUrl.isEmpty) {
+          return _DebugBanner(
+            text:
+                '최신 버전입니다 (현재 #${info.currentBuild} / 최신 #${info.latestBuild})',
+            color: Colors.green,
+          );
         }
         final primary = Theme.of(context).colorScheme.primary;
         return Material(
@@ -73,6 +83,40 @@ class UpdateBanner extends ConsumerWidget {
   }
 }
 
+class _DebugBanner extends ConsumerWidget {
+  final String text;
+  final Color color;
+  const _DebugBanner({required this.text, required this.color});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Material(
+      color: color.withOpacity(0.1),
+      child: InkWell(
+        onTap: () => ref.invalidate(updateCheckProvider),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: [
+              Icon(Icons.info_outline, color: color, size: 16),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  text,
+                  style: TextStyle(color: color, fontSize: 12),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Icon(Icons.refresh, color: color, size: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _UpdateSheet extends ConsumerStatefulWidget {
   final UpdateInfo info;
   const _UpdateSheet({required this.info});
@@ -81,8 +125,7 @@ class _UpdateSheet extends ConsumerStatefulWidget {
   ConsumerState<_UpdateSheet> createState() => _UpdateSheetState();
 }
 
-class _UpdateSheetState extends ConsumerState<_UpdateSheet> {
-  double _progress = 0;
+class _UpdateSheetState extends ConsumerState<_UpdateSheet> {  double _progress = 0;
   int _received = 0;
   int _total = 0;
   bool _downloading = false;
