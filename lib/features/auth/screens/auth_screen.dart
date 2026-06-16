@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/supabase_service.dart';
+import 'sign_up_screen.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
@@ -13,8 +14,8 @@ class AuthScreen extends ConsumerStatefulWidget {
 class _AuthScreenState extends ConsumerState<AuthScreen> {
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
-  bool _isLogin = true;
   bool _busy = false;
+  bool _obscure = true;
   String? _error;
 
   @override
@@ -24,15 +25,15 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     super.dispose();
   }
 
-  Future<void> _emailSubmit() async {
+  Future<void> _login() async {
     if (!SupabaseService.isConfigured) {
       setState(() => _error = 'Supabase URL/Key가 .env에 설정되지 않았습니다.');
       return;
     }
     final email = _emailCtrl.text.trim();
     final password = _passwordCtrl.text;
-    if (email.isEmpty || password.length < 6) {
-      setState(() => _error = '이메일과 6자 이상 비밀번호를 입력해 주세요.');
+    if (email.isEmpty || password.isEmpty) {
+      setState(() => _error = '이메일과 비밀번호를 입력해 주세요.');
       return;
     }
     setState(() {
@@ -40,17 +41,23 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       _error = null;
     });
     try {
-      if (_isLogin) {
-        await SupabaseService.signIn(email: email, password: password);
-      } else {
-        await SupabaseService.signUp(email: email, password: password);
-      }
+      await SupabaseService.signIn(email: email, password: password);
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
-      setState(() => _error = e.toString());
+      setState(() => _error = _friendly(e.toString()));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  String _friendly(String raw) {
+    if (raw.contains('Invalid login')) {
+      return '이메일 또는 비밀번호가 올바르지 않습니다.';
+    }
+    if (raw.contains('Email not confirmed')) {
+      return '가입 확인 메일을 먼저 인증해 주세요.';
+    }
+    return raw;
   }
 
   Future<void> _googleSubmit() async {
@@ -80,10 +87,16 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     );
   }
 
+  void _goSignUp() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const SignUpScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('로그인 / 회원가입')),
+      appBar: AppBar(title: const Text('로그인')),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
@@ -138,26 +151,33 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           ]),
           const SizedBox(height: 16),
 
-          // ---- 이메일/비번 ----
+          // ---- 이메일 로그인 ----
           TextField(
             controller: _emailCtrl,
             keyboardType: TextInputType.emailAddress,
             autofillHints: const [AutofillHints.email],
             decoration: const InputDecoration(
               labelText: '이메일',
+              prefixIcon: Icon(Icons.email_outlined),
               border: OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _passwordCtrl,
-            obscureText: true,
+            obscureText: _obscure,
             autofillHints: const [AutofillHints.password],
-            decoration: const InputDecoration(
-              labelText: '비밀번호 (6자 이상)',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: '비밀번호',
+              prefixIcon: const Icon(Icons.lock_outline),
+              suffixIcon: IconButton(
+                icon: Icon(
+                    _obscure ? Icons.visibility_off : Icons.visibility),
+                onPressed: () => setState(() => _obscure = !_obscure),
+              ),
+              border: const OutlineInputBorder(),
             ),
-            onSubmitted: (_) => _emailSubmit(),
+            onSubmitted: (_) => _login(),
           ),
           if (_error != null) ...[
             const SizedBox(height: 12),
@@ -166,24 +186,19 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           ],
           const SizedBox(height: 16),
           FilledButton(
-            onPressed: _busy ? null : _emailSubmit,
+            onPressed: _busy ? null : _login,
             child: _busy
                 ? const SizedBox(
                     width: 18,
                     height: 18,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : Text(_isLogin ? '이메일로 로그인' : '이메일로 회원가입'),
+                : const Text('로그인'),
           ),
           const SizedBox(height: 8),
-          TextButton(
-            onPressed: () => setState(() {
-              _isLogin = !_isLogin;
-              _error = null;
-            }),
-            child: Text(_isLogin
-                ? '계정이 없으신가요? 회원가입'
-                : '이미 계정이 있으신가요? 로그인'),
+          OutlinedButton(
+            onPressed: _busy ? null : _goSignUp,
+            child: const Text('이메일로 회원가입'),
           ),
         ],
       ),
@@ -256,7 +271,6 @@ class _GoogleIcon extends StatelessWidget {
   const _GoogleIcon();
   @override
   Widget build(BuildContext context) {
-    // 텍스트로 간이 G 아이콘 (별도 에셋 없이 표시)
     return Container(
       decoration: BoxDecoration(
         gradient: const LinearGradient(colors: [
