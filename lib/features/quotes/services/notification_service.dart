@@ -167,12 +167,16 @@ class NotificationService {
     }
   }
 
+  static const _minsHour = 60;
+  static const _minsDay = 60 * 24;
+  static const _minsWeek = 60 * 24 * 7;
+
   static RepeatInterval? _matchRepeatInterval(int minutes) {
     return switch (minutes) {
       1 => RepeatInterval.everyMinute,
-      60 => RepeatInterval.hourly,
-      60 * 24 => RepeatInterval.daily,
-      60 * 24 * 7 => RepeatInterval.weekly,
+      _minsHour => RepeatInterval.hourly,
+      _minsDay => RepeatInterval.daily,
+      _minsWeek => RepeatInterval.weekly,
       _ => null,
     };
   }
