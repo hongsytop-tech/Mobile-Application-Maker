@@ -19,14 +19,18 @@ class UpdateUnavailable implements Exception {
 
 /// 앱 내 자동 업데이트 매니저.
 /// GitHub Releases에서 arm64-v8a APK를 받아서 시스템 인스톨러를 호출한다.
-/// (안드로이드 전용. iOS/웹은 no-op)
 class UpdateService {
   static const _owner = 'hongsytop-tech';
   static const _repo = 'Mobile-Application-Maker';
 
-  /// 안드로이드 외 플랫폼은 항상 null 반환.
   Future<UpdateInfo?> checkForUpdate() async {
-    if (kIsWeb || !Platform.isAndroid) return null;
+    if (kIsWeb) {
+      throw const UpdateUnavailable('웹에서는 미지원');
+    }
+    if (!Platform.isAndroid) {
+      throw UpdateUnavailable(
+          '지원 안함: OS=${Platform.operatingSystem}');
+    }
 
     final pkg = await PackageInfo.fromPlatform();
     final currentBuild = int.tryParse(pkg.buildNumber) ?? 0;
@@ -36,15 +40,29 @@ class UpdateService {
           'https://api.github.com/repos/$_owner/$_repo/releases/latest'),
       headers: {'Accept': 'application/vnd.github+json'},
     );
+
+    if (res.statusCode == 404) {
+      throw const UpdateUnavailable(
+        'Release 없음 (404). 레포가 private이면 공개로 바꾸세요.',
+      );
+    }
+    if (res.statusCode == 403) {
+      throw const UpdateUnavailable(
+        'GitHub API 403 (rate limit 또는 권한 없음)',
+      );
+    }
     if (res.statusCode != 200) {
       throw UpdateUnavailable(
-          '업데이트 정보 조회 실패 (${res.statusCode})');
+          'GitHub API ${res.statusCode}: ${res.body.substring(0, 80)}');
     }
 
-    final body = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    final body =
+        jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
     final tagName = (body['tag_name'] as String?) ?? '';
     final tagMatch = RegExp(r'apk-build-(\d+)').firstMatch(tagName);
-    if (tagMatch == null) return null;
+    if (tagMatch == null) {
+      throw UpdateUnavailable('태그 형식 불일치: "$tagName"');
+    }
     final latestBuild = int.parse(tagMatch.group(1)!);
 
     if (latestBuild <= currentBuild) {
@@ -60,7 +78,6 @@ class UpdateService {
 
     final assets =
         (body['assets'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
-    // 우선순위: arm64-v8a > universal > 첫 번째
     Map<String, dynamic>? pick;
     for (final a in assets) {
       final name = (a['name'] as String?) ?? '';
@@ -79,7 +96,7 @@ class UpdateService {
     }
     pick ??= assets.isNotEmpty ? assets.first : null;
     if (pick == null) {
-      throw const UpdateUnavailable('Release에 APK가 없습니다');
+      throw const UpdateUnavailable('Release에 APK 파일이 없음');
     }
 
     return UpdateInfo(
@@ -93,7 +110,6 @@ class UpdateService {
     );
   }
 
-  /// APK 다운로드. onProgress는 0.0~1.0.
   Future<File> downloadApk(
     String url, {
     void Function(double progress, int received, int total)? onProgress,
@@ -117,10 +133,11 @@ class UpdateService {
     return file;
   }
 
-  /// 다운로드한 APK를 시스템 인스톨러로 연다.
-  /// 사용자 동의가 필요한 단계 (출처 알 수 없는 앱 설치 허용).
   Future<void> installApk(File apk) async {
-    final result = await OpenFilex.open(apk.path, type: 'application/vnd.android.package-archive');
+    final result = await OpenFilex.open(
+      apk.path,
+      type: 'application/vnd.android.package-archive',
+    );
     if (result.type != ResultType.done) {
       throw UpdateUnavailable('인스톨러 열기 실패: ${result.message}');
     }
