@@ -20,7 +20,56 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
   bool _fetching = false;
   bool _autoFetchAttempted = false;
 
+  /// 체크박스 드래프트 — 저장 전까지의 임시 상태 (인덱스 → 읽음 여부)
+  /// null이면 드래프트 없음(저장된 상태와 동일).
+  Map<int, bool>? _draftToc;
+  bool _savingToc = false;
+
   static final _won = NumberFormat('#,###');
+
+  bool _draftIsRead(Book book, int i) {
+    return _draftToc?[i] ?? book.toc[i].isRead;
+  }
+
+  bool get _hasDraftChanges => _draftToc != null && _draftToc!.isNotEmpty;
+
+  void _toggleDraft(Book book, int i) {
+    setState(() {
+      _draftToc ??= {};
+      final newValue = !_draftIsRead(book, i);
+      // 원래 값과 같아지면 드래프트에서 제거 (변경 없음 처리)
+      if (newValue == book.toc[i].isRead) {
+        _draftToc!.remove(i);
+      } else {
+        _draftToc![i] = newValue;
+      }
+      if (_draftToc!.isEmpty) _draftToc = null;
+    });
+  }
+
+  void _discardDraft() {
+    setState(() => _draftToc = null);
+  }
+
+  Future<void> _saveDraft(Book book) async {
+    if (_draftToc == null || _draftToc!.isEmpty) return;
+    setState(() => _savingToc = true);
+    try {
+      final newToc = [
+        for (int i = 0; i < book.toc.length; i++)
+          book.toc[i].copyWith(isRead: _draftIsRead(book, i)),
+      ];
+      await ref.read(booksProvider.notifier).setToc(book.id, newToc);
+      if (mounted) {
+        setState(() => _draftToc = null);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('진행도 저장 완료')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _savingToc = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,6 +93,37 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
 
     final isReading = book.status == BookStatus.reading;
 
+    return PopScope(
+      canPop: !_hasDraftChanges,
+      onPopInvoked: (didPop) async {
+        if (didPop || !_hasDraftChanges) return;
+        final ok = await showDialog<bool>(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('저장하지 않은 변경이 있어요'),
+            content: const Text('지금까지의 체크 변경을 버리고 나갈까요?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('계속 편집'),
+              ),
+              FilledButton.tonal(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('버리고 나가기'),
+              ),
+            ],
+          ),
+        );
+        if (ok == true && mounted) {
+          setState(() => _draftToc = null);
+          Navigator.of(context).pop();
+        }
+      },
+      child: _buildScaffold(book, isReading),
+    );
+  }
+
+  Widget _buildScaffold(Book book, bool isReading) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('책 상세'),
@@ -95,24 +175,113 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
           else
             ...List.generate(book.toc.length, (i) {
               final item = book.toc[i];
+              final isRead = _draftIsRead(book, i);
+              final changed =
+                  _draftToc != null && _draftToc!.containsKey(i);
               return CheckboxListTile(
-                value: item.isRead,
-                onChanged: (_) => ref
-                    .read(booksProvider.notifier)
-                    .toggleTocItem(book.id, i),
-                title: Text(
-                  item.title,
-                  style: TextStyle(
-                    decoration:
-                        item.isRead ? TextDecoration.lineThrough : null,
-                    color: item.isRead ? Colors.grey : null,
-                  ),
+                value: isRead,
+                onChanged: (_) => _toggleDraft(book, i),
+                title: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        item.title,
+                        style: TextStyle(
+                          decoration:
+                              isRead ? TextDecoration.lineThrough : null,
+                          color: isRead ? Colors.grey : null,
+                        ),
+                      ),
+                    ),
+                    if (changed) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primary,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 controlAffinity: ListTileControlAffinity.leading,
                 contentPadding: EdgeInsets.zero,
                 dense: true,
               );
             }),
+          if (_hasDraftChanges) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Theme.of(context)
+                    .colorScheme
+                    .primary
+                    .withOpacity(0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .primary
+                      .withOpacity(0.3),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.edit_note,
+                        size: 18,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${_draftToc!.length}개 항목 변경됨',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: _savingToc ? null : _discardDraft,
+                          child: const Text('취소'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 2,
+                        child: FilledButton.icon(
+                          onPressed:
+                              _savingToc ? null : () => _saveDraft(book),
+                          icon: _savingToc
+                              ? const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white),
+                                )
+                              : const Icon(Icons.save, size: 18),
+                          label: const Text('진행도 저장'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 32),
           if (book.status == BookStatus.wishlist)
             FilledButton.icon(
