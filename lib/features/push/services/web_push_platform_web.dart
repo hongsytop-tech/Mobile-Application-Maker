@@ -28,10 +28,18 @@ Future<Map<String, String>?> subscribe(String vapidPublicBase64) async {
   try {
     sub = await pm.getSubscription();
   } catch (_) {}
-  sub ??= await pm.subscribe({
-    'userVisibleOnly': true,
-    'applicationServerKey': _urlBase64ToUint8List(vapidPublicBase64),
-  });
+  if (sub == null) {
+    // applicationServerKey 는 padding 없는 base64url 문자열로 직접 전달.
+    // (Uint8List 로 넘기면 dart:html 가 padded base64 문자열로 변환해서 오류 발생)
+    final cleanKey = vapidPublicBase64
+        .replaceAll('+', '-')
+        .replaceAll('/', '_')
+        .replaceAll('=', '');
+    sub = await pm.subscribe({
+      'userVisibleOnly': true,
+      'applicationServerKey': cleanKey,
+    });
+  }
 
   final endpoint = sub.endpoint;
   final p256dhBuf = sub.getKey('p256dh');
