@@ -1,4 +1,6 @@
 /// 비-웹 플랫폼 stub. 카카오 OAuth 는 현재 웹에서만 지원.
+void captureKakaoCallback() {}
+
 String currentOrigin() => '';
 
 void redirectToUrl(String url) {
