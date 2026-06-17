@@ -23,23 +23,33 @@ Future<Map<String, String>?> subscribe(String vapidPublicBase64) async {
   final pm = reg.pushManager;
   if (pm == null) return null;
 
-  // 기존 구독이 있으면 재사용. 없으면 새로 구독.
+  // applicationServerKey 는 padding 없는 base64url 문자열로 직접 전달.
+  // (Uint8List 로 넘기면 dart:html 가 padded base64 문자열로 변환해서 오류 발생)
+  final cleanKey = vapidPublicBase64
+      .replaceAll('+', '-')
+      .replaceAll('/', '_')
+      .replaceAll('=', '');
+
+  // 기존 구독이 있으면 VAPID 키 일치 여부 확인.
+  // VAPID 키가 바뀌어 옛 구독을 재사용하면 푸시 서비스가 시그니처 불일치로
+  // 메시지를 조용히 버리므로, 키가 다르면 폐기하고 재구독한다.
   html.PushSubscription? sub;
   try {
     sub = await pm.getSubscription();
   } catch (_) {}
-  if (sub == null) {
-    // applicationServerKey 는 padding 없는 base64url 문자열로 직접 전달.
-    // (Uint8List 로 넘기면 dart:html 가 padded base64 문자열로 변환해서 오류 발생)
-    final cleanKey = vapidPublicBase64
-        .replaceAll('+', '-')
-        .replaceAll('/', '_')
-        .replaceAll('=', '');
-    sub = await pm.subscribe({
-      'userVisibleOnly': true,
-      'applicationServerKey': cleanKey,
-    });
+  if (sub != null) {
+    final mismatch = !_subscriptionMatchesKey(sub, cleanKey);
+    if (mismatch) {
+      try {
+        await sub.unsubscribe();
+      } catch (_) {}
+      sub = null;
+    }
   }
+  sub ??= await pm.subscribe({
+    'userVisibleOnly': true,
+    'applicationServerKey': cleanKey,
+  });
 
   final endpoint = sub.endpoint;
   final p256dhBuf = sub.getKey('p256dh');
@@ -52,6 +62,20 @@ Future<Map<String, String>?> subscribe(String vapidPublicBase64) async {
     'auth': _bufToBase64Url(authBuf),
     'user_agent': html.window.navigator.userAgent,
   };
+}
+
+bool _subscriptionMatchesKey(
+    html.PushSubscription sub, String currentCleanKey) {
+  try {
+    final opts = sub.options;
+    if (opts == null) return true; // 비교 불가능하면 그대로 사용
+    final keyBuf = opts.applicationServerKey;
+    if (keyBuf == null) return true;
+    final existing = _bufToBase64Url(keyBuf);
+    return existing == currentCleanKey;
+  } catch (_) {
+    return true;
+  }
 }
 
 Future<bool> unsubscribe() async {
