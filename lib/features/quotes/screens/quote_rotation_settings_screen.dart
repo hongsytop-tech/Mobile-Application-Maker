@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../auth/services/sync_manager.dart';
 import '../providers/quote_providers.dart';
 import '../services/notification_service.dart';
 import '../services/quote_rotation_service.dart';
@@ -24,6 +27,7 @@ class _QuoteRotationSettingsScreenState
 
   bool _loaded = false;
   bool _saving = false;
+  StreamSubscription<DateTime>? _pullSub;
 
   bool get _dirty =>
       _draft.enabled != _saved.enabled ||
@@ -36,14 +40,25 @@ class _QuoteRotationSettingsScreenState
   @override
   void initState() {
     super.initState();
-    QuoteRotationService.load().then((s) {
-      if (mounted) {
-        setState(() {
-          _saved = s;
-          _draft = s;
-          _loaded = true;
-        });
-      }
+    _reloadFromDisk();
+    // 다른 기기 변경분이 pull 로 도착하면 화면도 즉시 갱신
+    _pullSub = SyncManager.instance.pullCompleted.listen((_) => _reloadFromDisk());
+  }
+
+  @override
+  void dispose() {
+    _pullSub?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _reloadFromDisk() async {
+    final s = await QuoteRotationService.load();
+    if (!mounted) return;
+    setState(() {
+      _saved = s;
+      // 사용자가 편집 중이 아니면 draft 도 같이 새로고침
+      if (!_dirty || !_loaded) _draft = s;
+      _loaded = true;
     });
   }
 
@@ -349,7 +364,7 @@ class _IntervalPicker extends StatelessWidget {
                   value: minutes,
                   min: 0,
                   max: 59,
-                  step: 5,
+                  step: 1,
                   onChanged: (v) => onChanged(hours, v),
                 ),
               ),
