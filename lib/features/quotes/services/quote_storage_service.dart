@@ -16,6 +16,7 @@ class QuoteStorageService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(
         _key, quotes.map((e) => e.toJsonString()).toList());
-    SyncManager.instance.markDirty();
+    // 즉시 cloud push (debounce 우회) → PWA 가 push 전에 종료돼도 누락 없음
+    await SyncManager.instance.flushNow();
   }
 }

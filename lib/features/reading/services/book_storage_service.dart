@@ -15,6 +15,6 @@ class BookStorageService {
   Future<void> saveAll(List<Book> books) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(_key, books.map((e) => e.toJsonString()).toList());
-    SyncManager.instance.markDirty();
+    await SyncManager.instance.flushNow();
   }
 }

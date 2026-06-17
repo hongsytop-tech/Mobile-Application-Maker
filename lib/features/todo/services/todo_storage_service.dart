@@ -18,7 +18,7 @@ class TodoStorageService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(
         _categoriesKey, categories.map((c) => c.toJsonString()).toList());
-    SyncManager.instance.markDirty();
+    await SyncManager.instance.flushNow();
   }
 
   Future<List<TodoItem>> loadItems() async {
@@ -31,6 +31,6 @@ class TodoStorageService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(
         _itemsKey, items.map((i) => i.toJsonString()).toList());
-    SyncManager.instance.markDirty();
+    await SyncManager.instance.flushNow();
   }
 }

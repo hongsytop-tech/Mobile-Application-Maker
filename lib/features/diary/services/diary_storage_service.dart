@@ -16,6 +16,6 @@ class DiaryStorageService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(
         _key, diaries.map((e) => e.toJsonString()).toList());
-    SyncManager.instance.markDirty();
+    await SyncManager.instance.flushNow();
   }
 }
