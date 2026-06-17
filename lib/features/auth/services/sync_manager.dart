@@ -94,6 +94,14 @@ class SyncManager {
     }
   }
 
+  /// 외부(예: 마이페이지 "복원" 버튼)에서 SyncService 를 직접 호출한 뒤
+  /// pullCompleted 구독자(설정 화면 등)에게 알리기 위해 사용.
+  void notifyPullCompleted() {
+    _lastPullAt = DateTime.now();
+    lastSyncedAt.value = DateTime.now();
+    _pullCompleted.add(DateTime.now());
+  }
+
   /// 폰/탭 백그라운드에서 복귀할 때 호출 — 너무 잦은 pull 방지로 10초 throttle.
   Future<void> pullIfStale({Duration maxAge = const Duration(seconds: 10)}) async {
     if (!_canSync) return;
