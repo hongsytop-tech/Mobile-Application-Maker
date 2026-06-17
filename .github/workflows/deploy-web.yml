@@ -150,10 +150,19 @@ jobs:
         run: |
           # Icon-192 의 RGB 채널을 모두 흰색으로 칠해서 알파만 살린 모노 베지 생성
           # (Android 상태바 베지는 단색 실루엣만 표시되므로 컬러 아이콘은 의미 없음)
-          convert build/web/icons/Icon-192.png \
-            -channel RGB -evaluate set 100% +channel \
-            -resize 96x96 \
-            build/web/icons/notification_badge.png
+          pip install --quiet Pillow
+          python3 - <<'PY'
+          from PIL import Image
+          src = Image.open('build/web/icons/Icon-192.png').convert('RGBA')
+          src_data = list(src.getdata())
+          out_data = [(255, 255, 255, a) if a > 30 else (0, 0, 0, 0)
+                      for (r, g, b, a) in src_data]
+          out = Image.new('RGBA', src.size, (0, 0, 0, 0))
+          out.putdata(out_data)
+          out.thumbnail((96, 96), Image.LANCZOS)
+          out.save('build/web/icons/notification_badge.png', 'PNG')
+          print('notification_badge.png generated:', out.size)
+          PY
           ls -lh build/web/icons/
 
       - name: Add 404 fallback (SPA routing)
