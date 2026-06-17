@@ -36,51 +36,62 @@ class WebPushService {
   }
 
   /// 권한 요청 + 구독 + Supabase 저장.
-  /// 반환: 성공 여부 + 실패 사유.
+  /// 반환: 성공 여부 + 실패 사유. (어떤 예외도 밖으로 던지지 않는다)
   static Future<WebPushEnableResult> enable() async {
-    if (!kIsWeb) return WebPushEnableResult.unsupported();
-    if (!await platform.isPushSupported()) return WebPushEnableResult.unsupported();
-    if (!SupabaseService.isAuthenticated) {
-      return WebPushEnableResult.error('로그인이 필요합니다');
-    }
-
-    final pub = await _getPublicKey();
-    if (pub == null || pub.isEmpty) {
-      return WebPushEnableResult.error('VAPID 공개키를 받지 못했습니다 (서버 설정 확인)');
-    }
-
-    final sub = await platform.subscribe(pub);
-    if (sub == null) {
-      final p = await platform.currentPermission();
-      if (p == 'denied') {
-        return WebPushEnableResult.error('알림 권한이 차단돼 있어요. 브라우저 설정에서 허용해 주세요.');
-      }
-      return WebPushEnableResult.error('구독 실패 — 권한이 부여되지 않았습니다');
-    }
-
     try {
-      final res = await SupabaseService.client
-          .from('web_push_subscriptions')
-          .upsert(
-            {
-              'user_id': SupabaseService.currentUser!.id,
-              'endpoint': sub['endpoint'],
-              'p256dh': sub['p256dh'],
-              'auth': sub['auth'],
-              'user_agent': sub['user_agent'],
-            },
-            onConflict: 'user_id,endpoint',
-          )
-          .select();
-      if (res is! List || res.isEmpty) {
-        return WebPushEnableResult.error(
-            '구독 저장 응답이 비어있어요 (테이블/RLS 확인 필요)');
+      if (!kIsWeb) return WebPushEnableResult.unsupported();
+      if (!await platform.isPushSupported()) {
+        return WebPushEnableResult.unsupported();
       }
-    } catch (e) {
-      return WebPushEnableResult.error('구독 저장 실패: $e');
-    }
+      if (!SupabaseService.isAuthenticated) {
+        return WebPushEnableResult.error('로그인이 필요합니다');
+      }
 
-    return WebPushEnableResult.ok();
+      final pub = await _getPublicKey();
+      if (pub == null || pub.isEmpty) {
+        return WebPushEnableResult.error('VAPID 공개키를 받지 못했습니다 (서버 설정 확인)');
+      }
+
+      Map<String, String>? sub;
+      try {
+        sub = await platform.subscribe(pub);
+      } catch (e) {
+        return WebPushEnableResult.error('브라우저 구독 실패: $e');
+      }
+      if (sub == null) {
+        final p = await platform.currentPermission();
+        if (p == 'denied') {
+          return WebPushEnableResult.error('알림 권한이 차단돼 있어요. 브라우저 설정에서 허용해 주세요.');
+        }
+        return WebPushEnableResult.error('구독 실패 — 권한이 부여되지 않았습니다 (상태: $p)');
+      }
+
+      try {
+        final res = await SupabaseService.client
+            .from('web_push_subscriptions')
+            .upsert(
+              {
+                'user_id': SupabaseService.currentUser!.id,
+                'endpoint': sub['endpoint'],
+                'p256dh': sub['p256dh'],
+                'auth': sub['auth'],
+                'user_agent': sub['user_agent'],
+              },
+              onConflict: 'user_id,endpoint',
+            )
+            .select();
+        if (res is! List || res.isEmpty) {
+          return WebPushEnableResult.error(
+              '구독 저장 응답이 비어있어요 (테이블/RLS 확인 필요)');
+        }
+      } catch (e) {
+        return WebPushEnableResult.error('구독 저장 실패: $e');
+      }
+
+      return WebPushEnableResult.ok();
+    } catch (e, st) {
+      return WebPushEnableResult.error('예기치 못한 오류: $e\n$st');
+    }
   }
 
   /// 구독 해제 + DB 정리.

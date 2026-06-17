@@ -73,24 +73,27 @@ class _WebPushCardState extends State<WebPushCard> {
       _busy = true;
       _msg = null;
     });
-    // 항상 enable 을 먼저 호출 → 브라우저 구독을 DB 와 동기화
-    final r = await WebPushService.enable();
-    if (!r.ok) {
-      if (mounted) {
-        setState(() {
-          _msg = r.unsupported
-              ? '이 브라우저/플랫폼에서는 웹 푸시가 지원되지 않습니다.'
-              : '❌ ${r.error ?? "활성화 실패"}';
-          _busy = false;
-        });
-      }
-      return;
-    }
     try {
+      // 항상 enable 을 먼저 호출 → 브라우저 구독을 DB 와 동기화
+      final r = await WebPushService.enable();
+      if (!r.ok) {
+        if (mounted) {
+          setState(() {
+            _msg = r.unsupported
+                ? '이 브라우저/플랫폼에서는 웹 푸시가 지원되지 않습니다.'
+                : '❌ ${r.error ?? "활성화 실패"}';
+          });
+        }
+        return;
+      }
       await WebPushService.sendTest();
-      setState(() => _msg = '✅ 테스트 푸시를 전송했어요. 잠시 후 알림이 옵니다.');
-    } catch (e) {
-      setState(() => _msg = '❌ 전송 실패: $e');
+      if (mounted) {
+        setState(() => _msg = '✅ 테스트 푸시를 전송했어요. 잠시 후 알림이 옵니다.');
+      }
+    } catch (e, st) {
+      if (mounted) {
+        setState(() => _msg = '❌ 예외: $e\n${st.toString().split('\n').take(3).join('\n')}');
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
