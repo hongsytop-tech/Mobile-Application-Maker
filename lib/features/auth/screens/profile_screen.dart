@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../diary/providers/diary_providers.dart';
 import '../../kakao/widgets/kakao_link_card.dart';
+import '../../push/widgets/web_push_card.dart';
 import '../../quotes/providers/quote_providers.dart';
 import '../../reading/providers/book_providers.dart';
 import '../../todo/providers/todo_providers.dart';
@@ -172,6 +173,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
               const SizedBox(height: 16),
               const _AutoSyncCard(),
+              const SizedBox(height: 12),
+              const WebPushCard(),
               const SizedBox(height: 12),
               const KakaoLinkCard(),
               const SizedBox(height: 24),
