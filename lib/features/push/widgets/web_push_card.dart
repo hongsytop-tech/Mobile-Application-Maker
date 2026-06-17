@@ -110,6 +110,39 @@ class _WebPushCardState extends State<WebPushCard> {
     }
   }
 
+  /// 백엔드 스케줄러 흐름 검증: 5초 뒤 발송 예약 → run_due 즉시 실행
+  Future<void> _testScheduler() async {
+    setState(() {
+      _busy = true;
+      _msg = '⏳ 5초 후 발송됩니다...';
+    });
+    try {
+      final r = await WebPushService.enable();
+      if (!r.ok) {
+        if (mounted) {
+          setState(() => _msg = '❌ ${r.error ?? "활성화 실패"}');
+        }
+        return;
+      }
+      final stats = await WebPushService.testScheduler();
+      if (mounted) {
+        final p = stats['processed'] ?? 0;
+        final f = stats['failed'] ?? 0;
+        if (p > 0) {
+          setState(() => _msg =
+              '✅ 스케줄러 동작 확인! 발송 ${p}건. 알림이 도착할 거예요.');
+        } else {
+          setState(() => _msg =
+              '⚠️ 큐 등록은 됐지만 발송 ${p}건 / 실패 ${f}건. (구독 상태 확인 필요)');
+        }
+      }
+    } catch (e) {
+      if (mounted) setState(() => _msg = '❌ 스케줄러 테스트 실패: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
@@ -202,6 +235,12 @@ class _WebPushCardState extends State<WebPushCard> {
             label: const Text('끄기'),
           ),
         ],
+      ),
+      const SizedBox(height: 8),
+      OutlinedButton.icon(
+        onPressed: _busy ? null : _testScheduler,
+        icon: const Icon(Icons.schedule),
+        label: const Text('스케줄러 테스트 (5초 후 발송)'),
       ),
     ];
   }

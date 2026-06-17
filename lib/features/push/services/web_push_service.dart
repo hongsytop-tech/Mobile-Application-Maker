@@ -123,6 +123,22 @@ class WebPushService {
       'cleaned': (data?['cleaned'] as num?)?.toInt() ?? 0,
     };
   }
+
+  /// 스케줄러 검증용: 3초 뒤 발송 예약 + 즉시 run_due 실행.
+  /// pg_cron 을 기다리지 않고 백엔드 큐 → 발송 흐름 전체를 테스트.
+  static Future<Map<String, int>> testScheduler() async {
+    final res = await SupabaseService.client.functions
+        .invoke('web-push', body: {'action': 'test_scheduled'});
+    final data = res.data as Map?;
+    if (data?['ok'] != true) {
+      throw StateError('${data?['error'] ?? 'unknown'} ${data?['detail'] ?? ''}');
+    }
+    return {
+      'processed': (data?['processed'] as num?)?.toInt() ?? 0,
+      'failed': (data?['failed'] as num?)?.toInt() ?? 0,
+      'total': (data?['total'] as num?)?.toInt() ?? 0,
+    };
+  }
 }
 
 class WebPushEnableResult {

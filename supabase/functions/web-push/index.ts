@@ -73,6 +73,8 @@ Deno.serve(async (req) => {
     switch (action) {
       case 'send_test':
         return await sendTest(user.id, admin);
+      case 'test_scheduled':
+        return await testScheduled(user.id, admin);
       default:
         return j(400, { error: 'unknown_action' });
     }
@@ -221,6 +223,27 @@ async function sendTest(userId: string, admin: any) {
   }
 
   return j(200, { ok: true, sent, failed, cleaned: expiredIds.length, errors });
+}
+
+/// 호출자 본인에게 5초 뒤 알림 1건을 예약하고 즉시 run_due 를 돌려서
+/// pg_cron 을 기다리지 않고 스케줄러 흐름을 검증.
+async function testScheduled(userId: string, admin: any) {
+  const scheduledAt = new Date(Date.now() + 5000).toISOString();
+  const { error: insertErr } = await admin
+    .from('scheduled_pushes')
+    .insert({
+      user_id: userId,
+      kind: 'test',
+      title: '⏱️ 스케줄러 테스트',
+      body: '백엔드 스케줄러로 전송된 알림입니다.',
+      scheduled_at: scheduledAt,
+    });
+  if (insertErr) {
+    return j(500, { error: 'insert_failed', detail: insertErr.message });
+  }
+  // 5.5초 대기 → scheduled_at 이 도래 → run_due 가 즉시 발송
+  await new Promise((r) => setTimeout(r, 5500));
+  return await runDue(admin);
 }
 
 function j(status: number, payload: unknown) {
