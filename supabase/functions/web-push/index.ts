@@ -88,6 +88,7 @@ async function sendTest(userId: string, admin: any) {
   let sent = 0;
   let failed = 0;
   const expiredIds: string[] = [];
+  const errors: { id: string; status?: number; body?: string }[] = [];
 
   for (const s of subs) {
     try {
@@ -98,9 +99,12 @@ async function sendTest(userId: string, admin: any) {
       sent++;
     } catch (e: any) {
       failed++;
-      // 404/410 = 구독 만료 → 정리
       const status = e?.statusCode;
-      if (status === 404 || status === 410) expiredIds.push(s.id);
+      errors.push({ id: s.id, status, body: String(e?.body ?? e?.message ?? e).slice(0, 200) });
+      // 만료/거부 = 구독 정리 (404/410=gone, 401/403=signature mismatch)
+      if (status === 404 || status === 410 || status === 401 || status === 403) {
+        expiredIds.push(s.id);
+      }
     }
   }
 
@@ -108,7 +112,7 @@ async function sendTest(userId: string, admin: any) {
     await admin.from('web_push_subscriptions').delete().in('id', expiredIds);
   }
 
-  return j(200, { ok: true, sent, failed, cleaned: expiredIds.length });
+  return j(200, { ok: true, sent, failed, cleaned: expiredIds.length, errors });
 }
 
 function j(status: number, payload: unknown) {

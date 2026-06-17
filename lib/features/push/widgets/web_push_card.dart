@@ -86,9 +86,20 @@ class _WebPushCardState extends State<WebPushCard> {
         }
         return;
       }
-      await WebPushService.sendTest();
+      final stats = await WebPushService.sendTest();
       if (mounted) {
-        setState(() => _msg = '✅ 테스트 푸시를 전송했어요. 잠시 후 알림이 옵니다.');
+        final s = stats['sent'] ?? 0;
+        final f = stats['failed'] ?? 0;
+        final c = stats['cleaned'] ?? 0;
+        if (s == 0 && f > 0) {
+          setState(() => _msg =
+              '⚠️ 전송 호출은 성공했지만 푸시 서비스가 모두 거부했어요 (실패 $f건, 정리 $c건). VAPID 키 쌍이 일치하는지 확인 필요.');
+        } else if (s > 0) {
+          setState(() => _msg =
+              '✅ 푸시 전송됨 (성공 $s건${f > 0 ? ", 실패 $f" : ""}${c > 0 ? ", 정리 $c" : ""}건). 잠시 후 알림이 옵니다.');
+        } else {
+          setState(() => _msg = '⚠️ 저장된 구독이 없어요. 알림 켜기를 다시 시도해 주세요.');
+        }
       }
     } catch (e, st) {
       if (mounted) {

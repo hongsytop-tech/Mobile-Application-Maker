@@ -109,14 +109,19 @@ class WebPushService {
     }
   }
 
-  /// 테스트 푸시 전송.
-  static Future<void> sendTest() async {
+  /// 테스트 푸시 전송. 응답에서 sent/failed/cleaned 카운트 반환.
+  static Future<Map<String, int>> sendTest() async {
     final res = await SupabaseService.client.functions
         .invoke('web-push', body: {'action': 'send_test'});
     final data = res.data as Map?;
     if (data?['ok'] != true) {
       throw StateError('${data?['error'] ?? 'unknown'} ${data?['detail'] ?? ''}');
     }
+    return {
+      'sent': (data?['sent'] as num?)?.toInt() ?? 0,
+      'failed': (data?['failed'] as num?)?.toInt() ?? 0,
+      'cleaned': (data?['cleaned'] as num?)?.toInt() ?? 0,
+    };
   }
 }
 
