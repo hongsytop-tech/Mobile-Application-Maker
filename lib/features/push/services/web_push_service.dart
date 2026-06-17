@@ -59,16 +59,23 @@ class WebPushService {
     }
 
     try {
-      await SupabaseService.client.from('web_push_subscriptions').upsert(
-        {
-          'user_id': SupabaseService.currentUser!.id,
-          'endpoint': sub['endpoint'],
-          'p256dh': sub['p256dh'],
-          'auth': sub['auth'],
-          'user_agent': sub['user_agent'],
-        },
-        onConflict: 'user_id,endpoint',
-      );
+      final res = await SupabaseService.client
+          .from('web_push_subscriptions')
+          .upsert(
+            {
+              'user_id': SupabaseService.currentUser!.id,
+              'endpoint': sub['endpoint'],
+              'p256dh': sub['p256dh'],
+              'auth': sub['auth'],
+              'user_agent': sub['user_agent'],
+            },
+            onConflict: 'user_id,endpoint',
+          )
+          .select();
+      if (res is! List || res.isEmpty) {
+        return WebPushEnableResult.error(
+            '구독 저장 응답이 비어있어요 (테이블/RLS 확인 필요)');
+      }
     } catch (e) {
       return WebPushEnableResult.error('구독 저장 실패: $e');
     }
