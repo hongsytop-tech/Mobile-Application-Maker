@@ -1,8 +1,10 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../push/services/web_push_scheduler.dart';
 import '../models/quote.dart';
 import '../services/notification_service.dart';
 import '../services/quote_rotation_service.dart';
@@ -21,6 +23,8 @@ class QuotesNotifier extends AsyncNotifier<List<Quote>> {
     final quotes = await ref.read(quoteStorageServiceProvider).loadAll();
     // 앱 시작 시 순환 알림 재스케줄 (시스템 재부팅·앱 업데이트 대비)
     unawaited(QuoteRotationService.reschedule(quotes));
+    // 웹: 개별 문구 알림도 큐 동기화
+    if (kIsWeb) unawaited(WebPushScheduler.scheduleAll(quotes));
     return quotes;
   }
 
@@ -51,6 +55,7 @@ class QuotesNotifier extends AsyncNotifier<List<Quote>> {
     await _persist([...existing, q]);
     if (q.hasSchedule) {
       await NotificationService.scheduleForQuote(q);
+      if (kIsWeb) await WebPushScheduler.scheduleQuote(q);
     }
     return q;
   }
@@ -78,8 +83,10 @@ class QuotesNotifier extends AsyncNotifier<List<Quote>> {
         .toList();
     await _persist(list);
     await NotificationService.cancel(updated.notificationId);
+    if (kIsWeb) await WebPushScheduler.cancelQuote(updated.id);
     if (updated.hasSchedule) {
       await NotificationService.scheduleForQuote(updated);
+      if (kIsWeb) await WebPushScheduler.scheduleQuote(updated);
     }
   }
 
@@ -88,6 +95,7 @@ class QuotesNotifier extends AsyncNotifier<List<Quote>> {
     final q = list.where((e) => e.id == id).firstOrNull;
     if (q != null) {
       await NotificationService.cancel(q.notificationId);
+      if (kIsWeb) await WebPushScheduler.cancelQuote(q.id);
     }
     await _persist(list.where((e) => e.id != id).toList());
   }

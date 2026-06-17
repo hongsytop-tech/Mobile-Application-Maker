@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../diary/providers/diary_providers.dart';
+import '../../push/services/web_push_scheduler.dart';
 import '../../quotes/models/quote.dart';
 import '../../quotes/providers/quote_providers.dart';
 import '../../quotes/services/quote_rotation_service.dart';
@@ -50,11 +51,12 @@ class _SyncGateState extends ConsumerState<SyncGate> {
     ref.invalidate(diariesProvider);
     ref.invalidate(todoCategoriesProvider);
     ref.invalidate(todoItemsProvider);
-    // 문구 순차 알림 재스케줄
+    // 문구 순차 알림 + 개별 문구 알림 재스케줄
     () async {
       try {
         final quotes = await ref.read(quotesProvider.future) as List<Quote>;
         await QuoteRotationService.reschedule(quotes);
+        await WebPushScheduler.scheduleAll(quotes);
       } catch (_) {}
     }();
   }
