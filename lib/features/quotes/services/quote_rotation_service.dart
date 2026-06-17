@@ -153,9 +153,16 @@ class QuoteRotationService {
   ///
   /// 웹(PWA): Supabase scheduled_pushes 테이블에 기록 → 백엔드 스케줄러가 발송
   /// 네이티브(APK): flutter_local_notifications 로 로컬 예약
-  static Future<void> reschedule(List<Quote> quotes) async {
+  ///
+  /// [cleanFirst] = true 일 때 기존 pending 항목을 모두 지운 뒤 새로 등록.
+  ///   설정 변경(저장) 시 사용. pull 동기화 시엔 false 로 호출해 다른 기기가
+  ///   만든 임박 알림을 지우지 않고 멱등 upsert 만 수행.
+  static Future<void> reschedule(
+    List<Quote> quotes, {
+    bool cleanFirst = false,
+  }) async {
     if (kIsWeb) {
-      await _rescheduleWeb(quotes);
+      await _rescheduleWeb(quotes, cleanFirst: cleanFirst);
       return;
     }
     await _cancelAll();
@@ -177,25 +184,31 @@ class QuoteRotationService {
     }
   }
 
-  static Future<void> _rescheduleWeb(List<Quote> quotes) async {
+  static Future<void> _rescheduleWeb(
+    List<Quote> quotes, {
+    required bool cleanFirst,
+  }) async {
     if (!SupabaseService.isAuthenticated) return;
     final uid = SupabaseService.currentUser!.id;
     final db = SupabaseService.client;
+    final s = await load();
+    final disabled = !s.enabled || quotes.isEmpty;
 
-    // 기존 quote_rotation 예약 모두 삭제
-    try {
-      await db
-          .from('scheduled_pushes')
-          .delete()
-          .eq('user_id', uid)
-          .eq('kind', 'quote_rotation')
-          .filter('sent_at', 'is', null);
-    } catch (e) {
-      if (kDebugMode) print('reschedule(web): delete failed: $e');
+    if (cleanFirst || disabled) {
+      // pending(아직 발송 안 된) future quote_rotation 만 정리
+      try {
+        await db
+            .from('scheduled_pushes')
+            .delete()
+            .eq('user_id', uid)
+            .eq('kind', 'quote_rotation')
+            .filter('sent_at', 'is', null);
+      } catch (e) {
+        if (kDebugMode) print('reschedule(web): delete failed: $e');
+      }
     }
 
-    final s = await load();
-    if (!s.enabled || quotes.isEmpty) return;
+    if (disabled) return;
     final times = _computeUpcoming(s, count: _maxSchedule);
     if (times.isEmpty) return;
 
@@ -215,9 +228,14 @@ class QuoteRotationService {
     }
 
     try {
-      await db.from('scheduled_pushes').insert(rows);
+      // 중복은 무시 (다른 기기에서 이미 같은 시각으로 등록한 경우)
+      await db.from('scheduled_pushes').upsert(
+            rows,
+            onConflict: 'user_id,kind,scheduled_at',
+            ignoreDuplicates: true,
+          );
     } catch (e) {
-      if (kDebugMode) print('reschedule(web): insert failed: $e');
+      if (kDebugMode) print('reschedule(web): upsert failed: $e');
     }
   }
 

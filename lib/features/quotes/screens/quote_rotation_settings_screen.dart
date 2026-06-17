@@ -59,7 +59,8 @@ class _QuoteRotationSettingsScreenState
       }
       await QuoteRotationService.save(_draft);
       final quotes = ref.read(quotesProvider).value ?? const [];
-      await QuoteRotationService.reschedule(quotes);
+      // 설정 변경 → 옛 스케줄 모두 제거 후 새로 등록
+      await QuoteRotationService.reschedule(quotes, cleanFirst: true);
       if (mounted) {
         setState(() => _saved = _draft);
         ScaffoldMessenger.of(context).showSnackBar(
