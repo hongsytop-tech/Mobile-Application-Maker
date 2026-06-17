@@ -6,10 +6,12 @@ self.addEventListener('push', (event) => {
   const title = data.title || '알림';
   // SW 스코프(예: https://.../Mobile-Application-Maker/) 기준 절대경로로 아이콘 지정
   const iconUrl = new URL('icons/Icon-192.png', self.registration.scope).toString();
+  // 베지(상태바 작은 아이콘)는 단색 실루엣 PNG. deploy-web.yml 에서 ImageMagick 으로 생성.
+  const badgeUrl = new URL('icons/notification_badge.png', self.registration.scope).toString();
   const options = {
     body: data.body || '',
     icon: iconUrl,
-    badge: iconUrl,
+    badge: badgeUrl,
     tag: data.tag || 'default',
     data: { url: data.url || './' },
     requireInteraction: false,

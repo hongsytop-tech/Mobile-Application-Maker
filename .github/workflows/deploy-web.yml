@@ -146,6 +146,16 @@ jobs:
           # (자동 새로고침은 사용자 입력을 끊을 수 있어 제거 — Dart 측 배너가 처리)
           PY
 
+      - name: Generate monochrome notification badge
+        run: |
+          # Icon-192 의 RGB 채널을 모두 흰색으로 칠해서 알파만 살린 모노 베지 생성
+          # (Android 상태바 베지는 단색 실루엣만 표시되므로 컬러 아이콘은 의미 없음)
+          convert build/web/icons/Icon-192.png \
+            -channel RGB -evaluate set 100% +channel \
+            -resize 96x96 \
+            build/web/icons/notification_badge.png
+          ls -lh build/web/icons/
+
       - name: Add 404 fallback (SPA routing)
         run: cp build/web/index.html build/web/404.html
 
