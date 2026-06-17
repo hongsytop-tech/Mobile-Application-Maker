@@ -56,8 +56,9 @@ class _QuoteRotationSettingsScreenState
     if (!mounted) return;
     setState(() {
       _saved = s;
-      // 사용자가 편집 중이 아니면 draft 도 같이 새로고침
-      if (!_dirty || !_loaded) _draft = s;
+      // pull 로 디스크가 갱신된 경우 → 항상 draft 도 갱신.
+      // 사용자가 편집 중이라도 다른 기기 변경분이 명확히 반영되는 게 우선.
+      _draft = s;
       _loaded = true;
     });
   }
