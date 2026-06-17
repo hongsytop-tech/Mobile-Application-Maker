@@ -28,6 +28,13 @@ class SyncManager {
       ValueNotifier(SyncStatus.idle);
   final ValueNotifier<DateTime?> lastSyncedAt = ValueNotifier(null);
 
+  /// pull 성공 시 emit. UI 가 구독해서 provider 무효화에 사용.
+  final StreamController<DateTime> _pullCompleted =
+      StreamController<DateTime>.broadcast();
+  Stream<DateTime> get pullCompleted => _pullCompleted.stream;
+
+  DateTime? _lastPullAt;
+
   bool get _canSync =>
       SupabaseService.isConfigured && SupabaseService.isAuthenticated;
 
@@ -76,6 +83,8 @@ class SyncManager {
     try {
       final stats = await SyncService.restoreFromCloud();
       lastSyncedAt.value = DateTime.now();
+      _lastPullAt = DateTime.now();
+      _pullCompleted.add(DateTime.now());
       status.value = SyncStatus.synced;
       return stats.total;
     } catch (e) {
@@ -85,8 +94,19 @@ class SyncManager {
     }
   }
 
+  /// 폰/탭 백그라운드에서 복귀할 때 호출 — 너무 잦은 pull 방지로 10초 throttle.
+  Future<void> pullIfStale({Duration maxAge = const Duration(seconds: 10)}) async {
+    if (!_canSync) return;
+    if (_lastPullAt != null &&
+        DateTime.now().difference(_lastPullAt!) < maxAge) {
+      return;
+    }
+    await pullOnLogin();
+  }
+
   void reset() {
     _timer?.cancel();
+    _lastPullAt = null;
     status.value = SyncStatus.idle;
     lastSyncedAt.value = null;
   }

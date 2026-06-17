@@ -14,7 +14,12 @@ void setupSyncTabCloseFlush() {
   }
 
   html.document.addEventListener('visibilitychange', (_) {
-    if (html.document.visibilityState == 'hidden') flush();
+    if (html.document.visibilityState == 'hidden') {
+      flush();
+    } else if (html.document.visibilityState == 'visible') {
+      // 백그라운드에서 복귀 → 다른 기기의 변경분을 즉시 끌어온다 (throttled).
+      SyncManager.instance.pullIfStale();
+    }
   });
   html.window.addEventListener('pagehide', (_) => flush());
   html.window.addEventListener('beforeunload', (_) => flush());

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -24,27 +26,45 @@ class SyncGate extends ConsumerStatefulWidget {
 class _SyncGateState extends ConsumerState<SyncGate> {
   String? _lastUserId;
   bool _pulling = false;
+  StreamSubscription<DateTime>? _pullSub;
+
+  @override
+  void initState() {
+    super.initState();
+    // 백그라운드에서 복귀 시 자동 pull 이 끝나면 provider 무효화 + reschedule
+    _pullSub = SyncManager.instance.pullCompleted.listen((_) {
+      _refreshFromPulledData();
+    });
+  }
+
+  @override
+  void dispose() {
+    _pullSub?.cancel();
+    super.dispose();
+  }
+
+  void _refreshFromPulledData() {
+    if (!mounted) return;
+    ref.invalidate(booksProvider);
+    ref.invalidate(quotesProvider);
+    ref.invalidate(diariesProvider);
+    ref.invalidate(todoCategoriesProvider);
+    ref.invalidate(todoItemsProvider);
+    // 문구 순차 알림 재스케줄
+    () async {
+      try {
+        final quotes = await ref.read(quotesProvider.future) as List<Quote>;
+        await QuoteRotationService.reschedule(quotes);
+      } catch (_) {}
+    }();
+  }
 
   Future<void> _onLogin() async {
     if (_pulling) return;
     _pulling = true;
     try {
-      final restored = await SyncManager.instance.pullOnLogin();
-      if (restored != null && mounted) {
-        // 클라우드 데이터로 로컬을 채웠으니 화면 갱신
-        ref.invalidate(booksProvider);
-        ref.invalidate(quotesProvider);
-        ref.invalidate(diariesProvider);
-        ref.invalidate(todoCategoriesProvider);
-        ref.invalidate(todoItemsProvider);
-
-        // 문구 순차 알림 재스케줄 (설정 + 문구 목록 둘 다 복원됨)
-        try {
-          final quotes =
-              await ref.read(quotesProvider.future) as List<Quote>;
-          await QuoteRotationService.reschedule(quotes);
-        } catch (_) {}
-      }
+      // pullOnLogin 이 끝나면 pullCompleted 스트림에서 _refreshFromPulledData 가 자동 실행됨
+      await SyncManager.instance.pullOnLogin();
     } finally {
       _pulling = false;
     }
