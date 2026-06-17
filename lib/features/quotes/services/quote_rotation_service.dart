@@ -1,7 +1,9 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../auth/services/supabase_service.dart';
 import '../../auth/services/sync_manager.dart';
 import '../models/quote.dart';
 import 'notification_service.dart';
@@ -27,6 +29,12 @@ class QuoteRotationSettings {
   final int intervalHours;
   final int intervalMinutes;
 
+  /// interval 모드의 기준 시각.
+  /// 미리보기/스케줄 계산에서 "now + interval" 이 아니라
+  /// "anchor + N * interval" 중 now 이후 첫 시점부터 사용.
+  /// → 설정 화면 재진입 시에도 다음 알림 시각이 흔들리지 않음.
+  final DateTime? intervalAnchor;
+
   const QuoteRotationSettings({
     this.enabled = false,
     this.mode = RotationMode.dailyAtTime,
@@ -34,6 +42,7 @@ class QuoteRotationSettings {
     this.minute = 0,
     this.intervalHours = 3,
     this.intervalMinutes = 0,
+    this.intervalAnchor,
   });
 
   int get totalIntervalMinutes => intervalHours * 60 + intervalMinutes;
@@ -45,6 +54,8 @@ class QuoteRotationSettings {
     int? minute,
     int? intervalHours,
     int? intervalMinutes,
+    DateTime? intervalAnchor,
+    bool clearIntervalAnchor = false,
   }) =>
       QuoteRotationSettings(
         enabled: enabled ?? this.enabled,
@@ -53,6 +64,9 @@ class QuoteRotationSettings {
         minute: minute ?? this.minute,
         intervalHours: intervalHours ?? this.intervalHours,
         intervalMinutes: intervalMinutes ?? this.intervalMinutes,
+        intervalAnchor: clearIntervalAnchor
+            ? null
+            : (intervalAnchor ?? this.intervalAnchor),
       );
 
   Map<String, dynamic> toJson() => {
@@ -62,6 +76,8 @@ class QuoteRotationSettings {
         'minute': minute,
         'intervalHours': intervalHours,
         'intervalMinutes': intervalMinutes,
+        if (intervalAnchor != null)
+          'intervalAnchor': intervalAnchor!.toIso8601String(),
       };
 
   factory QuoteRotationSettings.fromJson(Map<String, dynamic> j) =>
@@ -75,6 +91,9 @@ class QuoteRotationSettings {
         minute: j['minute'] as int? ?? 0,
         intervalHours: j['intervalHours'] as int? ?? 3,
         intervalMinutes: j['intervalMinutes'] as int? ?? 0,
+        intervalAnchor: (j['intervalAnchor'] is String)
+            ? DateTime.tryParse(j['intervalAnchor'] as String)
+            : null,
       );
 
   String describe() {
@@ -112,15 +131,33 @@ class QuoteRotationService {
     }
   }
 
+  /// 저장. interval 모드인데 기준 시각이 없거나 간격이 바뀌면 anchor 갱신.
   static Future<void> save(QuoteRotationSettings s) async {
+    final existing = await load();
+    var next = s;
+    if (s.mode == RotationMode.interval) {
+      final intervalChanged =
+          existing.totalIntervalMinutes != s.totalIntervalMinutes;
+      final modeChanged = existing.mode != s.mode;
+      if (next.intervalAnchor == null || intervalChanged || modeChanged) {
+        next = s.copyWith(intervalAnchor: DateTime.now());
+      }
+    }
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_settingsKey, jsonEncode(s.toJson()));
+    await prefs.setString(_settingsKey, jsonEncode(next.toJson()));
     SyncManager.instance.markDirty();
   }
 
   /// 기존 순환 알림 모두 취소 후, enabled면 다시 스케줄.
   /// 문구 변경/설정 변경/앱 시작 시 호출.
+  ///
+  /// 웹(PWA): Supabase scheduled_pushes 테이블에 기록 → 백엔드 스케줄러가 발송
+  /// 네이티브(APK): flutter_local_notifications 로 로컬 예약
   static Future<void> reschedule(List<Quote> quotes) async {
+    if (kIsWeb) {
+      await _rescheduleWeb(quotes);
+      return;
+    }
     await _cancelAll();
     if (!NotificationService.supported) return;
     final s = await load();
@@ -137,6 +174,50 @@ class QuoteRotationService {
         body: q.text,
         when: t.when,
       );
+    }
+  }
+
+  static Future<void> _rescheduleWeb(List<Quote> quotes) async {
+    if (!SupabaseService.isAuthenticated) return;
+    final uid = SupabaseService.currentUser!.id;
+    final db = SupabaseService.client;
+
+    // 기존 quote_rotation 예약 모두 삭제
+    try {
+      await db
+          .from('scheduled_pushes')
+          .delete()
+          .eq('user_id', uid)
+          .eq('kind', 'quote_rotation')
+          .filter('sent_at', 'is', null);
+    } catch (e) {
+      if (kDebugMode) print('reschedule(web): delete failed: $e');
+    }
+
+    final s = await load();
+    if (!s.enabled || quotes.isEmpty) return;
+    final times = _computeUpcoming(s, count: _maxSchedule);
+    if (times.isEmpty) return;
+
+    final rows = <Map<String, dynamic>>[];
+    for (int i = 0; i < times.length; i++) {
+      final t = times[i];
+      final idx = _quoteIndexFor(s, t.when, quotes.length);
+      final q = quotes[idx];
+      rows.add({
+        'user_id': uid,
+        'kind': 'quote_rotation',
+        'ref_id': '$i',
+        'title': '📖 오늘의 문구 · ${idx + 1} / ${quotes.length}',
+        'body': q.text,
+        'scheduled_at': t.when.toUtc().toIso8601String(),
+      });
+    }
+
+    try {
+      await db.from('scheduled_pushes').insert(rows);
+    } catch (e) {
+      if (kDebugMode) print('reschedule(web): insert failed: $e');
     }
   }
 
@@ -182,7 +263,14 @@ class QuoteRotationService {
       case RotationMode.interval:
         final mins = s.totalIntervalMinutes;
         if (mins < 1) return const [];
-        var t = now.add(Duration(minutes: mins));
+        // anchor 부터 interval 단위로 전진해 now 이후 첫 시점을 찾는다.
+        // anchor 가 없으면 now 를 anchor 로 간주 → now + mins 부터.
+        DateTime t = s.intervalAnchor ?? now;
+        if (!t.isAfter(now)) {
+          final diffMins = now.difference(t).inMinutes;
+          final steps = (diffMins ~/ mins) + 1;
+          t = t.add(Duration(minutes: steps * mins));
+        }
         for (int i = 0; i < count; i++) {
           result.add((when: t));
           t = t.add(Duration(minutes: mins));

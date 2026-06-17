@@ -2,13 +2,14 @@
 //
 // actions:
 //   - public_key : VAPID 공개키 반환 (인증 불필요)
-//   - send_test  : 호출자의 모든 구독에 테스트 푸시 전송
-//   - send_to_user (service role) : 향후 스케줄러용 — admin만 호출
+//   - send_test  : 호출자의 모든 구독에 테스트 푸시 전송 (사용자 JWT)
+//   - run_due    : 도래한 scheduled_pushes 를 일괄 발송 (스케줄러 시크릿)
 //
 // Secrets:
-//   VAPID_PUBLIC_KEY  : 필수 (URL-safe base64, P-256 공개키)
-//   VAPID_PRIVATE_KEY : 필수
-//   VAPID_SUBJECT     : mailto:hongsytop@gmail.com 등
+//   VAPID_PUBLIC_KEY   : 필수
+//   VAPID_PRIVATE_KEY  : 필수
+//   VAPID_SUBJECT      : mailto:hongsytop@gmail.com 등
+//   SCHEDULER_SECRET   : run_due 호출용 공유 시크릿 (pg_cron 과 동일 값)
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3.6.7';
@@ -17,6 +18,7 @@ import { corsHeaders } from '../_shared/cors.ts';
 const VAPID_PUBLIC = Deno.env.get('VAPID_PUBLIC_KEY') ?? '';
 const VAPID_PRIVATE = Deno.env.get('VAPID_PRIVATE_KEY') ?? '';
 const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT') ?? 'mailto:hongsytop@gmail.com';
+const SCHEDULER_SECRET = Deno.env.get('SCHEDULER_SECRET') ?? '';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
@@ -37,11 +39,25 @@ Deno.serve(async (req) => {
   }
 
   const action = body.action as string;
+  const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
 
   // public_key 는 인증 없이 접근 가능
   if (action === 'public_key') {
     if (!VAPID_PUBLIC) return j(500, { error: 'vapid_not_configured' });
     return j(200, { public_key: VAPID_PUBLIC });
+  }
+
+  // run_due 는 SCHEDULER_SECRET 인증 (사용자 JWT 불필요)
+  if (action === 'run_due') {
+    const auth = req.headers.get('Authorization') ?? '';
+    if (!SCHEDULER_SECRET || auth !== `Bearer ${SCHEDULER_SECRET}`) {
+      return j(401, { error: 'scheduler_unauthorized' });
+    }
+    try {
+      return await runDue(admin);
+    } catch (e) {
+      return j(500, { error: 'internal', detail: String(e) });
+    }
   }
 
   // 그 외는 사용자 JWT 필요
@@ -52,8 +68,6 @@ Deno.serve(async (req) => {
   });
   const { data: { user } } = await userClient.auth.getUser();
   if (!user) return j(401, { error: 'invalid_user' });
-
-  const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
 
   try {
     switch (action) {
@@ -66,6 +80,100 @@ Deno.serve(async (req) => {
     return j(500, { error: 'internal', detail: String(e) });
   }
 });
+
+async function runDue(admin: any) {
+  if (!VAPID_PUBLIC || !VAPID_PRIVATE) {
+    return j(500, { error: 'vapid_not_configured' });
+  }
+
+  const { data: due, error } = await admin
+    .from('scheduled_pushes')
+    .select('*')
+    .is('sent_at', null)
+    .lte('scheduled_at', new Date().toISOString())
+    .order('scheduled_at', { ascending: true })
+    .limit(100);
+  if (error) return j(500, { error: 'query_failed', detail: error.message });
+  if (!due || due.length === 0) return j(200, { ok: true, processed: 0 });
+
+  let processed = 0;
+  let failed = 0;
+
+  for (const p of due) {
+    try {
+      const { data: subs } = await admin
+        .from('web_push_subscriptions')
+        .select('*')
+        .eq('user_id', p.user_id);
+
+      if (!subs || subs.length === 0) {
+        // 구독 없음 — sent_at 으로 마킹해 중복 처리 방지
+        await admin
+          .from('scheduled_pushes')
+          .update({
+            sent_at: new Date().toISOString(),
+            last_error: 'no_subscription',
+          })
+          .eq('id', p.id);
+        continue;
+      }
+
+      const payload = JSON.stringify({
+        title: p.title,
+        body: p.body,
+        url: p.url || 'https://hongsytop-tech.github.io/Mobile-Application-Maker/',
+        tag: `${p.kind}-${p.id}`,
+      });
+
+      const expiredIds: string[] = [];
+      let anyOk = false;
+      let lastErr: string | undefined;
+
+      for (const s of subs) {
+        try {
+          await webpush.sendNotification(
+            { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+            payload,
+          );
+          anyOk = true;
+        } catch (e: any) {
+          const status = e?.statusCode;
+          lastErr = `status=${status} ${String(e?.body ?? e?.message ?? e).slice(0, 120)}`;
+          if (status === 404 || status === 410 || status === 401 || status === 403) {
+            expiredIds.push(s.id);
+          }
+        }
+      }
+
+      if (expiredIds.length > 0) {
+        await admin.from('web_push_subscriptions').delete().in('id', expiredIds);
+      }
+
+      await admin
+        .from('scheduled_pushes')
+        .update({
+          sent_at: new Date().toISOString(),
+          attempt_count: (p.attempt_count ?? 0) + 1,
+          last_error: anyOk ? null : lastErr ?? 'all_failed',
+        })
+        .eq('id', p.id);
+
+      if (anyOk) processed++;
+      else failed++;
+    } catch (e) {
+      failed++;
+      await admin
+        .from('scheduled_pushes')
+        .update({
+          attempt_count: (p.attempt_count ?? 0) + 1,
+          last_error: String(e).slice(0, 500),
+        })
+        .eq('id', p.id);
+    }
+  }
+
+  return j(200, { ok: true, processed, failed, total: due.length });
+}
 
 async function sendTest(userId: string, admin: any) {
   if (!VAPID_PUBLIC || !VAPID_PRIVATE) {
