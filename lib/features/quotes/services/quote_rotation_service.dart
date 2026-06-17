@@ -132,6 +132,7 @@ class QuoteRotationService {
   }
 
   /// 저장. interval 모드인데 기준 시각이 없거나 간격이 바뀌면 anchor 갱신.
+  /// 디바운스 없이 즉시 클라우드 push → 사용자가 곧바로 화면 닫거나 다른 작업해도 누락 없음.
   static Future<void> save(QuoteRotationSettings s) async {
     final existing = await load();
     var next = s;
@@ -145,7 +146,8 @@ class QuoteRotationService {
     }
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_settingsKey, jsonEncode(next.toJson()));
-    SyncManager.instance.markDirty();
+    // 즉시 push (debounce 우회)
+    await SyncManager.instance.flushNow();
   }
 
   /// 기존 순환 알림 모두 취소 후, enabled면 다시 스케줄.
