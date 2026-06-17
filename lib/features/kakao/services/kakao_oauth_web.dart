@@ -5,8 +5,11 @@ const _sessionKeyState = 'kakao_oauth_state_returned';
 
 /// Supabase 초기화 이전에 호출해서 ?code/?state 를 sessionStorage 로 옮기고
 /// URL 을 정리한다. Supabase auth 가 ?code 를 자기 PKCE 콜백으로 오인하는 것을 방지.
+/// 반드시 URL 만 읽음 (sessionStorage 의 stale 데이터로 오염되지 않도록).
 void captureKakaoCallback() {
-  final params = readQueryParams();
+  final search = html.window.location.search ?? '';
+  if (search.length < 2) return;
+  final params = Uri.splitQueryString(search.substring(1));
   final code = params['code'];
   final state = params['state'];
   if (code != null && state != null && state.startsWith('kakao_')) {
