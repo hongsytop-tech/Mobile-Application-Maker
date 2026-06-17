@@ -4,10 +4,12 @@ self.addEventListener('push', (event) => {
   let data = {};
   try { data = event.data ? event.data.json() : {}; } catch (e) {}
   const title = data.title || '알림';
+  // SW 스코프(예: https://.../Mobile-Application-Maker/) 기준 절대경로로 아이콘 지정
+  const iconUrl = new URL('icons/Icon-192.png', self.registration.scope).toString();
   const options = {
     body: data.body || '',
-    icon: 'icons/Icon-192.png',
-    badge: 'icons/Icon-192.png',
+    icon: iconUrl,
+    badge: iconUrl,
     tag: data.tag || 'default',
     data: { url: data.url || './' },
     requireInteraction: false,
