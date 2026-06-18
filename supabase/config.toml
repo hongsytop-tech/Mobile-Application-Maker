@@ -2,3 +2,6 @@ project_id = "self-dev-app"
 
 [functions.book-toc]
 verify_jwt = false
+
+[functions.news-crawl]
+verify_jwt = false

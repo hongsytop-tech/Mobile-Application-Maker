@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../features/auth/screens/profile_screen.dart';
 import '../features/diary/screens/diary_calendar_screen.dart';
 import '../features/kakao/services/kakao_link_service.dart';
+import '../features/news/screens/news_home_screen.dart';
 import '../features/quotes/screens/quotes_screen.dart';
 import '../features/reading/screens/home_screen.dart';
 import '../features/todo/screens/todo_home_screen.dart';
@@ -58,6 +59,7 @@ class _MainShellState extends State<MainShell> {
                   HomeScreen(),
                   DiaryCalendarScreen(),
                   QuotesScreen(),
+                  NewsHomeScreen(),
                   ProfileScreen(),
                 ],
               ),
@@ -92,6 +94,11 @@ class _MainShellState extends State<MainShell> {
             icon: Icon(Icons.format_quote_outlined),
             selectedIcon: Icon(Icons.format_quote),
             label: '문구',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.article_outlined),
+            selectedIcon: Icon(Icons.article),
+            label: '뉴스',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),

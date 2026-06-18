@@ -19,6 +19,15 @@
 2. 매일 지정 시간 알림 (로컬 푸시) — 모바일 전용
 3. 스와이프 삭제, 탭 편집
 
+### 📰 뉴스 모듈 (스켈레톤)
+1. 피드별 뉴스 목록 + 당겨서 새로고침
+2. 기사 탭 → 외부 브라우저로 원문 열기
+3. 스크랩(북마크) 저장 — SharedPreferences
+4. 크롤링은 Supabase Edge Function `news-crawl` 프록시(RSS 정규화)를 거침
+   - 독서 모듈(`book-toc`)과 동일한 CORS 우회 구조
+   - 사용할 소스 RSS URL은 `supabase/functions/news-crawl/feeds.ts`(또는 프록시 환경변수)에서 설정
+   - `.env` 에 `NEWS_CRAWL_PROXY_URL` 추가 필요
+
 ## 🚀 실행 방법
 
 ### 사전 준비
