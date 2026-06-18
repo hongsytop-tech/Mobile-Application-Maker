@@ -30,26 +30,27 @@ Future<Map<String, String>?> subscribe(String vapidPublicBase64) async {
       .replaceAll('/', '_')
       .replaceAll('=', '');
 
-  // 기존 구독이 있으면 VAPID 키 일치 여부 확인.
-  // VAPID 키가 바뀌어 옛 구독을 재사용하면 푸시 서비스가 시그니처 불일치로
-  // 메시지를 조용히 버리므로, 키가 다르면 폐기하고 재구독한다.
+  // 기존 구독이 있으면, "이전에 구독에 사용한 VAPID 공개키"(localStorage 기록)와
+  // 현재 키를 비교한다. browser 의 applicationServerKey 읽기는 기기마다 불안정해서
+  // localStorage 마커로 신뢰성 있게 판단한다.
   html.PushSubscription? sub;
   try {
     sub = await pm.getSubscription();
   } catch (_) {}
-  if (sub != null) {
-    final mismatch = !_subscriptionMatchesKey(sub, cleanKey);
-    if (mismatch) {
-      try {
-        await sub.unsubscribe();
-      } catch (_) {}
-      sub = null;
-    }
+  final usedKey = html.window.localStorage[_kVapidUsedKey];
+  if (sub != null && usedKey != cleanKey) {
+    // 키가 바뀌었거나 기록이 없음(=옛 구독일 수 있음) → 폐기 후 재구독
+    try {
+      await sub.unsubscribe();
+    } catch (_) {}
+    sub = null;
   }
   sub ??= await pm.subscribe({
     'userVisibleOnly': true,
     'applicationServerKey': cleanKey,
   });
+  // 이번에 사용한 키 기록
+  html.window.localStorage[_kVapidUsedKey] = cleanKey;
 
   final endpoint = sub.endpoint;
   final p256dhBuf = sub.getKey('p256dh');
@@ -64,19 +65,7 @@ Future<Map<String, String>?> subscribe(String vapidPublicBase64) async {
   };
 }
 
-bool _subscriptionMatchesKey(
-    html.PushSubscription sub, String currentCleanKey) {
-  try {
-    final opts = sub.options;
-    if (opts == null) return true; // 비교 불가능하면 그대로 사용
-    final keyBuf = opts.applicationServerKey;
-    if (keyBuf == null) return true;
-    final existing = _bufToBase64Url(keyBuf);
-    return existing == currentCleanKey;
-  } catch (_) {
-    return true;
-  }
-}
+const _kVapidUsedKey = 'web_push_vapid_pub_used';
 
 Future<bool> unsubscribe() async {
   final sw = html.window.navigator.serviceWorker;

@@ -1,10 +1,25 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../auth/services/supabase_service.dart';
 import 'web_push_platform_stub.dart'
     if (dart.library.html) 'web_push_platform_web.dart' as platform;
 
 class WebPushService {
+  /// 사용자가 명시적으로 알림을 끈 상태인지 기록하는 키.
+  /// true 면 ensureSubscribed(자동 재구독)가 동작하지 않는다.
+  static const _optedOutKey = 'web_push_opted_out';
+
+  static Future<bool> _isOptedOut() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_optedOutKey) ?? false;
+  }
+
+  static Future<void> _setOptedOut(bool v) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_optedOutKey, v);
+  }
+
   /// 현재 브라우저에서 Web Push 가 가능한지.
   static Future<bool> isSupported() async {
     if (!kIsWeb) return false;
@@ -88,6 +103,8 @@ class WebPushService {
         return WebPushEnableResult.error('구독 저장 실패: $e');
       }
 
+      // 사용자가 명시적으로 켰으니 opt-out 해제
+      await _setOptedOut(false);
       return WebPushEnableResult.ok();
     } catch (e, st) {
       return WebPushEnableResult.error('예기치 못한 오류: $e\n$st');
@@ -96,10 +113,11 @@ class WebPushService {
 
   /// 앱 시작/로그인 시 호출 — 권한이 이미 허용된 경우에만 조용히 재구독해서
   /// DB 구독 행을 항상 최신으로 유지한다. (cron 발송 시 no_subscription 방지)
-  /// 권한 요청 팝업은 절대 띄우지 않는다.
+  /// 권한 요청 팝업은 절대 띄우지 않는다. 사용자가 끈 경우(opt-out)면 아무것도 안 함.
   static Future<void> ensureSubscribed() async {
     try {
       if (!kIsWeb) return;
+      if (await _isOptedOut()) return; // 사용자가 끈 상태면 자동 재구독 금지
       if (!await platform.isPushSupported()) return;
       if (!SupabaseService.isAuthenticated) return;
       // 이미 허용된 경우에만 진행 (default/denied 면 팝업 없이 종료)
@@ -125,9 +143,11 @@ class WebPushService {
     }
   }
 
-  /// 구독 해제 + DB 정리.
+  /// 구독 해제 + DB 정리. 사용자가 명시적으로 끈 것이므로 opt-out 기록 →
+  /// 다음 앱 시작 시 자동 재구독되지 않음.
   static Future<void> disable() async {
     if (!kIsWeb) return;
+    await _setOptedOut(true);
     await platform.unsubscribe();
     final uid = SupabaseService.currentUser?.id;
     if (uid != null) {
