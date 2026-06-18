@@ -247,11 +247,11 @@ class _CategorySection extends ConsumerWidget {
                     ),
                     icon: const Icon(Icons.more_horiz),
                   ),
-                  // 카테고리 드래그 핸들 (1초 길게 눌러 순서 변경)
-                  LongPressDraggable<_CategoryDrag>(
+                  // 카테고리 드래그 핸들 — 즉시 잡고 끌기
+                  Draggable<_CategoryDrag>(
                     data: _CategoryDrag(category.id),
-                    delay: const Duration(seconds: 1),
                     hapticFeedbackOnStart: true,
+                    affinity: Axis.vertical,
                     feedback: Material(
                       color: Colors.transparent,
                       elevation: 8,
@@ -269,10 +269,16 @@ class _CategorySection extends ConsumerWidget {
                                 fontWeight: FontWeight.bold)),
                       ),
                     ),
+                    childWhenDragging: const Padding(
+                      padding: EdgeInsets.symmetric(
+                          horizontal: 4, vertical: 6),
+                      child: Icon(Icons.drag_indicator,
+                          size: 22, color: Colors.grey),
+                    ),
                     child: const Padding(
                       padding: EdgeInsets.symmetric(
                           horizontal: 4, vertical: 6),
-                      child: Icon(Icons.drag_handle,
+                      child: Icon(Icons.drag_indicator,
                           size: 22, color: Colors.grey),
                     ),
                   ),
@@ -511,37 +517,49 @@ class _ItemTile extends ConsumerWidget {
                     size: 20, color: Colors.red.shade400),
               ),
             ),
+            // 드래그 핸들 — 즉시 잡고 끌기 (Flutter web mobile 의 LongPressDraggable
+            // 버그 회피). 핸들을 누르고 그대로 끌면 됨.
+            Draggable<String>(
+              data: item.id,
+              hapticFeedbackOnStart: true,
+              affinity: Axis.vertical,
+              feedback: Material(
+                color: Colors.transparent,
+                elevation: 8,
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  constraints: const BoxConstraints(maxWidth: 280),
+                  child: Text(item.text,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold)),
+                ),
+              ),
+              childWhenDragging: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                child: Icon(Icons.drag_indicator,
+                    size: 22, color: Colors.grey),
+              ),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                child: Icon(Icons.drag_indicator,
+                    size: 22, color: Colors.grey),
+              ),
+            ),
           ],
         ),
       ),
     );
 
-    // 행 전체에서 1초 길게 누르면 드래그 시작 (순서변경 + 카테고리 이동)
-    return LongPressDraggable<String>(
-      data: item.id,
-      delay: const Duration(seconds: 1),
-      hapticFeedbackOnStart: true,
-      feedback: Material(
-        color: Colors.transparent,
-        elevation: 8,
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          constraints: const BoxConstraints(maxWidth: 280),
-          child: Text(item.text,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                  color: Colors.white, fontWeight: FontWeight.bold)),
-        ),
-      ),
-      childWhenDragging: Opacity(opacity: 0.35, child: row),
-      child: row,
-    );
+    return row;
   }
 
   Widget _badge({
