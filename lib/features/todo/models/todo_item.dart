@@ -4,7 +4,7 @@ enum TodoRepeat { once, daily, weekly, monthly, longterm }
 
 extension TodoRepeatLabel on TodoRepeat {
   String get label => switch (this) {
-        TodoRepeat.once => '즉시',
+        TodoRepeat.once => '수시',
         TodoRepeat.daily => '매일',
         TodoRepeat.weekly => '주간',
         TodoRepeat.monthly => '월간',
@@ -154,7 +154,7 @@ class TodoItem {
   String get repeatLabel {
     switch (repeat) {
       case TodoRepeat.once:
-        return '즉시';
+        return '수시';
       case TodoRepeat.daily:
         // 알림이 켜진 경우에만 시각 표시 (꺼지면 "매일"만)
         return notifyEnabled

@@ -10,7 +10,16 @@ import '../widgets/wheel_time_picker.dart';
 class TodoItemEditScreen extends ConsumerStatefulWidget {
   final String categoryId;
   final TodoItem? item;
-  const TodoItemEditScreen({super.key, required this.categoryId, this.item});
+
+  /// 복사용 — item 은 null(=새 항목)이지만 이 템플릿의 설정으로 필드를 미리 채운다.
+  final TodoItem? template;
+
+  const TodoItemEditScreen({
+    super.key,
+    required this.categoryId,
+    this.item,
+    this.template,
+  });
 
   @override
   ConsumerState<TodoItemEditScreen> createState() =>
@@ -39,10 +48,15 @@ class _TodoItemEditScreenState extends ConsumerState<TodoItemEditScreen> {
   @override
   void initState() {
     super.initState();
-    final it = widget.item;
+    // 편집이면 widget.item, 복사면 widget.template 의 설정으로 초기화
+    final it = widget.item ?? widget.template;
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    _textCtrl = TextEditingController(text: it?.text ?? '');
+    // 복사 시 이름은 "(복사)" 를 붙여 구분
+    final initialText = widget.item != null
+        ? widget.item!.text
+        : (widget.template != null ? '${widget.template!.text} (복사)' : '');
+    _textCtrl = TextEditingController(text: initialText);
     _repeat = it?.repeat ?? TodoRepeat.once;
     _weekDays = {...(it?.weekDays ?? const <int>{})};
     _monthDay = it?.monthDay ?? 1;

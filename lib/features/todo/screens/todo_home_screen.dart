@@ -413,6 +413,21 @@ class _ItemTile extends ConsumerWidget {
               ),
             ),
             InkWell(
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => TodoItemEditScreen(
+                      categoryId: item.categoryId, template: item),
+                ),
+              ),
+              borderRadius: BorderRadius.circular(20),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 4, vertical: 8),
+                child: Icon(Icons.copy_outlined,
+                    size: 19, color: Colors.grey.shade500),
+              ),
+            ),
+            InkWell(
               onTap: () => _confirmDelete(context, ref, item),
               borderRadius: BorderRadius.circular(20),
               child: Padding(
