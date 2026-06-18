@@ -266,6 +266,8 @@ class _CategorySectionState extends ConsumerState<_CategorySection> {
                   LongPressDraggable<_CategoryDrag>(
                     data: _CategoryDrag(category.id),
                     axis: Axis.vertical,
+                    dragAnchorStrategy: (d, ctx, pos) =>
+                        Offset(pos.dx - 12, 25),
                     onDragStarted: () => setState(() => _dragging = true),
                     onDragEnd: (_) => setState(() => _dragging = false),
                     onDraggableCanceled: (_, __) =>
@@ -564,16 +566,19 @@ class _ItemTileState extends ConsumerState<_ItemTile> {
                     size: 20, color: Colors.red.shade400),
               ),
             ),
-            // 드래그 핸들 — 길게 눌러 끌면 행 전체가 위아래로 움직임
+            // 드래그 핸들 — 길게 눌러 끌면 행 전체가 위아래로만 움직임
             LongPressDraggable<String>(
               data: item.id,
               axis: Axis.vertical,
+              // 피드백의 좌측을 ListView padding(12px) 위치에 고정.
+              // 손가락 X 위치와 무관하게 행 폭/위치 유지.
+              dragAnchorStrategy: (d, ctx, pos) => Offset(pos.dx - 12, 25),
               onDragStarted: () => setState(() => _dragging = true),
               onDragEnd: (_) => setState(() => _dragging = false),
               onDraggableCanceled: (_, __) =>
                   setState(() => _dragging = false),
               feedback: SizedBox(
-                width: MediaQuery.of(context).size.width - 48,
+                width: MediaQuery.of(context).size.width - 24,
                 child: Material(
                   color: Colors.transparent,
                   elevation: 10,
