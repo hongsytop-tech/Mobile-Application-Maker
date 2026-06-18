@@ -269,21 +269,38 @@ class _CategorySectionState extends ConsumerState<_CategorySection> {
                     onDragEnd: (_) => setState(() => _dragging = false),
                     onDraggableCanceled: (_, __) =>
                         setState(() => _dragging = false),
-                    feedback: Material(
-                      color: Colors.transparent,
-                      elevation: 8,
-                      borderRadius: BorderRadius.circular(10),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: color,
-                          borderRadius: BorderRadius.circular(10),
+                    feedback: SizedBox(
+                      width: MediaQuery.of(context).size.width - 24,
+                      child: Material(
+                        color: Colors.transparent,
+                        elevation: 12,
+                        borderRadius: BorderRadius.circular(14),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: color, width: 2),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 14,
+                                height: 14,
+                                decoration: BoxDecoration(
+                                    color: color, shape: BoxShape.circle),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(category.name,
+                                    style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold)),
+                              ),
+                            ],
+                          ),
                         ),
-                        child: Text(category.name,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold)),
                       ),
                     ),
                     childWhenDragging: const Padding(
@@ -546,31 +563,43 @@ class _ItemTileState extends ConsumerState<_ItemTile> {
                     size: 20, color: Colors.red.shade400),
               ),
             ),
-            // 드래그 핸들 — 길게 눌러 끌기
+            // 드래그 핸들 — 길게 눌러 끌면 행 전체가 손가락을 따라옴
             LongPressDraggable<String>(
               data: item.id,
               onDragStarted: () => setState(() => _dragging = true),
               onDragEnd: (_) => setState(() => _dragging = false),
               onDraggableCanceled: (_, __) =>
                   setState(() => _dragging = false),
-              feedback: Material(
-                color: Colors.transparent,
-                elevation: 8,
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: color,
-                    borderRadius: BorderRadius.circular(10),
+              feedback: SizedBox(
+                width: MediaQuery.of(context).size.width - 48,
+                child: Material(
+                  color: Colors.transparent,
+                  elevation: 10,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: color, width: 2),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(done ? Icons.check_box : Icons.check_box_outline_blank,
+                            color: color),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(item.text,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500)),
+                        ),
+                      ],
+                    ),
                   ),
-                  constraints: const BoxConstraints(maxWidth: 280),
-                  child: Text(item.text,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold)),
                 ),
               ),
               childWhenDragging: const Padding(
