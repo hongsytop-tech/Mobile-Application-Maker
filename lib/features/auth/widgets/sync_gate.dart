@@ -52,12 +52,14 @@ class _SyncGateState extends ConsumerState<SyncGate> {
     ref.invalidate(diariesProvider);
     ref.invalidate(todoCategoriesProvider);
     ref.invalidate(todoItemsProvider);
-    // 문구 순차 알림 + 개별 문구 알림 재스케줄
+    // 문구 순차 알림 + 개별 문구 + 할일 알림 재스케줄
     () async {
       try {
         final quotes = await ref.read(quotesProvider.future) as List<Quote>;
         await QuoteRotationService.reschedule(quotes);
         await WebPushScheduler.scheduleAll(quotes);
+        final todos = await ref.read(todoItemsProvider.future);
+        await WebPushScheduler.scheduleAllTodos(todos);
       } catch (_) {}
     }();
   }

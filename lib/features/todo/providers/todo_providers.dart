@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../push/services/web_push_scheduler.dart';
 import '../../quotes/services/notification_service.dart';
 import '../models/todo_category.dart';
 import '../models/todo_item.dart';
@@ -86,7 +88,12 @@ final todoItemsProvider =
 class TodoItemsNotifier extends AsyncNotifier<List<TodoItem>> {
   @override
   Future<List<TodoItem>> build() async {
-    return ref.read(todoStorageProvider).loadItems();
+    final items = await ref.read(todoStorageProvider).loadItems();
+    // 웹: 앱 시작/복원 시 할일 알림 큐 동기화
+    if (kIsWeb) {
+      Future(() => WebPushScheduler.scheduleAllTodos(items));
+    }
+    return items;
   }
 
   Future<void> _persist(List<TodoItem> list) async {
@@ -164,6 +171,8 @@ class TodoItemsNotifier extends AsyncNotifier<List<TodoItem>> {
     final newList = [...list];
     newList[idx] = updated;
     await _persist(newList);
+    // 즉시(once) 완료/취소 시 알림 등록 상태도 갱신 (완료되면 큐에서 제거)
+    if (kIsWeb) await WebPushScheduler.scheduleTodo(updated);
   }
 
   Future<void> remove(String id) async {
@@ -186,9 +195,12 @@ class TodoItemsNotifier extends AsyncNotifier<List<TodoItem>> {
     for (int d = 1; d <= 7; d++) {
       await NotificationService.cancel(item.notificationId(d));
     }
+    if (kIsWeb) await WebPushScheduler.cancelTodo(item.id);
   }
 
   Future<void> _scheduleNotifications(TodoItem item) async {
+    // 웹: 백엔드 스케줄러 큐에 등록 (완료/장기목표/off 는 내부에서 걸러짐)
+    if (kIsWeb) await WebPushScheduler.scheduleTodo(item);
     switch (item.repeat) {
       case TodoRepeat.longterm:
         return; // 장기 목표는 알림 없음
