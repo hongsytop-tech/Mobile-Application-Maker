@@ -107,6 +107,32 @@ class _TodoCompletionCalendarScreenState
     );
   }
 
+  Future<void> _confirmDelete(CompletedEntry e) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('완료 기록을 삭제할까요?'),
+        content: Text(
+          '"${e.item.text}"\n'
+          '${DateFormat('M월 d일 HH:mm').format(e.completedAt)} 완료 기록을 삭제합니다.\n'
+          '(항목 자체는 유지됩니다)',
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('취소')),
+          FilledButton.tonal(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('삭제')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await ref
+        .read(todoItemsProvider.notifier)
+        .removeCompletion(e.item.id, e.completedAt);
+  }
+
   Widget _categoryGroup(TodoCategory cat, List<CompletedEntry> list) {
     return _categoryGroupRaw(cat.name, Color(cat.colorValue), list);
   }
@@ -137,7 +163,7 @@ class _TodoCompletionCalendarScreenState
           ),
           const SizedBox(height: 6),
           ...list.map((e) => Padding(
-                padding: const EdgeInsets.only(left: 18, bottom: 4),
+                padding: const EdgeInsets.only(left: 18, bottom: 2),
                 child: Row(
                   children: [
                     const Icon(Icons.check_circle,
@@ -150,6 +176,15 @@ class _TodoCompletionCalendarScreenState
                     Text(tf.format(e.completedAt),
                         style: TextStyle(
                             fontSize: 12, color: Colors.grey.shade500)),
+                    InkWell(
+                      onTap: () => _confirmDelete(e),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Padding(
+                        padding: const EdgeInsets.all(6),
+                        child: Icon(Icons.delete_outline,
+                            size: 18, color: Colors.grey.shade500),
+                      ),
+                    ),
                   ],
                 ),
               )),

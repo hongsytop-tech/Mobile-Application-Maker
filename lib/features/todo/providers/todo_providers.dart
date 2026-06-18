@@ -175,6 +175,27 @@ class TodoItemsNotifier extends AsyncNotifier<List<TodoItem>> {
     if (kIsWeb) await WebPushScheduler.scheduleTodo(updated);
   }
 
+  /// 특정 완료 기록 1건 삭제 (캘린더에서 사용).
+  /// 항목 자체는 유지하고 해당 시각의 완료 이력만 제거.
+  /// 즉시(once) 항목이라 완료 제거로 미완료가 되면 알림/목록에 다시 나타남.
+  Future<void> removeCompletion(String id, DateTime completedAt) async {
+    final list = state.value ?? const <TodoItem>[];
+    final idx = list.indexWhere((i) => i.id == id);
+    if (idx < 0) return;
+    final item = list[idx];
+    final newCompletions = [...item.completions];
+    // 동일 시각 1건만 제거 (밀리초까지 일치하는 항목)
+    final removeIdx = newCompletions.indexWhere((c) =>
+        c.isAtSameMomentAs(completedAt));
+    if (removeIdx < 0) return;
+    newCompletions.removeAt(removeIdx);
+    final updated = item.copyWith(completions: newCompletions);
+    final newList = [...list];
+    newList[idx] = updated;
+    await _persist(newList);
+    if (kIsWeb) await WebPushScheduler.scheduleTodo(updated);
+  }
+
   Future<void> remove(String id) async {
     final list = state.value ?? const <TodoItem>[];
     final target = list.where((i) => i.id == id).firstOrNull;
