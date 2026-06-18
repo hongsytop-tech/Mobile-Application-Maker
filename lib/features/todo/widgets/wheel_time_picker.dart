@@ -14,6 +14,26 @@ Future<({int hour, int minute})?> pickWheelTime(
     builder: (_) => _WheelTimePicker(
       initialHour: initialHour,
       initialMinute: initialMinute,
+      title: '알림 시각',
+      duration: false,
+    ),
+  );
+}
+
+/// 반복 간격(시간/분) 선택. 반환: (hours, minutes) 또는 취소 시 null.
+Future<({int hour, int minute})?> pickWheelDuration(
+  BuildContext context, {
+  required int initialHours,
+  required int initialMinutes,
+}) {
+  return showModalBottomSheet<({int hour, int minute})>(
+    context: context,
+    isScrollControlled: true,
+    builder: (_) => _WheelTimePicker(
+      initialHour: initialHours,
+      initialMinute: initialMinutes,
+      title: '반복 간격',
+      duration: true,
     ),
   );
 }
@@ -21,9 +41,13 @@ Future<({int hour, int minute})?> pickWheelTime(
 class _WheelTimePicker extends StatefulWidget {
   final int initialHour;
   final int initialMinute;
+  final String title;
+  final bool duration;
   const _WheelTimePicker({
     required this.initialHour,
     required this.initialMinute,
+    required this.title,
+    required this.duration,
   });
 
   @override
@@ -44,7 +68,23 @@ class _WheelTimePickerState extends State<_WheelTimePicker> {
   late final TextEditingController _minuteText =
       TextEditingController(text: _two(_minute));
 
+  // 텍스트 필드 포커스 추적 — 사용자가 입력 중일 때 휠이 텍스트를 덮어쓰지 않도록.
+  final FocusNode _hourFocus = FocusNode();
+  final FocusNode _minuteFocus = FocusNode();
+
   static String _two(int v) => v.toString().padLeft(2, '0');
+
+  @override
+  void initState() {
+    super.initState();
+    // 입력 끝나고 포커스를 잃으면 두 자리로 정리
+    _hourFocus.addListener(() {
+      if (!_hourFocus.hasFocus) _hourText.text = _two(_hour);
+    });
+    _minuteFocus.addListener(() {
+      if (!_minuteFocus.hasFocus) _minuteText.text = _two(_minute);
+    });
+  }
 
   @override
   void dispose() {
@@ -52,28 +92,36 @@ class _WheelTimePickerState extends State<_WheelTimePicker> {
     _minuteCtrl.dispose();
     _hourText.dispose();
     _minuteText.dispose();
+    _hourFocus.dispose();
+    _minuteFocus.dispose();
     super.dispose();
   }
 
-  void _setHour(int h, {bool moveWheel = true, bool setText = true}) {
-    final v = h.clamp(0, 23);
-    setState(() => _hour = v);
-    if (moveWheel && _hourCtrl.hasClients && _hourCtrl.selectedItem != v) {
-      _hourCtrl.jumpToItem(v);
-    }
-    if (setText && _hourText.text != _two(v)) {
-      _hourText.text = _two(v);
+  /// 휠 스크롤로 변경됨 → 값 + 텍스트 갱신 (단, 입력 중이면 텍스트는 건드리지 않음)
+  void _onHourWheel(int v) {
+    setState(() => _hour = v.clamp(0, 23));
+    if (!_hourFocus.hasFocus) _hourText.text = _two(_hour);
+  }
+
+  void _onMinuteWheel(int v) {
+    setState(() => _minute = v.clamp(0, 59));
+    if (!_minuteFocus.hasFocus) _minuteText.text = _two(_minute);
+  }
+
+  /// 텍스트 입력으로 변경됨 → 값 + 휠만 갱신 (텍스트는 그대로 두어 "14" 입력 보존)
+  void _onHourText(int v) {
+    final c = v.clamp(0, 23);
+    setState(() => _hour = c);
+    if (_hourCtrl.hasClients && _hourCtrl.selectedItem != c) {
+      _hourCtrl.jumpToItem(c);
     }
   }
 
-  void _setMinute(int m, {bool moveWheel = true, bool setText = true}) {
-    final v = m.clamp(0, 59);
-    setState(() => _minute = v);
-    if (moveWheel && _minuteCtrl.hasClients && _minuteCtrl.selectedItem != v) {
-      _minuteCtrl.jumpToItem(v);
-    }
-    if (setText && _minuteText.text != _two(v)) {
-      _minuteText.text = _two(v);
+  void _onMinuteText(int v) {
+    final c = v.clamp(0, 59);
+    setState(() => _minute = c);
+    if (_minuteCtrl.hasClients && _minuteCtrl.selectedItem != c) {
+      _minuteCtrl.jumpToItem(c);
     }
   }
 
@@ -95,7 +143,7 @@ class _WheelTimePickerState extends State<_WheelTimePicker> {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            Text('알림 시각',
+            Text(widget.title,
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 12),
             // 휠
@@ -107,21 +155,30 @@ class _WheelTimePickerState extends State<_WheelTimePicker> {
                   _wheel(
                     controller: _hourCtrl,
                     count: 24,
-                    onChanged: (v) => _setHour(v, moveWheel: false),
+                    onChanged: _onHourWheel,
                   ),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Text(':',
+                    child: Text(widget.duration ? '시간' : ':',
                         style: TextStyle(
-                            fontSize: 28,
+                            fontSize: widget.duration ? 16 : 28,
                             fontWeight: FontWeight.bold,
                             color: primary)),
                   ),
                   _wheel(
                     controller: _minuteCtrl,
                     count: 60,
-                    onChanged: (v) => _setMinute(v, moveWheel: false),
+                    onChanged: _onMinuteWheel,
                   ),
+                  if (widget.duration)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: Text('분',
+                          style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: primary)),
+                    ),
                 ],
               ),
             ),
@@ -135,8 +192,9 @@ class _WheelTimePickerState extends State<_WheelTimePicker> {
                     style: TextStyle(fontSize: 13, color: Colors.grey)),
                 _numField(
                   controller: _hourText,
+                  focusNode: _hourFocus,
                   max: 23,
-                  onChanged: (v) => _setHour(v, setText: false),
+                  onChanged: _onHourText,
                 ),
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 6),
@@ -144,8 +202,9 @@ class _WheelTimePickerState extends State<_WheelTimePicker> {
                 ),
                 _numField(
                   controller: _minuteText,
+                  focusNode: _minuteFocus,
                   max: 59,
-                  onChanged: (v) => _setMinute(v, setText: false),
+                  onChanged: _onMinuteText,
                 ),
               ],
             ),
@@ -208,6 +267,7 @@ class _WheelTimePickerState extends State<_WheelTimePicker> {
 
   Widget _numField({
     required TextEditingController controller,
+    required FocusNode focusNode,
     required int max,
     required ValueChanged<int> onChanged,
   }) {
@@ -215,6 +275,7 @@ class _WheelTimePickerState extends State<_WheelTimePicker> {
       width: 56,
       child: TextField(
         controller: controller,
+        focusNode: focusNode,
         keyboardType: TextInputType.number,
         textAlign: TextAlign.center,
         maxLength: 2,

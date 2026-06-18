@@ -212,31 +212,45 @@ class _QuoteEditScreenState extends ConsumerState<QuoteEditScreen> {
                                 fontSize: 14, fontWeight: FontWeight.w600),
                           ),
                           const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _NumberStepper(
-                                  label: '시간',
-                                  value: _intervalHours,
-                                  min: 0,
-                                  max: 23,
-                                  onChanged: (v) =>
-                                      setState(() => _intervalHours = v),
-                                ),
+                          InkWell(
+                            borderRadius: BorderRadius.circular(10),
+                            onTap: () async {
+                              final picked = await pickWheelDuration(
+                                context,
+                                initialHours: _intervalHours,
+                                initialMinutes: _intervalMinutes,
+                              );
+                              if (picked != null) {
+                                setState(() {
+                                  _intervalHours = picked.hour;
+                                  _intervalMinutes = picked.minute;
+                                });
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 14),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: Colors.grey.shade300),
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _NumberStepper(
-                                  label: '분',
-                                  value: _intervalMinutes,
-                                  min: 0,
-                                  max: 59,
-                                  step: 1,
-                                  onChanged: (v) =>
-                                      setState(() => _intervalMinutes = v),
-                                ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.timelapse, size: 20),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    '${_intervalHours}시간 ${_intervalMinutes}분마다',
+                                    style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                  const Spacer(),
+                                  Icon(Icons.expand_more,
+                                      color: Colors.grey.shade500),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
                           const SizedBox(height: 8),
                           Text(

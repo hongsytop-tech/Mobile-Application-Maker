@@ -349,29 +349,38 @@ class _IntervalPicker extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: _StepRow(
-                  label: '시간',
-                  value: hours,
-                  min: 0,
-                  max: 23,
-                  onChanged: (v) => onChanged(v, minutes),
-                ),
+          InkWell(
+            borderRadius: BorderRadius.circular(10),
+            onTap: () async {
+              final picked = await pickWheelDuration(
+                context,
+                initialHours: hours,
+                initialMinutes: minutes,
+              );
+              if (picked != null) onChanged(picked.hour, picked.minute);
+            },
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.grey.shade300),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _StepRow(
-                  label: '분',
-                  value: minutes,
-                  min: 0,
-                  max: 59,
-                  step: 1,
-                  onChanged: (v) => onChanged(hours, v),
-                ),
+              child: Row(
+                children: [
+                  const Icon(Icons.timelapse, size: 20),
+                  const SizedBox(width: 10),
+                  Text(
+                    '${hours}시간 ${minutes}분마다',
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const Spacer(),
+                  Icon(Icons.expand_more, color: Colors.grey.shade500),
+                ],
               ),
-            ],
+            ),
           ),
           const SizedBox(height: 6),
           Text(
