@@ -255,11 +255,14 @@ class TodoItemsNotifier extends AsyncNotifier<List<TodoItem>> {
 }
 
 /// 카테고리별로 그룹화된 항목 (카테고리 순서대로)
+/// 즉시(once) 항목은 완료되면 목록에서 제외 → 완료 기록 캘린더에서만 확인.
+/// 반복(매일/주간/월간)·장기목표는 그대로 유지.
 final todoItemsByCategoryProvider =
     Provider<Map<String, List<TodoItem>>>((ref) {
   final items = ref.watch(todoItemsProvider).value ?? const <TodoItem>[];
   final map = <String, List<TodoItem>>{};
   for (final i in items) {
+    if (i.repeat == TodoRepeat.once && i.isCompletedNow) continue;
     map.putIfAbsent(i.categoryId, () => []).add(i);
   }
   // 각 카테고리 안에서 미완료 → 완료, 같은 그룹은 수동 order 순
@@ -273,3 +276,34 @@ final todoItemsByCategoryProvider =
   }
   return map;
 });
+
+/// 특정 날짜에 완료한 항목들 (완료 시각 포함). 캘린더용.
+class CompletedEntry {
+  final TodoItem item;
+  final DateTime completedAt;
+  const CompletedEntry(this.item, this.completedAt);
+}
+
+bool _sameDay(DateTime a, DateTime b) =>
+    a.year == b.year && a.month == b.month && a.day == b.day;
+
+/// 날짜 → 그날 완료한 CompletedEntry 목록 (한 항목이 그날 여러 번 완료 가능).
+final completionsByDayProvider =
+    Provider<Map<DateTime, List<CompletedEntry>>>((ref) {
+  final items = ref.watch(todoItemsProvider).value ?? const <TodoItem>[];
+  final map = <DateTime, List<CompletedEntry>>{};
+  for (final it in items) {
+    for (final c in it.completions) {
+      final key = DateTime(c.year, c.month, c.day);
+      map.putIfAbsent(key, () => []).add(CompletedEntry(it, c));
+    }
+  }
+  return map;
+});
+
+/// 선택한 날짜의 완료 항목을 카테고리별로 그룹화.
+List<CompletedEntry> completionsOnDay(
+    Map<DateTime, List<CompletedEntry>> byDay, DateTime day) {
+  final key = DateTime(day.year, day.month, day.day);
+  return byDay[key] ?? const [];
+}

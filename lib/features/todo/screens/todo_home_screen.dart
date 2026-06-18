@@ -6,6 +6,7 @@ import '../models/todo_category.dart';
 import '../models/todo_item.dart';
 import '../providers/todo_providers.dart';
 import 'category_edit_dialog.dart';
+import 'todo_completion_calendar_screen.dart';
 import 'todo_item_edit_screen.dart';
 
 class TodoHomeScreen extends ConsumerWidget {
@@ -20,6 +21,15 @@ class TodoHomeScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('할일 / 목표'),
         actions: [
+          IconButton(
+            tooltip: '완료 기록 (캘린더)',
+            icon: const Icon(Icons.calendar_month),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const TodoCompletionCalendarScreen(),
+              ),
+            ),
+          ),
           IconButton(
             tooltip: '카테고리 추가',
             icon: const Icon(Icons.create_new_folder_outlined),
