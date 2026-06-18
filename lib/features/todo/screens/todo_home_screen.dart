@@ -324,6 +324,24 @@ class _CategorySectionState extends ConsumerState<_CategorySection> {
               ),
             ),
           ),
+          if (!category.collapsed)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          TodoItemEditScreen(categoryId: category.id),
+                    ),
+                  ),
+                  icon: Icon(Icons.add, color: color, size: 18),
+                  label: Text('할 일 추가',
+                      style: TextStyle(color: color)),
+                ),
+              ),
+            ),
           if (category.collapsed)
             const SizedBox.shrink()
           else if (items.isEmpty)
@@ -365,24 +383,7 @@ class _CategorySectionState extends ConsumerState<_CategorySection> {
                   ),
               ],
             ),
-          if (!category.collapsed)
-            Padding(
-            padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        TodoItemEditScreen(categoryId: category.id),
-                  ),
-                ),
-                icon: Icon(Icons.add, color: color, size: 18),
-                label: Text('할 일 추가',
-                    style: TextStyle(color: color)),
-              ),
-            ),
-          ),
+          const SizedBox(height: 8),
         ],
           ),
         );
