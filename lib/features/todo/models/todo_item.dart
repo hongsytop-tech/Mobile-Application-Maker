@@ -156,7 +156,10 @@ class TodoItem {
       case TodoRepeat.once:
         return '즉시';
       case TodoRepeat.daily:
-        return '매일 ${notifyHour.toString().padLeft(2, '0')}:${notifyMinute.toString().padLeft(2, '0')}';
+        // 알림이 켜진 경우에만 시각 표시 (꺼지면 "매일"만)
+        return notifyEnabled
+            ? '매일 ${notifyHour.toString().padLeft(2, '0')}:${notifyMinute.toString().padLeft(2, '0')}'
+            : '매일';
       case TodoRepeat.weekly:
         if (weekDays.isEmpty) return '주간';
         final days = weekDays.toList()..sort();
