@@ -226,7 +226,7 @@ class _QuoteEditScreenState extends ConsumerState<QuoteEditScreen> {
                                   value: _intervalMinutes,
                                   min: 0,
                                   max: 59,
-                                  step: 5,
+                                  step: 1,
                                   onChanged: (v) =>
                                       setState(() => _intervalMinutes = v),
                                 ),
