@@ -19,7 +19,14 @@ final todoCategoriesProvider =
 class TodoCategoriesNotifier extends AsyncNotifier<List<TodoCategory>> {
   @override
   Future<List<TodoCategory>> build() async {
-    return ref.read(todoStorageProvider).loadCategories();
+    final cats = await ref.read(todoStorageProvider).loadCategories();
+    if (kIsWeb) {
+      Future(() async {
+        final items = await ref.read(todoStorageProvider).loadItems();
+        await WebPushScheduler.scheduleAllCategories(cats, items);
+      });
+    }
+    return cats;
   }
 
   Future<void> _persist(List<TodoCategory> list) async {
@@ -45,6 +52,12 @@ class TodoCategoriesNotifier extends AsyncNotifier<List<TodoCategory>> {
         .map((c) => c.id == updated.id ? updated : c)
         .toList();
     await _persist(list);
+    if (kIsWeb) {
+      final items = (ref.read(todoItemsProvider).value ?? const <TodoItem>[])
+          .where((i) => i.categoryId == updated.id)
+          .toList();
+      await WebPushScheduler.scheduleCategory(updated, items);
+    }
   }
 
   /// 주어진 ID 순서대로 order = 0,1,2,... 재할당
@@ -74,6 +87,7 @@ class TodoCategoriesNotifier extends AsyncNotifier<List<TodoCategory>> {
   Future<void> remove(String id) async {
     // 카테고리 삭제 시 그 카테고리의 항목들도 함께 삭제 + 알림 취소
     await ref.read(todoItemsProvider.notifier).removeByCategory(id);
+    if (kIsWeb) await WebPushScheduler.cancelCategory(id);
     final list = (state.value ?? const <TodoCategory>[])
         .where((c) => c.id != id)
         .toList();

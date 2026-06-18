@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../quotes/services/notification_service.dart';
 import '../models/todo_category.dart';
 import '../providers/todo_providers.dart';
+import '../widgets/wheel_time_picker.dart';
 
 Future<void> showCategoryEditDialog(
   BuildContext context,
@@ -27,6 +29,9 @@ class _CategoryEditDialog extends ConsumerStatefulWidget {
 class _CategoryEditDialogState extends ConsumerState<_CategoryEditDialog> {
   late final TextEditingController _ctrl;
   late int _colorIndex;
+  late bool _notifyEnabled;
+  late int _notifyHour;
+  late int _notifyMinute;
 
   bool get _isNew => widget.category == null;
 
@@ -35,6 +40,9 @@ class _CategoryEditDialogState extends ConsumerState<_CategoryEditDialog> {
     super.initState();
     _ctrl = TextEditingController(text: widget.category?.name ?? '');
     _colorIndex = widget.category?.colorIndex ?? 0;
+    _notifyEnabled = widget.category?.notifyEnabled ?? false;
+    _notifyHour = widget.category?.notifyHour ?? 9;
+    _notifyMinute = widget.category?.notifyMinute ?? 0;
   }
 
   @override
@@ -46,16 +54,41 @@ class _CategoryEditDialogState extends ConsumerState<_CategoryEditDialog> {
   Future<void> _save() async {
     final name = _ctrl.text.trim();
     if (name.isEmpty) return;
+    if (_notifyEnabled && NotificationService.supported) {
+      await NotificationService.requestPermission();
+    }
     final notifier = ref.read(todoCategoriesProvider.notifier);
     if (_isNew) {
-      await notifier.add(name, _colorIndex);
+      final c = await notifier.add(name, _colorIndex);
+      await notifier.save(c.copyWith(
+        notifyEnabled: _notifyEnabled,
+        notifyHour: _notifyHour,
+        notifyMinute: _notifyMinute,
+      ));
     } else {
       await notifier.save(widget.category!.copyWith(
         name: name,
         colorIndex: _colorIndex,
+        notifyEnabled: _notifyEnabled,
+        notifyHour: _notifyHour,
+        notifyMinute: _notifyMinute,
       ));
     }
     if (mounted) Navigator.of(context).pop();
+  }
+
+  Future<void> _pickTime() async {
+    final picked = await pickWheelTime(
+      context,
+      initialHour: _notifyHour,
+      initialMinute: _notifyMinute,
+    );
+    if (picked != null) {
+      setState(() {
+        _notifyHour = picked.hour;
+        _notifyMinute = picked.minute;
+      });
+    }
   }
 
   Future<void> _confirmDelete() async {
@@ -88,7 +121,8 @@ class _CategoryEditDialogState extends ConsumerState<_CategoryEditDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: Text(_isNew ? '카테고리 추가' : '카테고리 편집'),
-      content: Column(
+      content: SingleChildScrollView(
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -131,7 +165,30 @@ class _CategoryEditDialogState extends ConsumerState<_CategoryEditDialog> {
               );
             }),
           ),
+          const SizedBox(height: 8),
+          const Divider(),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('카테고리 알림', style: TextStyle(fontSize: 14)),
+            subtitle: const Text('매일 지정 시각에 미완료 항목 알림',
+                style: TextStyle(fontSize: 12)),
+            value: _notifyEnabled,
+            onChanged: (v) => setState(() => _notifyEnabled = v),
+          ),
+          if (_notifyEnabled)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.access_time),
+              title: const Text('알림 시각'),
+              trailing: Text(
+                '${_notifyHour.toString().padLeft(2, '0')}:${_notifyMinute.toString().padLeft(2, '0')}',
+                style: const TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              onTap: _pickTime,
+            ),
         ],
+      ),
       ),
       actions: [
         if (!_isNew)

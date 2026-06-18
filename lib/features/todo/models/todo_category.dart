@@ -17,6 +17,11 @@ class TodoCategory {
   final int order;
   final bool collapsed;
 
+  /// 카테고리 단위 매일 알림 (미완료 항목 모아서 푸시)
+  final bool notifyEnabled;
+  final int notifyHour;
+  final int notifyMinute;
+
   const TodoCategory({
     required this.id,
     required this.name,
@@ -24,13 +29,23 @@ class TodoCategory {
     required this.createdAt,
     required this.order,
     this.collapsed = false,
+    this.notifyEnabled = false,
+    this.notifyHour = 9,
+    this.notifyMinute = 0,
   });
 
   int get colorValue =>
       todoCategoryColors[colorIndex.clamp(0, todoCategoryColors.length - 1)];
 
-  TodoCategory copyWith(
-      {String? name, int? colorIndex, int? order, bool? collapsed}) {
+  TodoCategory copyWith({
+    String? name,
+    int? colorIndex,
+    int? order,
+    bool? collapsed,
+    bool? notifyEnabled,
+    int? notifyHour,
+    int? notifyMinute,
+  }) {
     return TodoCategory(
       id: id,
       name: name ?? this.name,
@@ -38,6 +53,9 @@ class TodoCategory {
       createdAt: createdAt,
       order: order ?? this.order,
       collapsed: collapsed ?? this.collapsed,
+      notifyEnabled: notifyEnabled ?? this.notifyEnabled,
+      notifyHour: notifyHour ?? this.notifyHour,
+      notifyMinute: notifyMinute ?? this.notifyMinute,
     );
   }
 
@@ -48,6 +66,9 @@ class TodoCategory {
         'createdAt': createdAt.toIso8601String(),
         'order': order,
         'collapsed': collapsed,
+        'notifyEnabled': notifyEnabled,
+        'notifyHour': notifyHour,
+        'notifyMinute': notifyMinute,
       };
 
   factory TodoCategory.fromJson(Map<String, dynamic> j) => TodoCategory(
@@ -57,6 +78,9 @@ class TodoCategory {
         createdAt: DateTime.parse(j['createdAt'] as String),
         order: j['order'] as int? ?? 0,
         collapsed: j['collapsed'] as bool? ?? false,
+        notifyEnabled: j['notifyEnabled'] as bool? ?? false,
+        notifyHour: j['notifyHour'] as int? ?? 9,
+        notifyMinute: j['notifyMinute'] as int? ?? 0,
       );
 
   String toJsonString() => jsonEncode(toJson());

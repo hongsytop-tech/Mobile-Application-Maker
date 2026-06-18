@@ -60,6 +60,8 @@ class _SyncGateState extends ConsumerState<SyncGate> {
         await WebPushScheduler.scheduleAll(quotes);
         final todos = await ref.read(todoItemsProvider.future);
         await WebPushScheduler.scheduleAllTodos(todos);
+        final cats = await ref.read(todoCategoriesProvider.future);
+        await WebPushScheduler.scheduleAllCategories(cats, todos);
       } catch (_) {}
     }();
   }

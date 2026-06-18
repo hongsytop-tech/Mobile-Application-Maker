@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../auth/services/supabase_service.dart';
 import '../../quotes/models/quote.dart';
+import '../../todo/models/todo_category.dart';
 import '../../todo/models/todo_item.dart';
 
 /// 개별 문구·할일 알림을 Supabase scheduled_pushes 큐(반복 규칙 1행)에 기록.
@@ -9,6 +10,7 @@ import '../../todo/models/todo_item.dart';
 class WebPushScheduler {
   static const _kind = 'quote_individual';
   static const _todoKind = 'todo';
+  static const _catKind = 'todo_category';
 
   static Future<void> scheduleQuote(Quote q) async {
     if (!kIsWeb) return;
@@ -190,6 +192,79 @@ class WebPushScheduler {
     if (!SupabaseService.isAuthenticated) return;
     for (final i in items) {
       await scheduleTodo(i);
+    }
+  }
+
+  // ---- 카테고리 단위 알림 ----
+
+  /// 카테고리 매일 알림. 본문에 현재 미완료 항목들을 담는다.
+  /// (본문은 앱 열 때마다 scheduleAllCategories 로 갱신됨)
+  static Future<void> scheduleCategory(
+      TodoCategory cat, List<TodoItem> itemsOfCat) async {
+    if (!kIsWeb) return;
+    if (!SupabaseService.isAuthenticated) return;
+
+    await cancelCategory(cat.id);
+    if (!cat.notifyEnabled) return;
+
+    final pending =
+        itemsOfCat.where((i) => !i.isCompletedNow).map((i) => i.text).toList();
+    final body = pending.isEmpty
+        ? '미완료 항목이 없어요. 잘하고 있어요! 🎉'
+        : '미완료 ${pending.length}건\n• ${pending.take(8).join('\n• ')}'
+            '${pending.length > 8 ? '\n…외 ${pending.length - 8}건' : ''}';
+
+    // 다음 발송 시각 (오늘 시각 지났으면 내일)
+    final now = DateTime.now();
+    var first =
+        DateTime(now.year, now.month, now.day, cat.notifyHour, cat.notifyMinute);
+    if (!first.isAfter(now)) first = first.add(const Duration(days: 1));
+
+    final uid = SupabaseService.currentUser!.id;
+    try {
+      await SupabaseService.client.from('scheduled_pushes').upsert({
+        'user_id': uid,
+        'kind': _catKind,
+        'ref_id': cat.id,
+        'title': '📋 ${cat.name}',
+        'body': body,
+        'scheduled_at': first.toUtc().toIso8601String(),
+        'sent_at': null,
+        'recur': {
+          'mode': 'daily',
+          'hour': cat.notifyHour,
+          'minute': cat.notifyMinute,
+        },
+      }, onConflict: 'user_id,kind,ref_id');
+    } catch (e) {
+      if (kDebugMode) print('scheduleCategory upsert failed: $e');
+    }
+  }
+
+  static Future<void> cancelCategory(String categoryId) async {
+    if (!kIsWeb) return;
+    if (!SupabaseService.isAuthenticated) return;
+    final uid = SupabaseService.currentUser!.id;
+    try {
+      await SupabaseService.client
+          .from('scheduled_pushes')
+          .delete()
+          .eq('user_id', uid)
+          .eq('kind', _catKind)
+          .eq('ref_id', categoryId);
+    } catch (e) {
+      if (kDebugMode) print('cancelCategory failed: $e');
+    }
+  }
+
+  /// 모든 카테고리 알림 재등록 (본문 갱신 포함).
+  static Future<void> scheduleAllCategories(
+      List<TodoCategory> cats, List<TodoItem> allItems) async {
+    if (!kIsWeb) return;
+    if (!SupabaseService.isAuthenticated) return;
+    for (final c in cats) {
+      final items = allItems.where((i) => i.categoryId == c.id).toList();
+      await scheduleCategory(c, items);
     }
   }
 }
