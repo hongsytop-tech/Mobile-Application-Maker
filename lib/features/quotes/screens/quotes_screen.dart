@@ -65,36 +65,18 @@ class QuotesScreen extends ConsumerWidget {
                   text: '고정됨 (${sorted.pinned.length})',
                 ),
                 const SizedBox(height: 8),
-                _ReorderableQuotes(
-                  quotes: sorted.pinned,
-                  onReorder: (oldIdx, newIdx) {
-                    if (newIdx > oldIdx) newIdx -= 1;
-                    final ids = sorted.pinned.map((q) => q.id).toList();
-                    final moved = ids.removeAt(oldIdx);
-                    ids.insert(newIdx, moved);
-                    ref.read(quotesProvider.notifier).reorder(ids);
-                  },
+                _DraggableQuoteList(quotes: sorted.pinned),
+              ],
+              if (sorted.pinned.isNotEmpty && sorted.others.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                _SectionLabel(
+                  icon: Icons.history,
+                  text: '전체 (${sorted.others.length})',
                 ),
-                if (sorted.others.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  _SectionLabel(
-                    icon: Icons.history,
-                    text: '전체 (${sorted.others.length})',
-                  ),
-                  const SizedBox(height: 8),
-                ],
+                const SizedBox(height: 8),
               ],
               if (sorted.others.isNotEmpty)
-                _ReorderableQuotes(
-                  quotes: sorted.others,
-                  onReorder: (oldIdx, newIdx) {
-                    if (newIdx > oldIdx) newIdx -= 1;
-                    final ids = sorted.others.map((q) => q.id).toList();
-                    final moved = ids.removeAt(oldIdx);
-                    ids.insert(newIdx, moved);
-                    ref.read(quotesProvider.notifier).reorder(ids);
-                  },
-                ),
+                _DraggableQuoteList(quotes: sorted.others),
             ],
           );
         },
@@ -103,34 +85,53 @@ class QuotesScreen extends ConsumerWidget {
   }
 }
 
-class _ReorderableQuotes extends ConsumerWidget {
+/// 같은 섹션(pinned 또는 others) 내 드래그-드롭 순서 변경.
+/// 각 카드 핸들을 길게 눌러 들고 다른 카드 위에 놓으면 그 위치 앞에 삽입.
+class _DraggableQuoteList extends ConsumerWidget {
   final List<Quote> quotes;
-  final void Function(int oldIdx, int newIdx) onReorder;
+  const _DraggableQuoteList({required this.quotes});
 
-  const _ReorderableQuotes({required this.quotes, required this.onReorder});
+  void _dropBefore(WidgetRef ref, String sourceId, String targetId) {
+    if (sourceId == targetId) return;
+    final ids = quotes.map((q) => q.id).toList();
+    if (!ids.contains(sourceId) || !ids.contains(targetId)) return; // 다른 섹션은 무시
+    ids.remove(sourceId);
+    final tgt = ids.indexOf(targetId);
+    if (tgt < 0) return;
+    ids.insert(tgt, sourceId);
+    ref.read(quotesProvider.notifier).reorder(ids);
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return ReorderableListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      buildDefaultDragHandles: false,
-      itemCount: quotes.length,
-      onReorder: onReorder,
-      proxyDecorator: (child, index, animation) => Material(
-        color: Colors.transparent,
-        elevation: 4,
-        borderRadius: BorderRadius.circular(12),
-        child: child,
-      ),
-      itemBuilder: (context, i) {
-        final q = quotes[i];
-        return Padding(
-          key: ValueKey(q.id),
-          padding: const EdgeInsets.only(bottom: 8),
-          child: _QuoteCard(quote: q, index: i),
-        );
-      },
+    return Column(
+      children: [
+        for (final q in quotes)
+          DragTarget<String>(
+            onWillAcceptWithDetails: (d) =>
+                d.data != q.id && quotes.any((x) => x.id == d.data),
+            onAcceptWithDetails: (d) => _dropBefore(ref, d.data, q.id),
+            builder: (context, candidate, _) {
+              final hovering = candidate.isNotEmpty;
+              return Container(
+                decoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(
+                      color: hovering
+                          ? Theme.of(context).colorScheme.primary
+                          : Colors.transparent,
+                      width: hovering ? 2 : 0,
+                    ),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _QuoteCard(quote: q),
+                ),
+              );
+            },
+          ),
+      ],
     );
   }
 }
@@ -162,10 +163,18 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-class _QuoteCard extends ConsumerWidget {
+class _QuoteCard extends ConsumerStatefulWidget {
   final Quote quote;
-  final int index;
-  const _QuoteCard({required this.quote, required this.index});
+  const _QuoteCard({required this.quote});
+
+  @override
+  ConsumerState<_QuoteCard> createState() => _QuoteCardState();
+}
+
+class _QuoteCardState extends ConsumerState<_QuoteCard> {
+  bool _dragging = false;
+
+  Quote get quote => widget.quote;
 
   Future<void> _confirmDelete(
       BuildContext context, WidgetRef ref, Quote q) async {
@@ -174,7 +183,8 @@ class _QuoteCard extends ConsumerWidget {
       builder: (_) => AlertDialog(
         title: const Text('이 문구를 삭제할까요?'),
         content: Text(q.text,
-            maxLines: 4, overflow: TextOverflow.ellipsis,
+            maxLines: 4,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontSize: 13, color: Colors.grey)),
         actions: [
           TextButton(
@@ -197,12 +207,12 @@ class _QuoteCard extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final df = DateFormat('yyyy.MM.dd');
     final primary = Theme.of(context).colorScheme.primary;
     final isPinned = quote.isPinned;
 
-    return Dismissible(
+    final card = Dismissible(
       key: ValueKey('dismiss_${quote.id}'),
       direction: DismissDirection.endToStart,
       background: Container(
@@ -293,15 +303,52 @@ class _QuoteCard extends ConsumerWidget {
                         ),
                       ),
                     ),
-                    ReorderableDragStartListener(
-                      index: index,
+                    // 드래그 핸들 — 길게 눌러 위아래로 끌기
+                    LongPressDraggable<String>(
+                      data: quote.id,
+                      axis: Axis.vertical,
+                      dragAnchorStrategy: (d, ctx, pos) =>
+                          Offset(pos.dx - 12, 25),
+                      onDragStarted: () =>
+                          setState(() => _dragging = true),
+                      onDragEnd: (_) =>
+                          setState(() => _dragging = false),
+                      onDraggableCanceled: (_, __) =>
+                          setState(() => _dragging = false),
+                      feedback: SizedBox(
+                        width: MediaQuery.of(context).size.width - 24,
+                        child: Material(
+                          color: Colors.transparent,
+                          elevation: 6,
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.85),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                  color: primary.withOpacity(0.4),
+                                  width: 1),
+                            ),
+                            child: Text(
+                              quote.text,
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontSize: 15, height: 1.5),
+                            ),
+                          ),
+                        ),
+                      ),
+                      childWhenDragging: const Padding(
+                        padding: EdgeInsets.all(4),
+                        child: Icon(Icons.drag_handle,
+                            size: 22, color: Colors.grey),
+                      ),
                       child: const Padding(
                         padding: EdgeInsets.all(4),
-                        child: Icon(
-                          Icons.drag_handle,
-                          size: 22,
-                          color: Colors.grey,
-                        ),
+                        child: Icon(Icons.drag_handle,
+                            size: 22, color: Colors.grey),
                       ),
                     ),
                   ],
@@ -338,6 +385,12 @@ class _QuoteCard extends ConsumerWidget {
           ),
         ),
       ),
+    );
+
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 120),
+      opacity: _dragging ? 0.35 : 1.0,
+      child: card,
     );
   }
 }
