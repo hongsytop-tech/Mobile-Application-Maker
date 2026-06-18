@@ -265,14 +265,9 @@ final todoItemsByCategoryProvider =
     if (i.repeat == TodoRepeat.once && i.isCompletedNow) continue;
     map.putIfAbsent(i.categoryId, () => []).add(i);
   }
-  // 각 카테고리 안에서 미완료 → 완료, 같은 그룹은 수동 order 순
+  // 완료 여부와 무관하게 수동 순서(order) 유지 → 체크해도 제자리에 표시.
   for (final entry in map.entries) {
-    entry.value.sort((a, b) {
-      final aDone = a.isCompletedNow ? 1 : 0;
-      final bDone = b.isCompletedNow ? 1 : 0;
-      if (aDone != bDone) return aDone - bDone;
-      return a.order.compareTo(b.order);
-    });
+    entry.value.sort((a, b) => a.order.compareTo(b.order));
   }
   return map;
 });
