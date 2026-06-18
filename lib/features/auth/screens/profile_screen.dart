@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../diary/providers/diary_providers.dart';
-import '../../kakao/widgets/kakao_link_card.dart';
 import '../../push/widgets/web_push_card.dart';
 import '../../quotes/providers/quote_providers.dart';
 import '../../reading/providers/book_providers.dart';
@@ -177,8 +176,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               const _AutoSyncCard(),
               const SizedBox(height: 12),
               const WebPushCard(),
-              const SizedBox(height: 12),
-              const KakaoLinkCard(),
               const SizedBox(height: 24),
               Text('수동 백업 / 복원',
                   style: Theme.of(context).textTheme.titleMedium),

@@ -68,80 +68,6 @@ class _WebPushCardState extends State<WebPushCard> {
     setState(() => _busy = false);
   }
 
-  Future<void> _test() async {
-    setState(() {
-      _busy = true;
-      _msg = null;
-    });
-    try {
-      // 항상 enable 을 먼저 호출 → 브라우저 구독을 DB 와 동기화
-      final r = await WebPushService.enable();
-      if (!r.ok) {
-        if (mounted) {
-          setState(() {
-            _msg = r.unsupported
-                ? '이 브라우저/플랫폼에서는 웹 푸시가 지원되지 않습니다.'
-                : '❌ ${r.error ?? "활성화 실패"}';
-          });
-        }
-        return;
-      }
-      final stats = await WebPushService.sendTest();
-      if (mounted) {
-        final s = stats['sent'] ?? 0;
-        final f = stats['failed'] ?? 0;
-        final c = stats['cleaned'] ?? 0;
-        if (s == 0 && f > 0) {
-          setState(() => _msg =
-              '⚠️ 전송 호출은 성공했지만 푸시 서비스가 모두 거부했어요 (실패 $f건, 정리 $c건). VAPID 키 쌍이 일치하는지 확인 필요.');
-        } else if (s > 0) {
-          setState(() => _msg =
-              '✅ 푸시 전송됨 (성공 $s건${f > 0 ? ", 실패 $f" : ""}${c > 0 ? ", 정리 $c" : ""}건). 잠시 후 알림이 옵니다.');
-        } else {
-          setState(() => _msg = '⚠️ 저장된 구독이 없어요. 알림 켜기를 다시 시도해 주세요.');
-        }
-      }
-    } catch (e, st) {
-      if (mounted) {
-        setState(() => _msg = '❌ 예외: $e\n${st.toString().split('\n').take(3).join('\n')}');
-      }
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  /// 백엔드 스케줄러 흐름 검증: 5초 뒤 발송 예약 → run_due 즉시 실행
-  Future<void> _testScheduler() async {
-    setState(() {
-      _busy = true;
-      _msg = '⏳ 5초 후 발송됩니다...';
-    });
-    try {
-      final r = await WebPushService.enable();
-      if (!r.ok) {
-        if (mounted) {
-          setState(() => _msg = '❌ ${r.error ?? "활성화 실패"}');
-        }
-        return;
-      }
-      final stats = await WebPushService.testScheduler();
-      if (mounted) {
-        final p = stats['processed'] ?? 0;
-        final f = stats['failed'] ?? 0;
-        if (p > 0) {
-          setState(() => _msg =
-              '✅ 스케줄러 동작 확인! 발송 ${p}건. 알림이 도착할 거예요.');
-        } else {
-          setState(() => _msg =
-              '⚠️ 큐 등록은 됐지만 발송 ${p}건 / 실패 ${f}건. (구독 상태 확인 필요)');
-        }
-      }
-    } catch (e) {
-      if (mounted) setState(() => _msg = '❌ 스케줄러 테스트 실패: $e');
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -219,28 +145,10 @@ class _WebPushCardState extends State<WebPushCard> {
       ];
     }
     return [
-      Row(
-        children: [
-          Expanded(
-            child: FilledButton.icon(
-              onPressed: _busy ? null : _test,
-              icon: const Icon(Icons.send),
-              label: const Text('테스트 보내기'),
-            ),
-          ),
-          const SizedBox(width: 8),
-          OutlinedButton.icon(
-            onPressed: _busy ? null : _disable,
-            icon: const Icon(Icons.notifications_off),
-            label: const Text('끄기'),
-          ),
-        ],
-      ),
-      const SizedBox(height: 8),
       OutlinedButton.icon(
-        onPressed: _busy ? null : _testScheduler,
-        icon: const Icon(Icons.schedule),
-        label: const Text('스케줄러 테스트 (5초 후 발송)'),
+        onPressed: _busy ? null : _disable,
+        icon: const Icon(Icons.notifications_off),
+        label: const Text('알림 끄기'),
       ),
     ];
   }
