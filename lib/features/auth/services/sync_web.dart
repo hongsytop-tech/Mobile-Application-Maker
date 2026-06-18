@@ -8,9 +8,9 @@ import 'sync_manager.dart';
 /// beforeunload 만으로는 불충분 → visibilitychange + pagehide 가 필수.
 void setupSyncTabCloseFlush() {
   void flush() {
-    // 동기 컨텍스트에서 호출되지만 내부적으로 비동기 push 가 즉시 시작됨.
-    // 결과를 기다리지 않고 발사 후 잊기 (브라우저는 보통 종료 직전 짧은 시간만 허용).
-    SyncManager.instance.flushNow();
+    // 아직 push 되지 않은 변경이 있을 때만 push.
+    // (stale 로컬이 최신 클라우드를 덮어쓰는 줄다리기 방지)
+    SyncManager.instance.flushIfDirty();
   }
 
   html.document.addEventListener('visibilitychange', (_) {
