@@ -262,9 +262,10 @@ class _CategorySectionState extends ConsumerState<_CategorySection> {
                     ),
                     icon: const Icon(Icons.more_horiz),
                   ),
-                  // 카테고리 드래그 핸들 — 길게 눌러 끌기
+                  // 카테고리 드래그 핸들 — 길게 눌러 위아래로 끌기
                   LongPressDraggable<_CategoryDrag>(
                     data: _CategoryDrag(category.id),
+                    axis: Axis.vertical,
                     onDragStarted: () => setState(() => _dragging = true),
                     onDragEnd: (_) => setState(() => _dragging = false),
                     onDraggableCanceled: (_, __) =>
@@ -563,9 +564,10 @@ class _ItemTileState extends ConsumerState<_ItemTile> {
                     size: 20, color: Colors.red.shade400),
               ),
             ),
-            // 드래그 핸들 — 길게 눌러 끌면 행 전체가 손가락을 따라옴
+            // 드래그 핸들 — 길게 눌러 끌면 행 전체가 위아래로 움직임
             LongPressDraggable<String>(
               data: item.id,
+              axis: Axis.vertical,
               onDragStarted: () => setState(() => _dragging = true),
               onDragEnd: (_) => setState(() => _dragging = false),
               onDraggableCanceled: (_, __) =>
