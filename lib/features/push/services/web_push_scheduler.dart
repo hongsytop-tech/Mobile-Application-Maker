@@ -68,11 +68,16 @@ class WebPushScheduler {
   }
 
   /// 여러 문구를 한 번에 스케줄링 (앱 시작/pull 후 호출).
+  /// 알림 있는 문구는 등록, 없는(껐던) 문구는 기존 행 삭제 → reconcile.
   static Future<void> scheduleAll(List<Quote> quotes) async {
     if (!kIsWeb) return;
     if (!SupabaseService.isAuthenticated) return;
     for (final q in quotes) {
-      if (q.hasSchedule) await scheduleQuote(q);
+      if (q.hasSchedule) {
+        await scheduleQuote(q);
+      } else {
+        await cancelQuote(q.id);
+      }
     }
   }
 
