@@ -23,4 +23,8 @@ void setupSyncTabCloseFlush() {
   });
   html.window.addEventListener('pagehide', (_) => flush());
   html.window.addEventListener('beforeunload', (_) => flush());
+
+  // 모바일 브라우저의 long-press 컨텍스트 메뉴(텍스트 선택/링크 미리보기)는
+  // Flutter LongPressDraggable 드래그 시작을 막는다 → 전역으로 비활성화.
+  html.document.addEventListener('contextmenu', (e) => e.preventDefault());
 }

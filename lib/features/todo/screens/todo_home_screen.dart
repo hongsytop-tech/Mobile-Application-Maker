@@ -161,11 +161,9 @@ class _CategorySection extends ConsumerWidget {
             onTap: () => ref
                 .read(todoCategoriesProvider.notifier)
                 .toggleCollapsed(category.id),
-            onLongPress: () => showCategoryEditDialog(
-              context,
-              ref,
-              category: category,
-            ),
+            // (이전 onLongPress → 편집 다이얼로그 제거. 카테고리 헤더 핸들의
+            //  LongPressDraggable 과 충돌해 드래그 대신 다이얼로그가 열리던 문제.
+            //  편집은 ⋯ 메뉴 아이콘으로 진입.)
             child: Container(
               padding:
                   const EdgeInsets.symmetric(horizontal: 14, vertical: 12),

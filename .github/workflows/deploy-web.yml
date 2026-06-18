@@ -90,6 +90,14 @@ jobs:
             <meta name="mobile-web-app-capable" content="yes">
             <meta name="theme-color" content="#3F51B5">
             <link rel="apple-touch-icon" href="icons/Icon-192.png">
+            <style>
+              html, body {
+                -webkit-user-select: none;
+                user-select: none;
+                -webkit-touch-callout: none;
+                -webkit-tap-highlight-color: transparent;
+              }
+            </style>
           '''
           if 'apple-mobile-web-app-capable' not in html:
               html = re.sub(r'(<title>.*?</title>)', inject + r'\1', html, count=1, flags=re.S)
