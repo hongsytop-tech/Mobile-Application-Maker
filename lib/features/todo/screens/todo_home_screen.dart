@@ -100,7 +100,7 @@ class TodoHomeScreen extends ConsumerWidget {
   }
 }
 
-class _CategorySection extends ConsumerWidget {
+class _CategorySection extends ConsumerStatefulWidget {
   final TodoCategory category;
   final List<TodoItem> items;
   final List<String> allCategoryIdsInOrder;
@@ -113,11 +113,25 @@ class _CategorySection extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_CategorySection> createState() => _CategorySectionState();
+}
+
+class _CategorySectionState extends ConsumerState<_CategorySection> {
+  bool _dragging = false;
+
+  TodoCategory get category => widget.category;
+  List<TodoItem> get items => widget.items;
+  List<String> get allCategoryIdsInOrder => widget.allCategoryIdsInOrder;
+
+  @override
+  Widget build(BuildContext context) {
     final color = Color(category.colorValue);
     final pending = items.where((i) => !i.isCompletedNow).length;
 
-    return DragTarget<_CategoryDrag>(
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 120),
+      opacity: _dragging ? 0.35 : 1.0,
+      child: DragTarget<_CategoryDrag>(
       // 다른 카테고리를 끌어와 이 위치 앞에 삽입
       onWillAcceptWithDetails: (d) => d.data.id != category.id,
       onAcceptWithDetails: (d) {
@@ -251,6 +265,10 @@ class _CategorySection extends ConsumerWidget {
                   // 카테고리 드래그 핸들 — 길게 눌러 끌기
                   LongPressDraggable<_CategoryDrag>(
                     data: _CategoryDrag(category.id),
+                    onDragStarted: () => setState(() => _dragging = true),
+                    onDragEnd: (_) => setState(() => _dragging = false),
+                    onDraggableCanceled: (_, __) =>
+                        setState(() => _dragging = false),
                     feedback: Material(
                       color: Colors.transparent,
                       elevation: 8,
@@ -271,13 +289,13 @@ class _CategorySection extends ConsumerWidget {
                     childWhenDragging: const Padding(
                       padding: EdgeInsets.symmetric(
                           horizontal: 4, vertical: 6),
-                      child: Icon(Icons.drag_indicator,
+                      child: Icon(Icons.drag_handle,
                           size: 22, color: Colors.grey),
                     ),
                     child: const Padding(
                       padding: EdgeInsets.symmetric(
                           horizontal: 4, vertical: 6),
-                      child: Icon(Icons.drag_indicator,
+                      child: Icon(Icons.drag_handle,
                           size: 22, color: Colors.grey),
                     ),
                   ),
@@ -350,6 +368,7 @@ class _CategorySection extends ConsumerWidget {
           },
         );
       },
+      ),
     );
   }
 }
@@ -359,13 +378,24 @@ class _CategoryDrag {
   const _CategoryDrag(this.id);
 }
 
-class _ItemTile extends ConsumerWidget {
+class _ItemTile extends ConsumerStatefulWidget {
   final TodoItem item;
   final Color color;
   final int index;
 
   const _ItemTile(
       {required this.item, required this.color, required this.index});
+
+  @override
+  ConsumerState<_ItemTile> createState() => _ItemTileState();
+}
+
+class _ItemTileState extends ConsumerState<_ItemTile> {
+  bool _dragging = false;
+
+  TodoItem get item => widget.item;
+  Color get color => widget.color;
+  int get index => widget.index;
 
   Future<void> _confirmDelete(
       BuildContext context, WidgetRef ref, TodoItem it) async {
@@ -397,7 +427,7 @@ class _ItemTile extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final df = DateFormat('MM.dd HH:mm');
     final done = item.isCompletedNow;
     final next = item.nextDeadline;
@@ -516,9 +546,13 @@ class _ItemTile extends ConsumerWidget {
                     size: 20, color: Colors.red.shade400),
               ),
             ),
-            // 드래그 핸들 — 길게 눌러 끌기 (LongPressDraggable, default ~500ms)
+            // 드래그 핸들 — 길게 눌러 끌기
             LongPressDraggable<String>(
               data: item.id,
+              onDragStarted: () => setState(() => _dragging = true),
+              onDragEnd: (_) => setState(() => _dragging = false),
+              onDraggableCanceled: (_, __) =>
+                  setState(() => _dragging = false),
               feedback: Material(
                 color: Colors.transparent,
                 elevation: 8,
@@ -541,12 +575,12 @@ class _ItemTile extends ConsumerWidget {
               ),
               childWhenDragging: const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-                child: Icon(Icons.drag_indicator,
+                child: Icon(Icons.drag_handle,
                     size: 22, color: Colors.grey),
               ),
               child: const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-                child: Icon(Icons.drag_indicator,
+                child: Icon(Icons.drag_handle,
                     size: 22, color: Colors.grey),
               ),
             ),
@@ -555,7 +589,12 @@ class _ItemTile extends ConsumerWidget {
       ),
     );
 
-    return row;
+    // 드래그 중엔 행 전체가 흐릿하게 표시되어 이동 중임을 명확히 보여줌
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 120),
+      opacity: _dragging ? 0.35 : 1.0,
+      child: row,
+    );
   }
 
   Widget _badge({
