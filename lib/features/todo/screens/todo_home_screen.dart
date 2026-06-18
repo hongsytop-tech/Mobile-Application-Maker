@@ -19,7 +19,7 @@ class TodoHomeScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('할일 / 목표'),
+        title: const Text('To do'),
         actions: [
           IconButton(
             tooltip: '완료 기록 (캘린더)',
@@ -342,19 +342,22 @@ class _ItemTile extends ConsumerWidget {
               onChanged: (_) async {
                 final wasOnce = item.repeat == TodoRepeat.once;
                 final wasDone = item.isCompletedNow;
+                // 토글 후 이 위젯이 unmount 될 수 있으니 messenger 를 미리 캐싱
+                final messenger = ScaffoldMessenger.of(context);
                 await ref
                     .read(todoItemsProvider.notifier)
                     .toggleComplete(item.id);
-                // 즉시 항목을 방금 "완료"로 바꾼 경우만 → 10초 Undo 스낵바
+                // 수시(once) 항목을 방금 "완료"로 바꾼 경우만 → 10초 Undo 스낵바
                 if (!wasOnce || wasDone) return;
-                if (!context.mounted) return;
-                final messenger = ScaffoldMessenger.of(context);
                 messenger.hideCurrentSnackBar();
                 messenger.showSnackBar(
                   SnackBar(
                     duration: const Duration(seconds: 10),
+                    behavior: SnackBarBehavior.floating,
                     content: Text('완료: ${item.text}',
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 15)),
                     action: SnackBarAction(
                       label: '실행 취소',
                       onPressed: () => ref

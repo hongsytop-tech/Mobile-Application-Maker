@@ -92,28 +92,31 @@ class _CategoryEditDialogState extends ConsumerState<_CategoryEditDialog> {
   }
 
   Future<void> _confirmDelete() async {
+    final cat = widget.category!;
+    final notifier = ref.read(todoCategoriesProvider.notifier);
+    final rootContext = Navigator.of(context, rootNavigator: true).context;
+    // 편집 다이얼로그부터 닫기
     Navigator.of(context).pop();
+    // 새 확인 다이얼로그 (root context 사용 → 위에서 닫힌 다이얼로그의 영향 없음)
     final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text('"${widget.category!.name}" 카테고리를 삭제할까요?'),
+      context: rootContext,
+      builder: (ctx) => AlertDialog(
+        title: Text('"${cat.name}" 카테고리를 삭제할까요?'),
         content: const Text('카테고리 안의 모든 할 일도 함께 삭제됩니다.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.of(ctx).pop(false),
             child: const Text('취소'),
           ),
           FilledButton.tonal(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.of(ctx).pop(true),
             child: const Text('삭제'),
           ),
         ],
       ),
     );
     if (ok == true) {
-      await ref
-          .read(todoCategoriesProvider.notifier)
-          .remove(widget.category!.id);
+      await notifier.remove(cat.id);
     }
   }
 

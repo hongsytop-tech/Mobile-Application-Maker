@@ -17,7 +17,7 @@ class MainShell extends StatefulWidget {
 }
 
 class _MainShellState extends State<MainShell> {
-  int _index = 0;
+  int _index = 1; // 할일/목표(To do) 가 첫 화면
 
   @override
   void initState() {
@@ -81,7 +81,7 @@ class _MainShellState extends State<MainShell> {
           NavigationDestination(
             icon: Icon(Icons.checklist_outlined),
             selectedIcon: Icon(Icons.checklist),
-            label: '할일/목표',
+            label: 'To do',
           ),
           NavigationDestination(
             icon: Icon(Icons.calendar_month_outlined),
