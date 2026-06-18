@@ -2,12 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../auth/services/sync_manager.dart';
 import '../models/todo_category.dart';
 import '../models/todo_item.dart';
 import '../providers/todo_providers.dart';
 import 'category_edit_dialog.dart';
 import 'todo_completion_calendar_screen.dart';
 import 'todo_item_edit_screen.dart';
+
+/// 당겨서 새로고침 — 클라우드에서 pull. SyncGate 가 pullCompleted 를 받아
+/// provider 무효화까지 자동 처리한다.
+Future<void> _pullFromCloud(WidgetRef ref) async {
+  await SyncManager.instance.pullOnLogin();
+}
 
 class TodoHomeScreen extends ConsumerWidget {
   const TodoHomeScreen({super.key});
@@ -70,34 +77,37 @@ class TodoHomeScreen extends ConsumerWidget {
           }
           final sorted = [...categories]
             ..sort((a, b) => a.order.compareTo(b.order));
-          return ReorderableListView.builder(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 80),
-            buildDefaultDragHandles: false,
-            itemCount: sorted.length,
-            onReorder: (oldIdx, newIdx) {
-              if (newIdx > oldIdx) newIdx -= 1;
-              final ids = sorted.map((c) => c.id).toList();
-              final moved = ids.removeAt(oldIdx);
-              ids.insert(newIdx, moved);
-              ref
-                  .read(todoCategoriesProvider.notifier)
-                  .reorder(ids);
-            },
-            proxyDecorator: (child, index, animation) => Material(
-              color: Colors.transparent,
-              elevation: 6,
-              borderRadius: BorderRadius.circular(14),
-              child: child,
+          return RefreshIndicator(
+            // 당겨서 새로고침 → 클라우드에서 최신 데이터 가져오기 (PC 변경 즉시 반영)
+            onRefresh: () => _pullFromCloud(ref),
+            child: ReorderableListView.builder(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 80),
+              buildDefaultDragHandles: false,
+              physics: const AlwaysScrollableScrollPhysics(),
+              itemCount: sorted.length,
+              onReorder: (oldIdx, newIdx) {
+                if (newIdx > oldIdx) newIdx -= 1;
+                final ids = sorted.map((c) => c.id).toList();
+                final moved = ids.removeAt(oldIdx);
+                ids.insert(newIdx, moved);
+                ref.read(todoCategoriesProvider.notifier).reorder(ids);
+              },
+              proxyDecorator: (child, index, animation) => Material(
+                color: Colors.transparent,
+                elevation: 6,
+                borderRadius: BorderRadius.circular(14),
+                child: child,
+              ),
+              itemBuilder: (context, i) {
+                final cat = sorted[i];
+                final items = itemsByCat[cat.id] ?? const <TodoItem>[];
+                return KeyedSubtree(
+                  key: ValueKey(cat.id),
+                  child: _CategorySection(
+                      category: cat, items: items, sectionIndex: i),
+                );
+              },
             ),
-            itemBuilder: (context, i) {
-              final cat = sorted[i];
-              final items = itemsByCat[cat.id] ?? const <TodoItem>[];
-              return KeyedSubtree(
-                key: ValueKey(cat.id),
-                child: _CategorySection(
-                    category: cat, items: items, sectionIndex: i),
-              );
-            },
           );
         },
       ),
@@ -158,12 +168,37 @@ class _CategorySection extends ConsumerWidget {
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(
-                      category.name,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          category.name,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (category.notifyEnabled)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.notifications_active,
+                                    size: 12, color: color),
+                                const SizedBox(width: 3),
+                                Text(
+                                  '매일 ${category.notifyHour.toString().padLeft(2, '0')}:${category.notifyMinute.toString().padLeft(2, '0')}',
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      color: color,
+                                      fontWeight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                   if (pending > 0)
