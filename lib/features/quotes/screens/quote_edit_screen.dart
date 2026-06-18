@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../todo/widgets/wheel_time_picker.dart';
 import '../models/quote.dart';
 import '../providers/quote_providers.dart';
 import '../services/notification_service.dart';
@@ -44,11 +45,15 @@ class _QuoteEditScreenState extends ConsumerState<QuoteEditScreen> {
   }
 
   Future<void> _pickTime() async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: _time ?? const TimeOfDay(hour: 9, minute: 0),
+    final cur = _time ?? const TimeOfDay(hour: 9, minute: 0);
+    final picked = await pickWheelTime(
+      context,
+      initialHour: cur.hour,
+      initialMinute: cur.minute,
     );
-    if (picked != null) setState(() => _time = picked);
+    if (picked != null) {
+      setState(() => _time = TimeOfDay(hour: picked.hour, minute: picked.minute));
+    }
   }
 
   Future<void> _save() async {

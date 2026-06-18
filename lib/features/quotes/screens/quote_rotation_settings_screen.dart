@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../auth/services/sync_manager.dart';
+import '../../todo/widgets/wheel_time_picker.dart';
 import '../providers/quote_providers.dart';
 import '../services/notification_service.dart';
 import '../services/quote_rotation_service.dart';
@@ -115,9 +116,10 @@ class _QuoteRotationSettingsScreenState
   }
 
   Future<void> _pickTime() async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay(hour: _draft.hour, minute: _draft.minute),
+    final picked = await pickWheelTime(
+      context,
+      initialHour: _draft.hour,
+      initialMinute: _draft.minute,
     );
     if (picked != null) {
       _patch(_draft.copyWith(hour: picked.hour, minute: picked.minute));

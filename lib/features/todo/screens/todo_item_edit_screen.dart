@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../quotes/services/notification_service.dart';
 import '../models/todo_item.dart';
 import '../providers/todo_providers.dart';
+import '../widgets/wheel_time_picker.dart';
 
 class TodoItemEditScreen extends ConsumerStatefulWidget {
   final String categoryId;
@@ -83,9 +84,10 @@ class _TodoItemEditScreenState extends ConsumerState<TodoItemEditScreen> {
   }
 
   Future<void> _pickNotifyTime() async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay(hour: _notifyHour, minute: _notifyMinute),
+    final picked = await pickWheelTime(
+      context,
+      initialHour: _notifyHour,
+      initialMinute: _notifyMinute,
     );
     if (picked != null) {
       setState(() {
