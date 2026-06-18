@@ -167,6 +167,39 @@ class TodoItemsNotifier extends AsyncNotifier<List<TodoItem>> {
     await _scheduleNotifications(updated);
   }
 
+  /// 항목을 다른 카테고리로 이동 (드래그). 대상 카테고리 맨 아래로 배치.
+  Future<void> moveToCategory(String itemId, String targetCategoryId) async {
+    final list = state.value ?? const <TodoItem>[];
+    final idx = list.indexWhere((i) => i.id == itemId);
+    if (idx < 0) return;
+    final item = list[idx];
+    if (item.categoryId == targetCategoryId) return;
+    // 대상 카테고리에서 가장 큰 order + 1 (맨 아래)
+    final targetItems = list.where((i) => i.categoryId == targetCategoryId);
+    final maxOrder = targetItems.isEmpty
+        ? 0
+        : targetItems.map((i) => i.order).reduce((a, b) => a > b ? a : b) + 1;
+    final moved = TodoItem(
+      id: item.id,
+      categoryId: targetCategoryId,
+      text: item.text,
+      repeat: item.repeat,
+      weekDays: item.weekDays,
+      monthDay: item.monthDay,
+      deadline: item.deadline,
+      notifyEnabled: item.notifyEnabled,
+      notifyDate: item.notifyDate,
+      notifyHour: item.notifyHour,
+      notifyMinute: item.notifyMinute,
+      createdAt: item.createdAt,
+      completions: item.completions,
+      order: maxOrder,
+    );
+    final newList = [...list];
+    newList[idx] = moved;
+    await _persist(newList);
+  }
+
   Future<void> toggleComplete(String id) async {
     final list = state.value ?? const <TodoItem>[];
     final idx = list.indexWhere((i) => i.id == id);

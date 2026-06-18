@@ -131,14 +131,27 @@ class _CategorySection extends ConsumerWidget {
     final color = Color(category.colorValue);
     final pending = items.where((i) => !i.isCompletedNow).length;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Column(
+    return DragTarget<String>(
+      // 다른 카테고리에서 끌어온 항목을 이 카테고리로 이동
+      onWillAcceptWithDetails: (d) => true,
+      onAcceptWithDetails: (d) {
+        ref
+            .read(todoItemsProvider.notifier)
+            .moveToCategory(d.data, category.id);
+      },
+      builder: (context, candidate, rejected) {
+        final hovering = candidate.isNotEmpty;
+        return Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+            color: hovering ? color.withOpacity(0.08) : Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: hovering ? color : Colors.grey.shade300,
+              width: hovering ? 2 : 1,
+            ),
+          ),
+          child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           InkWell(
@@ -311,7 +324,9 @@ class _CategorySection extends ConsumerWidget {
             ),
           ),
         ],
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -473,6 +488,43 @@ class _ItemTile extends ConsumerWidget {
                     size: 20, color: Colors.red.shade400),
               ),
             ),
+            // 카테고리 간 이동 핸들 (1초 길게 누르면 드래그 시작)
+            LongPressDraggable<String>(
+              data: item.id,
+              delay: const Duration(seconds: 1),
+              hapticFeedbackOnStart: true,
+              dragAnchorStrategy: pointerDragAnchorStrategy,
+              feedback: Material(
+                color: Colors.transparent,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black26, blurRadius: 8)
+                    ],
+                  ),
+                  child: Text(item.text,
+                      style: const TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ),
+              childWhenDragging: const Opacity(opacity: 0.3,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                    child: Icon(Icons.open_with, size: 20, color: Colors.grey),
+                  )),
+              child: Tooltip(
+                message: '1초 길게 눌러 다른 카테고리로 이동',
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                  child: Icon(Icons.open_with, size: 20, color: Colors.grey),
+                ),
+              ),
+            ),
+            // 같은 카테고리 내 순서 변경 핸들
             ReorderableDragStartListener(
               index: index,
               child: const Padding(
