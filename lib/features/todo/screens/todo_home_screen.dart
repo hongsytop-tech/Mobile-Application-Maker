@@ -276,15 +276,16 @@ class _CategorySectionState extends ConsumerState<_CategorySection> {
                       width: MediaQuery.of(context).size.width - 24,
                       child: Material(
                         color: Colors.transparent,
-                        elevation: 12,
+                        elevation: 6,
                         borderRadius: BorderRadius.circular(14),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 14, vertical: 12),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: Colors.white.withOpacity(0.85),
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: color, width: 2),
+                            border: Border.all(
+                                color: color.withOpacity(0.4), width: 1),
                           ),
                           child: Row(
                             children: [
@@ -581,15 +582,16 @@ class _ItemTileState extends ConsumerState<_ItemTile> {
                 width: MediaQuery.of(context).size.width - 24,
                 child: Material(
                   color: Colors.transparent,
-                  elevation: 10,
+                  elevation: 6,
                   borderRadius: BorderRadius.circular(12),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 12, vertical: 12),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Colors.white.withOpacity(0.85),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: color, width: 2),
+                      border:
+                          Border.all(color: color.withOpacity(0.4), width: 1),
                     ),
                     child: Row(
                       children: [
