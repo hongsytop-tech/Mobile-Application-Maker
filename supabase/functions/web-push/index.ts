@@ -141,7 +141,7 @@ async function runDue(admin: any) {
         } catch (e: any) {
           const status = e?.statusCode;
           lastErr = `status=${status} ${String(e?.body ?? e?.message ?? e).slice(0, 120)}`;
-          if (status === 404 || status === 410 || status === 401 || status === 403) {
+          if (status === 404 || status === 410) { // 영구 만료만 삭제 (401/403 전송오류는 유지)
             expiredIds.push(s.id);
           }
         }
@@ -212,7 +212,7 @@ async function sendTest(userId: string, admin: any) {
       const status = e?.statusCode;
       errors.push({ id: s.id, status, body: String(e?.body ?? e?.message ?? e).slice(0, 200) });
       // 만료/거부 = 구독 정리 (404/410=gone, 401/403=signature mismatch)
-      if (status === 404 || status === 410 || status === 401 || status === 403) {
+      if (status === 404 || status === 410) { // 영구 만료만 삭제 (401/403 전송오류는 유지)
         expiredIds.push(s.id);
       }
     }

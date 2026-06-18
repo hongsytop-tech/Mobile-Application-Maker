@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../diary/providers/diary_providers.dart';
 import '../../push/services/web_push_scheduler.dart';
+import '../../push/services/web_push_service.dart';
 import '../../quotes/models/quote.dart';
 import '../../quotes/providers/quote_providers.dart';
 import '../../quotes/services/quote_rotation_service.dart';
@@ -67,6 +68,8 @@ class _SyncGateState extends ConsumerState<SyncGate> {
     try {
       // pullOnLogin 이 끝나면 pullCompleted 스트림에서 _refreshFromPulledData 가 자동 실행됨
       await SyncManager.instance.pullOnLogin();
+      // 웹 푸시 구독을 최신으로 유지 (cron 발송 시 no_subscription 방지)
+      await WebPushService.ensureSubscribed();
     } finally {
       _pulling = false;
     }

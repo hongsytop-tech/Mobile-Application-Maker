@@ -94,6 +94,37 @@ class WebPushService {
     }
   }
 
+  /// 앱 시작/로그인 시 호출 — 권한이 이미 허용된 경우에만 조용히 재구독해서
+  /// DB 구독 행을 항상 최신으로 유지한다. (cron 발송 시 no_subscription 방지)
+  /// 권한 요청 팝업은 절대 띄우지 않는다.
+  static Future<void> ensureSubscribed() async {
+    try {
+      if (!kIsWeb) return;
+      if (!await platform.isPushSupported()) return;
+      if (!SupabaseService.isAuthenticated) return;
+      // 이미 허용된 경우에만 진행 (default/denied 면 팝업 없이 종료)
+      if (await platform.currentPermission() != 'granted') return;
+
+      final pub = await _getPublicKey();
+      if (pub == null || pub.isEmpty) return;
+      final sub = await platform.subscribe(pub);
+      if (sub == null) return;
+
+      await SupabaseService.client.from('web_push_subscriptions').upsert(
+        {
+          'user_id': SupabaseService.currentUser!.id,
+          'endpoint': sub['endpoint'],
+          'p256dh': sub['p256dh'],
+          'auth': sub['auth'],
+          'user_agent': sub['user_agent'],
+        },
+        onConflict: 'user_id,endpoint',
+      );
+    } catch (e) {
+      if (kDebugMode) print('ensureSubscribed failed: $e');
+    }
+  }
+
   /// 구독 해제 + DB 정리.
   static Future<void> disable() async {
     if (!kIsWeb) return;
