@@ -103,15 +103,15 @@ class TodoItem {
   }
 
 
-  /// 반복 항목의 다음 알림/데드라인 (반복 없으면 null)
+  /// 반복 항목의 다음 알림 시각 (알림 꺼짐·반복 없음·장기목표면 null)
   DateTime? get nextDeadline {
+    if (!notifyEnabled) return null;
     final now = DateTime.now();
     final base =
         DateTime(now.year, now.month, now.day, notifyHour, notifyMinute);
 
     switch (repeat) {
       case TodoRepeat.once:
-        if (!notifyEnabled) return null;
         final d = notifyDate ?? now;
         final at =
             DateTime(d.year, d.month, d.day, notifyHour, notifyMinute);
