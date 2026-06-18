@@ -13,6 +13,19 @@
 alter table public.scheduled_pushes
   add column if not exists recur jsonb;
 
+-- 옛 40슬롯 방식 행 먼저 정리 (unique 인덱스 생성 전에 중복 제거).
+delete from public.scheduled_pushes
+where kind in ('quote_rotation', 'quote_individual');
+
+-- 혹시 남은 (user_id,kind,ref_id) 중복도 제거 (가장 최근 1건만 유지).
+delete from public.scheduled_pushes a
+  using public.scheduled_pushes b
+where a.ctid < b.ctid
+  and a.user_id = b.user_id
+  and a.kind = b.kind
+  and a.ref_id is not null
+  and a.ref_id = b.ref_id;
+
 -- 반복 행은 scheduled_at 이 계속 바뀌므로 (user_id,kind,scheduled_at) unique 는 부적합.
 -- 대신 "스케줄 1개 = 행 1개"를 (user_id,kind,ref_id) 로 보장 (ref_id 있는 경우만).
 alter table public.scheduled_pushes
@@ -21,7 +34,3 @@ alter table public.scheduled_pushes
 create unique index if not exists scheduled_pushes_unique_ref
   on public.scheduled_pushes (user_id, kind, ref_id)
   where ref_id is not null;
-
--- 옛 40슬롯 방식 행 정리 (클라이언트가 반복 규칙 1행으로 재생성).
-delete from public.scheduled_pushes
-where kind in ('quote_rotation', 'quote_individual');
