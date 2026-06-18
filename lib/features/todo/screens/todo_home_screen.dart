@@ -250,7 +250,6 @@ class _CategorySection extends ConsumerWidget {
                   // 카테고리 드래그 핸들 — 즉시 잡고 끌기
                   Draggable<_CategoryDrag>(
                     data: _CategoryDrag(category.id),
-                    hapticFeedbackOnStart: true,
                     affinity: Axis.vertical,
                     feedback: Material(
                       color: Colors.transparent,
@@ -521,7 +520,6 @@ class _ItemTile extends ConsumerWidget {
             // 버그 회피). 핸들을 누르고 그대로 끌면 됨.
             Draggable<String>(
               data: item.id,
-              hapticFeedbackOnStart: true,
               affinity: Axis.vertical,
               feedback: Material(
                 color: Colors.transparent,
