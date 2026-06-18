@@ -339,9 +339,31 @@ class _ItemTile extends ConsumerWidget {
             Checkbox(
               value: done,
               activeColor: color,
-              onChanged: (_) => ref
-                  .read(todoItemsProvider.notifier)
-                  .toggleComplete(item.id),
+              onChanged: (_) async {
+                final wasOnce = item.repeat == TodoRepeat.once;
+                final wasDone = item.isCompletedNow;
+                await ref
+                    .read(todoItemsProvider.notifier)
+                    .toggleComplete(item.id);
+                // 즉시 항목을 방금 "완료"로 바꾼 경우만 → 10초 Undo 스낵바
+                if (!wasOnce || wasDone) return;
+                if (!context.mounted) return;
+                final messenger = ScaffoldMessenger.of(context);
+                messenger.hideCurrentSnackBar();
+                messenger.showSnackBar(
+                  SnackBar(
+                    duration: const Duration(seconds: 10),
+                    content: Text('완료: ${item.text}',
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                    action: SnackBarAction(
+                      label: '실행 취소',
+                      onPressed: () => ref
+                          .read(todoItemsProvider.notifier)
+                          .toggleComplete(item.id),
+                    ),
+                  ),
+                );
+              },
             ),
             Expanded(
               child: Column(

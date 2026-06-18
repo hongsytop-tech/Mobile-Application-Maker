@@ -67,7 +67,11 @@ class _MainShellState extends State<MainShell> {
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
+        onDestinationSelected: (i) {
+          // 다른 탭으로 이동 시 진행 중인 스낵바(예: 즉시 할일 완료 Undo) 닫기
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          setState(() => _index = i);
+        },
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.menu_book_outlined),
