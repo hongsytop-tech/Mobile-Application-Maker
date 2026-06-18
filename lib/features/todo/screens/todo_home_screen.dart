@@ -130,8 +130,9 @@ class _CategorySection extends ConsumerWidget {
       builder: (context, catCand, _) {
         final catHovering = catCand.isNotEmpty;
         return DragTarget<String>(
-          // 다른 카테고리에서 끌어온 항목을 이 카테고리로 이동(빈 영역 대상)
-          onWillAcceptWithDetails: (d) => true,
+          // 다른 카테고리에서 끌어온 항목만 받는다 (기존 카테고리에서 끌면 하이라이트 X)
+          onWillAcceptWithDetails: (d) =>
+              !items.any((i) => i.id == d.data),
           onAcceptWithDetails: (d) {
             ref
                 .read(todoItemsProvider.notifier)
@@ -247,10 +248,9 @@ class _CategorySection extends ConsumerWidget {
                     ),
                     icon: const Icon(Icons.more_horiz),
                   ),
-                  // 카테고리 드래그 핸들 — 즉시 잡고 끌기
-                  Draggable<_CategoryDrag>(
+                  // 카테고리 드래그 핸들 — 길게 눌러 끌기
+                  LongPressDraggable<_CategoryDrag>(
                     data: _CategoryDrag(category.id),
-                    affinity: Axis.vertical,
                     feedback: Material(
                       color: Colors.transparent,
                       elevation: 8,
@@ -516,11 +516,9 @@ class _ItemTile extends ConsumerWidget {
                     size: 20, color: Colors.red.shade400),
               ),
             ),
-            // 드래그 핸들 — 즉시 잡고 끌기 (Flutter web mobile 의 LongPressDraggable
-            // 버그 회피). 핸들을 누르고 그대로 끌면 됨.
-            Draggable<String>(
+            // 드래그 핸들 — 길게 눌러 끌기 (LongPressDraggable, default ~500ms)
+            LongPressDraggable<String>(
               data: item.id,
-              affinity: Axis.vertical,
               feedback: Material(
                 color: Colors.transparent,
                 elevation: 8,
