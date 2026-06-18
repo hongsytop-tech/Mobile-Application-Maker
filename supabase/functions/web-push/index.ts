@@ -98,25 +98,40 @@ async function runDue(admin: any) {
   if (error) return j(500, { error: 'query_failed', detail: error.message });
   if (!due || due.length === 0) return j(200, { ok: true, processed: 0 });
 
+  const now = Date.now();
+  const GRACE_MS = 5 * 60 * 1000; // 5분 이상 늦은 알림은 발송 생략(전진만)
   let processed = 0;
   let failed = 0;
 
   for (const p of due) {
     try {
+      const scheduledMs = new Date(p.scheduled_at).getTime();
+      const tooStale = now - scheduledMs > GRACE_MS;
+
+      // 반복(recur) 행이고 너무 늦었으면 발송 생략하고 다음 시각으로 전진만
+      if (p.recur && tooStale) {
+        await advanceRecurRow(admin, p, now);
+        continue;
+      }
+
       const { data: subs } = await admin
         .from('web_push_subscriptions')
         .select('*')
         .eq('user_id', p.user_id);
 
       if (!subs || subs.length === 0) {
-        // 구독 없음 — sent_at 으로 마킹해 중복 처리 방지
-        await admin
-          .from('scheduled_pushes')
-          .update({
-            sent_at: new Date().toISOString(),
-            last_error: 'no_subscription',
-          })
-          .eq('id', p.id);
+        // 구독 없음 — 반복 행은 전진, 1회성은 sent 마킹
+        if (p.recur) {
+          await advanceRecurRow(admin, p, now, 'no_subscription');
+        } else {
+          await admin
+            .from('scheduled_pushes')
+            .update({
+              sent_at: new Date().toISOString(),
+              last_error: 'no_subscription',
+            })
+            .eq('id', p.id);
+        }
         continue;
       }
 
@@ -151,14 +166,19 @@ async function runDue(admin: any) {
         await admin.from('web_push_subscriptions').delete().in('id', expiredIds);
       }
 
-      await admin
-        .from('scheduled_pushes')
-        .update({
-          sent_at: new Date().toISOString(),
-          attempt_count: (p.attempt_count ?? 0) + 1,
-          last_error: anyOk ? null : lastErr ?? 'all_failed',
-        })
-        .eq('id', p.id);
+      if (p.recur) {
+        // 반복: 다음 시각으로 전진 (행 재사용)
+        await advanceRecurRow(admin, p, now, anyOk ? null : lastErr ?? 'all_failed');
+      } else {
+        await admin
+          .from('scheduled_pushes')
+          .update({
+            sent_at: new Date().toISOString(),
+            attempt_count: (p.attempt_count ?? 0) + 1,
+            last_error: anyOk ? null : lastErr ?? 'all_failed',
+          })
+          .eq('id', p.id);
+      }
 
       if (anyOk) processed++;
       else failed++;
@@ -175,6 +195,111 @@ async function runDue(admin: any) {
   }
 
   return j(200, { ok: true, processed, failed, total: due.length });
+}
+
+/// 반복 행을 다음 발송 시각으로 전진시키고 body/index 를 갱신한다.
+async function advanceRecurRow(admin: any, p: any, nowMs: number, lastError?: string | null) {
+  const recur = p.recur ?? {};
+  const nextAt = computeNextOccurrence(recur, new Date(p.scheduled_at).getTime(), nowMs);
+  if (nextAt == null) {
+    // 계산 불가 → 더 이상 반복 안 함 (sent 마킹)
+    await admin.from('scheduled_pushes').update({
+      sent_at: new Date().toISOString(),
+      last_error: lastError ?? 'recur_compute_failed',
+    }).eq('id', p.id);
+    return;
+  }
+
+  // 순차 회전 body 갱신
+  let nextBody = p.body;
+  let nextRecur = recur;
+  const bodies = recur.bodies as string[] | undefined;
+  if (Array.isArray(bodies) && bodies.length > 0) {
+    const idx = ((recur.index ?? 0) + 1) % bodies.length;
+    nextBody = bodies[idx];
+    nextRecur = { ...recur, index: idx };
+  }
+
+  await admin.from('scheduled_pushes').update({
+    scheduled_at: new Date(nextAt).toISOString(),
+    body: nextBody,
+    recur: nextRecur,
+    sent_at: null,
+    attempt_count: (p.attempt_count ?? 0) + 1,
+    last_error: lastError ?? null,
+  }).eq('id', p.id);
+}
+
+/// recur 설정에 따라 fromMs 이후 + nowMs 이후의 첫 발송 시각(ms) 계산.
+function computeNextOccurrence(recur: any, fromMs: number, nowMs: number): number | null {
+  const mode = recur.mode as string;
+  if (mode === 'interval') {
+    const mins = Number(recur.intervalMinutes ?? 0);
+    if (mins < 1) return null;
+    const step = mins * 60 * 1000;
+    let t = fromMs + step;
+    if (t <= nowMs) {
+      const skip = Math.floor((nowMs - t) / step) + 1;
+      t += skip * step;
+    }
+    return t;
+  }
+  const hour = Number(recur.hour ?? 9);
+  const minute = Number(recur.minute ?? 0);
+  if (mode === 'daily') {
+    return nextDailyAfter(nowMs, hour, minute);
+  }
+  if (mode === 'weekly') {
+    const weekdays: number[] = Array.isArray(recur.weekdays) ? recur.weekdays : [];
+    if (weekdays.length === 0) return null;
+    // 향후 14일 내에서 첫 매칭 요일/시각
+    for (let d = 0; d <= 14; d++) {
+      const cand = dayAt(nowMs, d, hour, minute);
+      if (cand <= nowMs) continue;
+      const wd = isoWeekday(cand); // 1=Mon..7=Sun
+      if (weekdays.includes(wd)) return cand;
+    }
+    return null;
+  }
+  if (mode === 'monthly') {
+    const md = Number(recur.monthDay ?? 1);
+    for (let m = 0; m <= 2; m++) {
+      const cand = monthDayAt(nowMs, m, md, hour, minute);
+      if (cand != null && cand > nowMs) return cand;
+    }
+    return null;
+  }
+  return null;
+}
+
+function nextDailyAfter(nowMs: number, hour: number, minute: number): number {
+  for (let d = 0; d <= 1; d++) {
+    const cand = dayAt(nowMs, d, hour, minute);
+    if (cand > nowMs) return cand;
+  }
+  return dayAt(nowMs, 1, hour, minute);
+}
+
+// KST(UTC+9) 기준으로 날짜 계산. (한국 사용자 고정)
+const KST_OFFSET = 9 * 60 * 60 * 1000;
+function dayAt(nowMs: number, addDays: number, hour: number, minute: number): number {
+  const k = new Date(nowMs + KST_OFFSET);
+  const y = k.getUTCFullYear();
+  const mo = k.getUTCMonth();
+  const da = k.getUTCDate() + addDays;
+  // KST 시각 → UTC ms
+  return Date.UTC(y, mo, da, hour, minute) - KST_OFFSET;
+}
+function monthDayAt(nowMs: number, addMonths: number, monthDay: number, hour: number, minute: number): number | null {
+  const k = new Date(nowMs + KST_OFFSET);
+  const y = k.getUTCFullYear();
+  const mo = k.getUTCMonth() + addMonths;
+  return Date.UTC(y, mo, monthDay, hour, minute) - KST_OFFSET;
+}
+function isoWeekday(ms: number): number {
+  const k = new Date(ms + KST_OFFSET);
+  const wd = k.getUTCDay(); // 0=Sun..6=Sat
+  return wd === 0 ? 7 : wd; // 1=Mon..7=Sun
 }
 
 async function sendTest(userId: string, admin: any) {

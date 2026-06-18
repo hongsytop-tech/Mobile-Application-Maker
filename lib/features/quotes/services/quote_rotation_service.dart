@@ -196,46 +196,49 @@ class QuoteRotationService {
     final s = await load();
     final disabled = !s.enabled || quotes.isEmpty;
 
-    if (cleanFirst || disabled) {
-      // pending(아직 발송 안 된) future quote_rotation 만 정리
-      try {
-        await db
-            .from('scheduled_pushes')
-            .delete()
-            .eq('user_id', uid)
-            .eq('kind', 'quote_rotation')
-            .filter('sent_at', 'is', null);
-      } catch (e) {
-        if (kDebugMode) print('reschedule(web): delete failed: $e');
-      }
+    // 순차 알림은 반복 규칙 1행으로 관리 → 기존 행 모두 제거 후 재생성.
+    try {
+      await db
+          .from('scheduled_pushes')
+          .delete()
+          .eq('user_id', uid)
+          .eq('kind', 'quote_rotation');
+    } catch (e) {
+      if (kDebugMode) print('reschedule(web): delete failed: $e');
     }
 
     if (disabled) return;
-    final times = _computeUpcoming(s, count: _maxSchedule);
-    if (times.isEmpty) return;
 
-    final rows = <Map<String, dynamic>>[];
-    for (int i = 0; i < times.length; i++) {
-      final t = times[i];
-      final idx = _quoteIndexFor(s, t.when, quotes.length);
-      final q = quotes[idx];
-      rows.add({
-        'user_id': uid,
-        'kind': 'quote_rotation',
-        'ref_id': '$i',
-        'title': '📖 오늘의 문구 · ${idx + 1} / ${quotes.length}',
-        'body': q.text,
-        'scheduled_at': t.when.toUtc().toIso8601String(),
-      });
-    }
+    // 첫 발송 시각 + 그 시점의 문구 인덱스
+    final times = _computeUpcoming(s, count: 1);
+    if (times.isEmpty) return;
+    final first = times.first.when;
+    final initialIdx = _quoteIndexFor(s, first, quotes.length);
+
+    // 회전 순서대로 모든 문구 텍스트 (백엔드가 매 발송마다 index+1 회전)
+    final bodies = [for (final q in quotes) q.text];
+
+    final recur = <String, dynamic>{
+      'mode': s.mode == RotationMode.interval ? 'interval' : 'daily',
+      if (s.mode == RotationMode.interval)
+        'intervalMinutes': s.totalIntervalMinutes,
+      if (s.mode == RotationMode.dailyAtTime) 'hour': s.hour,
+      if (s.mode == RotationMode.dailyAtTime) 'minute': s.minute,
+      'bodies': bodies,
+      'index': initialIdx,
+    };
 
     try {
-      // 중복은 무시 (다른 기기에서 이미 같은 시각으로 등록한 경우)
-      await db.from('scheduled_pushes').upsert(
-            rows,
-            onConflict: 'user_id,kind,scheduled_at',
-            ignoreDuplicates: true,
-          );
+      await db.from('scheduled_pushes').upsert({
+        'user_id': uid,
+        'kind': 'quote_rotation',
+        'ref_id': 'rotation',
+        'title': '📖 오늘의 문구',
+        'body': bodies[initialIdx],
+        'scheduled_at': first.toUtc().toIso8601String(),
+        'sent_at': null,
+        'recur': recur,
+      }, onConflict: 'user_id,kind,ref_id');
     } catch (e) {
       if (kDebugMode) print('reschedule(web): upsert failed: $e');
     }

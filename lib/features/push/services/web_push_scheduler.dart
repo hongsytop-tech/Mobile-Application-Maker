@@ -17,30 +17,37 @@ class WebPushScheduler {
     if (!q.hasSchedule) return;
     if (!SupabaseService.isAuthenticated) return;
 
-    // 이 문구의 옛 pending 정리 후 새로 등록
+    // 이 문구의 기존 행 정리 후 반복 규칙 1행으로 재등록
     await cancelQuote(q.id);
 
-    final times = _computeUpcomingForQuote(q, count: _maxSchedule);
-    if (times.isEmpty) return;
+    final first = _firstOccurrenceForQuote(q);
+    if (first == null) return;
+
+    final recur = <String, dynamic>{};
+    if (q.notifyMode == NotifyMode.interval) {
+      final mins = q.intervalMinutesTotal;
+      if (mins == null) return;
+      recur['mode'] = 'interval';
+      recur['intervalMinutes'] = mins;
+    } else {
+      if (q.notifyHour == null || q.notifyMinute == null) return;
+      recur['mode'] = 'daily';
+      recur['hour'] = q.notifyHour;
+      recur['minute'] = q.notifyMinute;
+    }
 
     final uid = SupabaseService.currentUser!.id;
-    final rows = <Map<String, dynamic>>[];
-    for (int i = 0; i < times.length; i++) {
-      rows.add({
+    try {
+      await SupabaseService.client.from('scheduled_pushes').upsert({
         'user_id': uid,
         'kind': _kind,
-        'ref_id': '${q.id}#$i',
+        'ref_id': q.id,
         'title': '📝 오늘의 문구',
         'body': q.text,
-        'scheduled_at': times[i].toUtc().toIso8601String(),
-      });
-    }
-    try {
-      await SupabaseService.client.from('scheduled_pushes').upsert(
-            rows,
-            onConflict: 'user_id,kind,scheduled_at',
-            ignoreDuplicates: true,
-          );
+        'scheduled_at': first.toUtc().toIso8601String(),
+        'sent_at': null,
+        'recur': recur,
+      }, onConflict: 'user_id,kind,ref_id');
     } catch (e) {
       if (kDebugMode) print('scheduleQuote upsert failed: $e');
     }
@@ -56,8 +63,7 @@ class WebPushScheduler {
           .delete()
           .eq('user_id', uid)
           .eq('kind', _kind)
-          .like('ref_id', '$quoteId#%')
-          .filter('sent_at', 'is', null);
+          .eq('ref_id', quoteId);
     } catch (e) {
       if (kDebugMode) print('cancelQuote failed: $e');
     }
@@ -72,23 +78,19 @@ class WebPushScheduler {
     }
   }
 
-  static List<DateTime> _computeUpcomingForQuote(Quote q,
-      {required int count}) {
+  /// 첫 발송 시각 (now 이후). 이후 반복은 백엔드가 recur 로 전진시킨다.
+  static DateTime? _firstOccurrenceForQuote(Quote q) {
     final now = DateTime.now();
-    final result = <DateTime>[];
     switch (q.notifyMode) {
       case NotifyMode.daily:
-        if (q.notifyHour == null || q.notifyMinute == null) return result;
-        final base = DateTime(
+        if (q.notifyHour == null || q.notifyMinute == null) return null;
+        var c = DateTime(
             now.year, now.month, now.day, q.notifyHour!, q.notifyMinute!);
-        for (int i = 0; i < count; i++) {
-          final c = base.add(Duration(days: i));
-          if (c.isAfter(now)) result.add(c);
-        }
-        break;
+        if (!c.isAfter(now)) c = c.add(const Duration(days: 1));
+        return c;
       case NotifyMode.interval:
         final mins = q.intervalMinutesTotal;
-        if (mins == null || mins < 1) return result;
+        if (mins == null || mins < 1) return null;
         // createdAt 을 anchor 로 사용 → 양 기기 동일 시각 산출 (deterministic)
         DateTime t = q.createdAt;
         if (!t.isAfter(now)) {
@@ -96,12 +98,7 @@ class WebPushScheduler {
           final steps = (diffMins ~/ mins) + 1;
           t = t.add(Duration(minutes: steps * mins));
         }
-        for (int i = 0; i < count; i++) {
-          result.add(t);
-          t = t.add(Duration(minutes: mins));
-        }
-        break;
+        return t;
     }
-    return result;
   }
 }
