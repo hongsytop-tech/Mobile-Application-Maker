@@ -342,11 +342,11 @@ class _ItemTile extends ConsumerWidget {
               onChanged: (_) async {
                 final wasOnce = item.repeat == TodoRepeat.once;
                 final wasDone = item.isCompletedNow;
-                // 토글 후 이 위젯이 unmount 될 수 있으니 messenger 를 미리 캐싱
+                // 토글 후 이 위젯이 unmount 될 수 있으니 messenger·notifier 를 미리 캡처
+                // (unmount 된 ref 로는 read 가 동작하지 않아 실행취소가 무산되던 문제)
                 final messenger = ScaffoldMessenger.of(context);
-                await ref
-                    .read(todoItemsProvider.notifier)
-                    .toggleComplete(item.id);
+                final notifier = ref.read(todoItemsProvider.notifier);
+                await notifier.toggleComplete(item.id);
                 // 수시(once) 항목을 방금 "완료"로 바꾼 경우만 → 10초 Undo 스낵바
                 if (!wasOnce || wasDone) return;
                 messenger.hideCurrentSnackBar();
@@ -360,9 +360,7 @@ class _ItemTile extends ConsumerWidget {
                         style: const TextStyle(fontSize: 15)),
                     action: SnackBarAction(
                       label: '실행 취소',
-                      onPressed: () => ref
-                          .read(todoItemsProvider.notifier)
-                          .toggleComplete(item.id),
+                      onPressed: () => notifier.toggleComplete(item.id),
                     ),
                   ),
                 );

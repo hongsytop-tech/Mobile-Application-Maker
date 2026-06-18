@@ -15,8 +15,12 @@ class _WebPushCardState extends State<WebPushCard> {
   bool _busy = false;
   bool _supported = false;
   bool _subscribed = false;
+  bool _optedOut = false;
   String _permission = 'default';
   String? _msg;
+
+  /// 실제 알림이 켜진 상태 = 구독됨 + 사용자가 끄지 않음
+  bool get _enabled => _subscribed && !_optedOut;
 
   @override
   void initState() {
@@ -25,47 +29,42 @@ class _WebPushCardState extends State<WebPushCard> {
   }
 
   Future<void> _refresh() async {
-    setState(() => _loading = true);
     final supported = await WebPushService.isSupported();
     final permission = await WebPushService.permission();
     final subscribed = supported ? await WebPushService.isSubscribed() : false;
+    final optedOut = await WebPushService.optedOut();
     if (!mounted) return;
     setState(() {
       _supported = supported;
       _permission = permission;
       _subscribed = subscribed;
+      _optedOut = optedOut;
       _loading = false;
     });
   }
 
-  Future<void> _enable() async {
+  Future<void> _toggle(bool on) async {
     setState(() {
       _busy = true;
       _msg = null;
     });
-    final result = await WebPushService.enable();
-    if (!mounted) return;
-    if (result.ok) {
-      setState(() => _msg = '✅ 알림이 활성화되었습니다.');
-    } else if (result.unsupported) {
-      setState(() => _msg = '이 브라우저/플랫폼에서는 웹 푸시가 지원되지 않습니다.');
+    if (on) {
+      final result = await WebPushService.enable();
+      if (mounted) {
+        if (result.ok) {
+          _msg = '✅ 알림이 켜졌습니다.';
+        } else if (result.unsupported) {
+          _msg = '이 브라우저/플랫폼에서는 웹 푸시가 지원되지 않습니다.';
+        } else {
+          _msg = '❌ ${result.error}';
+        }
+      }
     } else {
-      setState(() => _msg = '❌ ${result.error}');
+      await WebPushService.disable();
+      if (mounted) _msg = '알림이 꺼졌습니다.';
     }
     await _refresh();
-    setState(() => _busy = false);
-  }
-
-  Future<void> _disable() async {
-    setState(() {
-      _busy = true;
-      _msg = null;
-    });
-    await WebPushService.disable();
-    if (!mounted) return;
-    setState(() => _msg = '알림이 비활성화되었습니다.');
-    await _refresh();
-    setState(() => _busy = false);
+    if (mounted) setState(() => _busy = false);
   }
 
 
@@ -90,11 +89,16 @@ class _WebPushCardState extends State<WebPushCard> {
                   style: TextStyle(
                       fontWeight: FontWeight.bold, color: primary)),
               const Spacer(),
-              if (_loading)
+              if (_loading || _busy)
                 const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 2)),
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+              else if (_canToggle)
+                Switch(
+                  value: _enabled,
+                  onChanged: _busy ? null : _toggle,
+                ),
             ],
           ),
           const SizedBox(height: 6),
@@ -103,8 +107,6 @@ class _WebPushCardState extends State<WebPushCard> {
                   fontSize: 12,
                   color: Colors.grey.shade800,
                   height: 1.4)),
-          const SizedBox(height: 12),
-          ..._buildActions(),
           if (_msg != null) ...[
             const SizedBox(height: 10),
             Text(_msg!, style: const TextStyle(fontSize: 12)),
@@ -114,53 +116,19 @@ class _WebPushCardState extends State<WebPushCard> {
     );
   }
 
-  List<Widget> _buildActions() {
-    if (!kIsWeb) {
-      return [
-        Text('현재는 PWA(웹)에서만 동작합니다.',
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-      ];
-    }
-    if (!_supported) {
-      return [
-        Text('이 브라우저에서는 웹 푸시가 지원되지 않습니다.',
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-      ];
-    }
-    if (_permission == 'denied') {
-      return [
-        Text(
-          '브라우저 설정에서 이 사이트의 알림 권한이 차단돼 있어요.\n주소창 옆 자물쇠 아이콘 → 알림 → "허용"으로 바꿔주세요.',
-          style: TextStyle(fontSize: 12, color: Colors.red.shade700),
-        ),
-      ];
-    }
-    if (!_subscribed) {
-      return [
-        FilledButton.icon(
-          onPressed: _busy ? null : _enable,
-          icon: const Icon(Icons.notifications),
-          label: const Text('알림 켜기'),
-        ),
-      ];
-    }
-    return [
-      OutlinedButton.icon(
-        onPressed: _busy ? null : _disable,
-        icon: const Icon(Icons.notifications_off),
-        label: const Text('알림 끄기'),
-      ),
-    ];
-  }
+  /// 스위치를 표시할 수 있는 상태인지 (웹 + 지원 + 권한 미차단)
+  bool get _canToggle => kIsWeb && _supported && _permission != 'denied';
 
   String _statusText() {
     if (_loading) return '상태 확인 중...';
     if (!kIsWeb) {
-      return 'PWA(웹)을 홈 화면에 추가한 뒤 그 안에서 활성화하면, 휴대폰 시스템 알림으로 옵니다.';
+      return 'PWA(웹)을 홈 화면에 추가한 뒤 그 안에서 켜면, 휴대폰 시스템 알림으로 옵니다.';
     }
     if (!_supported) return '이 브라우저는 웹 푸시를 지원하지 않습니다.';
-    if (_subscribed) return '✅ 알림 활성화됨';
-    if (_permission == 'denied') return '권한 차단됨';
-    return '활성화하면 휴대폰/PC 시스템 알림으로 문구·할일 알림을 받습니다.';
+    if (_permission == 'denied') {
+      return '브라우저 설정에서 이 사이트의 알림 권한이 차단돼 있어요.\n주소창 옆 자물쇠 아이콘 → 알림 → "허용"으로 바꿔주세요.';
+    }
+    if (_enabled) return '✅ 알림 켜짐 — 문구·할일 알림이 시스템 알림으로 옵니다.';
+    return '꺼짐 — 스위치를 켜면 알림을 받습니다.';
   }
 }

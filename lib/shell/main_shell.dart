@@ -17,7 +17,7 @@ class MainShell extends StatefulWidget {
 }
 
 class _MainShellState extends State<MainShell> {
-  int _index = 1; // 할일/목표(To do) 가 첫 화면
+  int _index = 0; // To do 가 첫 화면 (첫 번째 탭)
 
   @override
   void initState() {
@@ -54,8 +54,8 @@ class _MainShellState extends State<MainShell> {
               child: IndexedStack(
                 index: _index,
                 children: const [
-                  HomeScreen(),
                   TodoHomeScreen(),
+                  HomeScreen(),
                   DiaryCalendarScreen(),
                   QuotesScreen(),
                   ProfileScreen(),
@@ -74,14 +74,14 @@ class _MainShellState extends State<MainShell> {
         },
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.menu_book_outlined),
-            selectedIcon: Icon(Icons.menu_book),
-            label: '독서',
-          ),
-          NavigationDestination(
             icon: Icon(Icons.checklist_outlined),
             selectedIcon: Icon(Icons.checklist),
             label: 'To do',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.menu_book_outlined),
+            selectedIcon: Icon(Icons.menu_book),
+            label: '독서',
           ),
           NavigationDestination(
             icon: Icon(Icons.calendar_month_outlined),

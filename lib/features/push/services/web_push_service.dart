@@ -20,6 +20,9 @@ class WebPushService {
     await prefs.setBool(_optedOutKey, v);
   }
 
+  /// 사용자가 알림을 끈 상태인지 (UI 상태 표시용).
+  static Future<bool> optedOut() => _isOptedOut();
+
   /// 현재 브라우저에서 Web Push 가 가능한지.
   static Future<bool> isSupported() async {
     if (!kIsWeb) return false;

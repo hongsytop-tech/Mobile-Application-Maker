@@ -220,8 +220,14 @@ class _WheelTimePickerState extends State<_WheelTimePicker> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: FilledButton(
-                    onPressed: () => Navigator.pop(
-                        context, (hour: _hour, minute: _minute)),
+                    onPressed: () {
+                      // 확인 시 입력칸 텍스트를 다시 파싱 (한자리 입력도 확실히 반영)
+                      final h = int.tryParse(_hourText.text.trim());
+                      final m = int.tryParse(_minuteText.text.trim());
+                      final hour = (h ?? _hour).clamp(0, 23);
+                      final minute = (m ?? _minute).clamp(0, 59);
+                      Navigator.pop(context, (hour: hour, minute: minute));
+                    },
                     child: const Text('확인'),
                   ),
                 ),
