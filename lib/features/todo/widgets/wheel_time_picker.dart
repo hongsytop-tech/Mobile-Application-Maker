@@ -11,6 +11,7 @@ Future<({int hour, int minute})?> pickWheelTime(
   return showModalBottomSheet<({int hour, int minute})>(
     context: context,
     isScrollControlled: true,
+    isDismissible: false, // 빈 공간 탭으로 닫히지 않게 (입력 실수 방지)
     builder: (_) => _WheelTimePicker(
       initialHour: initialHour,
       initialMinute: initialMinute,
@@ -29,6 +30,7 @@ Future<({int hour, int minute})?> pickWheelDuration(
   return showModalBottomSheet<({int hour, int minute})>(
     context: context,
     isScrollControlled: true,
+    isDismissible: false,
     builder: (_) => _WheelTimePicker(
       initialHour: initialHours,
       initialMinute: initialMinutes,
@@ -77,12 +79,22 @@ class _WheelTimePickerState extends State<_WheelTimePicker> {
   @override
   void initState() {
     super.initState();
-    // 입력 끝나고 포커스를 잃으면 두 자리로 정리
+    // 포커스 진입 시 전체 선택 → 한자리 새 입력으로 바로 덮어쓰기 가능
     _hourFocus.addListener(() {
-      if (!_hourFocus.hasFocus) _hourText.text = _two(_hour);
+      if (_hourFocus.hasFocus) {
+        _hourText.selection = TextSelection(
+            baseOffset: 0, extentOffset: _hourText.text.length);
+      } else {
+        _hourText.text = _two(_hour);
+      }
     });
     _minuteFocus.addListener(() {
-      if (!_minuteFocus.hasFocus) _minuteText.text = _two(_minute);
+      if (_minuteFocus.hasFocus) {
+        _minuteText.selection = TextSelection(
+            baseOffset: 0, extentOffset: _minuteText.text.length);
+      } else {
+        _minuteText.text = _two(_minute);
+      }
     });
   }
 
@@ -129,7 +141,11 @@ class _WheelTimePickerState extends State<_WheelTimePicker> {
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
     return SafeArea(
-      child: Padding(
+      child: GestureDetector(
+        // 시트 안의 빈 공간 탭 → 키보드만 닫기 (시트는 안 닫힘)
+        onTap: () => FocusScope.of(context).unfocus(),
+        behavior: HitTestBehavior.opaque,
+        child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -235,6 +251,7 @@ class _WheelTimePickerState extends State<_WheelTimePicker> {
             ),
           ],
         ),
+      ),
       ),
     );
   }
