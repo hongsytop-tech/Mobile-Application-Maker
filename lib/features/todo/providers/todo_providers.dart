@@ -200,6 +200,66 @@ class TodoItemsNotifier extends AsyncNotifier<List<TodoItem>> {
     await _persist(newList);
   }
 
+  /// 드래그 드롭: source 를 target 의 카테고리/위치(앞)에 삽입. 카테고리가
+  /// 같으면 단순 순서변경, 다르면 카테고리까지 이동.
+  Future<void> dropBeforeItem(String sourceId, String targetId) async {
+    if (sourceId == targetId) return;
+    final list = state.value ?? const <TodoItem>[];
+    final src = list.where((i) => i.id == sourceId).firstOrNull;
+    final tgt = list.where((i) => i.id == targetId).firstOrNull;
+    if (src == null || tgt == null) return;
+
+    // 대상 카테고리 항목들 (source 제외) 을 현재 order 순으로
+    final catItems = list
+        .where((i) => i.categoryId == tgt.categoryId && i.id != sourceId)
+        .toList()
+      ..sort((a, b) => a.order.compareTo(b.order));
+    final insertIdx = catItems.indexWhere((i) => i.id == targetId);
+    if (insertIdx < 0) return;
+
+    final movedSrc = TodoItem(
+      id: src.id,
+      categoryId: tgt.categoryId,
+      text: src.text,
+      repeat: src.repeat,
+      weekDays: src.weekDays,
+      monthDay: src.monthDay,
+      deadline: src.deadline,
+      notifyEnabled: src.notifyEnabled,
+      notifyDate: src.notifyDate,
+      notifyHour: src.notifyHour,
+      notifyMinute: src.notifyMinute,
+      createdAt: src.createdAt,
+      completions: src.completions,
+      order: 0, // 아래에서 재할당
+    );
+    final newCatSeq = [...catItems]..insert(insertIdx, movedSrc);
+    final idMap = {
+      for (int i = 0; i < newCatSeq.length; i++)
+        newCatSeq[i].id: newCatSeq[i].copyWith(order: i),
+    };
+    // movedSrc 는 copyWith 가 categoryId 를 못 바꾸니 따로 처리
+    idMap[sourceId] = TodoItem(
+      id: movedSrc.id,
+      categoryId: movedSrc.categoryId,
+      text: movedSrc.text,
+      repeat: movedSrc.repeat,
+      weekDays: movedSrc.weekDays,
+      monthDay: movedSrc.monthDay,
+      deadline: movedSrc.deadline,
+      notifyEnabled: movedSrc.notifyEnabled,
+      notifyDate: movedSrc.notifyDate,
+      notifyHour: movedSrc.notifyHour,
+      notifyMinute: movedSrc.notifyMinute,
+      createdAt: movedSrc.createdAt,
+      completions: movedSrc.completions,
+      order: insertIdx,
+    );
+    // 재할당 후 전체 리스트 합치기
+    final newList = list.map((i) => idMap[i.id] ?? i).toList();
+    await _persist(newList);
+  }
+
   Future<void> toggleComplete(String id) async {
     final list = state.value ?? const <TodoItem>[];
     final idx = list.indexWhere((i) => i.id == id);

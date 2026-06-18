@@ -278,32 +278,33 @@ class _CategorySection extends ConsumerWidget {
               ),
             )
           else
-            ReorderableListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              buildDefaultDragHandles: false,
-              itemCount: items.length,
-              onReorder: (oldIdx, newIdx) {
-                if (newIdx > oldIdx) newIdx -= 1;
-                final ids = items.map((e) => e.id).toList();
-                final moved = ids.removeAt(oldIdx);
-                ids.insert(newIdx, moved);
-                ref
-                    .read(todoItemsProvider.notifier)
-                    .reorderInCategory(category.id, ids);
-              },
-              proxyDecorator: (child, index, animation) => Material(
-                color: Colors.transparent,
-                elevation: 4,
-                child: child,
-              ),
-              itemBuilder: (context, i) {
-                final it = items[i];
-                return KeyedSubtree(
-                  key: ValueKey(it.id),
-                  child: _ItemTile(item: it, color: color, index: i),
-                );
-              },
+            Column(
+              children: [
+                for (int i = 0; i < items.length; i++)
+                  DragTarget<String>(
+                    onWillAcceptWithDetails: (d) => d.data != items[i].id,
+                    onAcceptWithDetails: (d) {
+                      ref
+                          .read(todoItemsProvider.notifier)
+                          .dropBeforeItem(d.data, items[i].id);
+                    },
+                    builder: (context, candidate, _) {
+                      final hovering = candidate.isNotEmpty;
+                      return Container(
+                        decoration: BoxDecoration(
+                          border: Border(
+                            top: BorderSide(
+                              color: hovering ? color : Colors.transparent,
+                              width: hovering ? 2 : 0,
+                            ),
+                          ),
+                        ),
+                        child: _ItemTile(
+                            item: items[i], color: color, index: i),
+                      );
+                    },
+                  ),
+              ],
             ),
           if (!category.collapsed)
             Padding(
@@ -488,7 +489,7 @@ class _ItemTile extends ConsumerWidget {
                     size: 20, color: Colors.red.shade400),
               ),
             ),
-            // 카테고리 간 이동 핸들 (1초 길게 누르면 드래그 시작)
+            // 1초 길게 누르면 드래그 시작 — 같은 카테고리 순서변경 + 카테고리 이동 모두 가능
             LongPressDraggable<String>(
               data: item.id,
               delay: const Duration(seconds: 1),
@@ -507,30 +508,15 @@ class _ItemTile extends ConsumerWidget {
                     ],
                   ),
                   child: Text(item.text,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                           color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
               ),
-              childWhenDragging: const Opacity(opacity: 0.3,
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                    child: Icon(Icons.open_with, size: 20, color: Colors.grey),
-                  )),
-              child: Tooltip(
-                message: '1초 길게 눌러 다른 카테고리로 이동',
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                  child: Icon(Icons.open_with, size: 20, color: Colors.grey),
-                ),
-              ),
-            ),
-            // 같은 카테고리 내 순서 변경 핸들
-            ReorderableDragStartListener(
-              index: index,
               child: const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                child: Icon(Icons.drag_handle,
-                    size: 22, color: Colors.grey),
+                child: Icon(Icons.drag_handle, size: 22, color: Colors.grey),
               ),
             ),
           ],
