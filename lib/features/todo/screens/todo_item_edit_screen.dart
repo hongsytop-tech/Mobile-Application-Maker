@@ -31,6 +31,7 @@ class _TodoItemEditScreenState extends ConsumerState<TodoItemEditScreen> {
   late TodoRepeat _repeat;
   late Set<int> _weekDays;
   late int _monthDay;
+  late String _categoryId;
 
   DateTime? _deadline;
   bool _notifyEnabled = false;
@@ -60,6 +61,7 @@ class _TodoItemEditScreenState extends ConsumerState<TodoItemEditScreen> {
     _repeat = it?.repeat ?? TodoRepeat.once;
     _weekDays = {...(it?.weekDays ?? const <int>{})};
     _monthDay = it?.monthDay ?? 1;
+    _categoryId = widget.item?.categoryId ?? widget.categoryId;
     _deadline = it?.deadline;
     _notifyEnabled = it?.notifyEnabled ?? false;
     _notifyDate = it?.notifyDate ?? today;
@@ -135,7 +137,7 @@ class _TodoItemEditScreenState extends ConsumerState<TodoItemEditScreen> {
 
       final draft = TodoItem(
         id: widget.item?.id ?? 'draft',
-        categoryId: widget.categoryId,
+        categoryId: _categoryId,
         text: text,
         repeat: _repeat,
         weekDays: _repeat == TodoRepeat.weekly ? _weekDays : const <int>{},
@@ -154,6 +156,7 @@ class _TodoItemEditScreenState extends ConsumerState<TodoItemEditScreen> {
         await notifier.add(draft);
       } else {
         await notifier.save(widget.item!.copyWith(
+          categoryId: _categoryId,
           text: text,
           repeat: _repeat,
           weekDays: draft.weekDays,
@@ -241,6 +244,13 @@ class _TodoItemEditScreenState extends ConsumerState<TodoItemEditScreen> {
                     horizontal: 12, vertical: 16),
               ),
             ),
+          ),
+          const SizedBox(height: 16),
+
+          // 카테고리 선택 (다른 카테고리로 이동 가능)
+          _CategoryPicker(
+            current: _categoryId,
+            onChanged: (id) => setState(() => _categoryId = id),
           ),
           const SizedBox(height: 20),
 
@@ -452,6 +462,55 @@ class _TodoItemEditScreenState extends ConsumerState<TodoItemEditScreen> {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _CategoryPicker extends ConsumerWidget {
+  final String current;
+  final ValueChanged<String> onChanged;
+  const _CategoryPicker({required this.current, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cats = ref.watch(todoCategoriesProvider).value ?? const [];
+    final sorted = [...cats]..sort((a, b) => a.order.compareTo(b.order));
+    return InputDecorator(
+      decoration: const InputDecoration(
+        labelText: '카테고리',
+        border: OutlineInputBorder(),
+        isDense: true,
+        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          isExpanded: true,
+          value: sorted.any((c) => c.id == current) ? current : null,
+          items: [
+            for (final c in sorted)
+              DropdownMenuItem(
+                value: c.id,
+                child: Row(
+                  children: [
+                    Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: Color(c.colorValue),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(c.name),
+                  ],
+                ),
+              ),
+          ],
+          onChanged: (v) {
+            if (v != null) onChanged(v);
+          },
+        ),
       ),
     );
   }

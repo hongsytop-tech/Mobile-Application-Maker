@@ -111,26 +111,26 @@ class _TodoCompletionCalendarScreenState
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('완료 기록을 삭제할까요?'),
+        title: const Text('항목을 완전히 삭제할까요?'),
         content: Text(
           '"${e.item.text}"\n'
-          '${DateFormat('M월 d일 HH:mm').format(e.completedAt)} 완료 기록을 삭제합니다.\n'
-          '(항목 자체는 유지됩니다)',
+          '항목과 모든 완료 기록이 함께 삭제됩니다.',
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
               child: const Text('취소')),
           FilledButton.tonal(
+              style: FilledButton.styleFrom(
+                  backgroundColor: Colors.red.shade100,
+                  foregroundColor: Colors.red.shade900),
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('삭제')),
+              child: const Text('완전 삭제')),
         ],
       ),
     );
     if (ok != true) return;
-    await ref
-        .read(todoItemsProvider.notifier)
-        .removeCompletion(e.item.id, e.completedAt);
+    await ref.read(todoItemsProvider.notifier).remove(e.item.id);
   }
 
   Widget _categoryGroup(TodoCategory cat, List<CompletedEntry> list) {

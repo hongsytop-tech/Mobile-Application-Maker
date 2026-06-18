@@ -173,6 +173,7 @@ class TodoItem {
   }
 
   TodoItem copyWith({
+    String? categoryId,
     String? text,
     TodoRepeat? repeat,
     Set<int>? weekDays,
@@ -190,7 +191,7 @@ class TodoItem {
   }) {
     return TodoItem(
       id: id,
-      categoryId: categoryId,
+      categoryId: categoryId ?? this.categoryId,
       text: text ?? this.text,
       repeat: repeat ?? this.repeat,
       weekDays: weekDays ?? this.weekDays,
