@@ -78,35 +78,20 @@ class TodoHomeScreen extends ConsumerWidget {
           final sorted = [...categories]
             ..sort((a, b) => a.order.compareTo(b.order));
           return RefreshIndicator(
-            // 당겨서 새로고침 → 클라우드에서 최신 데이터 가져오기 (PC 변경 즉시 반영)
             onRefresh: () => _pullFromCloud(ref),
-            child: ReorderableListView.builder(
+            child: ListView(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 80),
-              buildDefaultDragHandles: false,
               physics: const AlwaysScrollableScrollPhysics(),
-              itemCount: sorted.length,
-              onReorder: (oldIdx, newIdx) {
-                if (newIdx > oldIdx) newIdx -= 1;
-                final ids = sorted.map((c) => c.id).toList();
-                final moved = ids.removeAt(oldIdx);
-                ids.insert(newIdx, moved);
-                ref.read(todoCategoriesProvider.notifier).reorder(ids);
-              },
-              proxyDecorator: (child, index, animation) => Material(
-                color: Colors.transparent,
-                elevation: 6,
-                borderRadius: BorderRadius.circular(14),
-                child: child,
-              ),
-              itemBuilder: (context, i) {
-                final cat = sorted[i];
-                final items = itemsByCat[cat.id] ?? const <TodoItem>[];
-                return KeyedSubtree(
-                  key: ValueKey(cat.id),
-                  child: _CategorySection(
-                      category: cat, items: items, sectionIndex: i),
-                );
-              },
+              children: [
+                for (int i = 0; i < sorted.length; i++)
+                  _CategorySection(
+                    key: ValueKey(sorted[i].id),
+                    category: sorted[i],
+                    items: itemsByCat[sorted[i].id] ?? const <TodoItem>[],
+                    allCategoryIdsInOrder:
+                        sorted.map((c) => c.id).toList(),
+                  ),
+              ],
             ),
           );
         },
@@ -118,12 +103,13 @@ class TodoHomeScreen extends ConsumerWidget {
 class _CategorySection extends ConsumerWidget {
   final TodoCategory category;
   final List<TodoItem> items;
-  final int sectionIndex;
+  final List<String> allCategoryIdsInOrder;
 
   const _CategorySection({
+    super.key,
     required this.category,
     required this.items,
-    required this.sectionIndex,
+    required this.allCategoryIdsInOrder,
   });
 
   @override
@@ -131,17 +117,29 @@ class _CategorySection extends ConsumerWidget {
     final color = Color(category.colorValue);
     final pending = items.where((i) => !i.isCompletedNow).length;
 
-    return DragTarget<String>(
-      // 다른 카테고리에서 끌어온 항목을 이 카테고리로 이동
-      onWillAcceptWithDetails: (d) => true,
+    return DragTarget<_CategoryDrag>(
+      // 다른 카테고리를 끌어와 이 위치 앞에 삽입
+      onWillAcceptWithDetails: (d) => d.data.id != category.id,
       onAcceptWithDetails: (d) {
-        ref
-            .read(todoItemsProvider.notifier)
-            .moveToCategory(d.data, category.id);
+        final ids = [...allCategoryIdsInOrder];
+        ids.remove(d.data.id);
+        final insertAt = ids.indexOf(category.id);
+        ids.insert(insertAt < 0 ? ids.length : insertAt, d.data.id);
+        ref.read(todoCategoriesProvider.notifier).reorder(ids);
       },
-      builder: (context, candidate, rejected) {
-        final hovering = candidate.isNotEmpty;
-        return Container(
+      builder: (context, catCand, _) {
+        final catHovering = catCand.isNotEmpty;
+        return DragTarget<String>(
+          // 다른 카테고리에서 끌어온 항목을 이 카테고리로 이동(빈 영역 대상)
+          onWillAcceptWithDetails: (d) => true,
+          onAcceptWithDetails: (d) {
+            ref
+                .read(todoItemsProvider.notifier)
+                .moveToCategory(d.data, category.id);
+          },
+          builder: (context, candidate, rejected) {
+            final hovering = candidate.isNotEmpty || catHovering;
+            return Container(
           margin: const EdgeInsets.only(bottom: 16),
           decoration: BoxDecoration(
             color: hovering ? color.withOpacity(0.08) : Colors.white,
@@ -251,9 +249,28 @@ class _CategorySection extends ConsumerWidget {
                     ),
                     icon: const Icon(Icons.more_horiz),
                   ),
-                  // 카테고리 드래그 핸들
-                  ReorderableDragStartListener(
-                    index: sectionIndex,
+                  // 카테고리 드래그 핸들 (1초 길게 눌러 순서 변경)
+                  LongPressDraggable<_CategoryDrag>(
+                    data: _CategoryDrag(category.id),
+                    delay: const Duration(seconds: 1),
+                    hapticFeedbackOnStart: true,
+                    feedback: Material(
+                      color: Colors.transparent,
+                      elevation: 8,
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: color,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(category.name,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold)),
+                      ),
+                    ),
                     child: const Padding(
                       padding: EdgeInsets.symmetric(
                           horizontal: 4, vertical: 6),
@@ -327,9 +344,16 @@ class _CategorySection extends ConsumerWidget {
         ],
           ),
         );
+          },
+        );
       },
     );
   }
+}
+
+class _CategoryDrag {
+  final String id;
+  const _CategoryDrag(this.id);
 }
 
 class _ItemTile extends ConsumerWidget {
@@ -375,7 +399,7 @@ class _ItemTile extends ConsumerWidget {
     final done = item.isCompletedNow;
     final next = item.nextDeadline;
 
-    return InkWell(
+    final row = InkWell(
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => TodoItemEditScreen(
@@ -489,39 +513,36 @@ class _ItemTile extends ConsumerWidget {
                     size: 20, color: Colors.red.shade400),
               ),
             ),
-            // 1초 길게 누르면 드래그 시작 — 같은 카테고리 순서변경 + 카테고리 이동 모두 가능
-            LongPressDraggable<String>(
-              data: item.id,
-              delay: const Duration(seconds: 1),
-              hapticFeedbackOnStart: true,
-              dragAnchorStrategy: pointerDragAnchorStrategy,
-              feedback: Material(
-                color: Colors.transparent,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: color,
-                    borderRadius: BorderRadius.circular(10),
-                    boxShadow: const [
-                      BoxShadow(color: Colors.black26, blurRadius: 8)
-                    ],
-                  ),
-                  child: Text(item.text,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.bold)),
-                ),
-              ),
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                child: Icon(Icons.drag_handle, size: 22, color: Colors.grey),
-              ),
-            ),
           ],
         ),
       ),
+    );
+
+    // 행 전체에서 1초 길게 누르면 드래그 시작 (순서변경 + 카테고리 이동)
+    return LongPressDraggable<String>(
+      data: item.id,
+      delay: const Duration(seconds: 1),
+      hapticFeedbackOnStart: true,
+      feedback: Material(
+        color: Colors.transparent,
+        elevation: 8,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          constraints: const BoxConstraints(maxWidth: 280),
+          child: Text(item.text,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.bold)),
+        ),
+      ),
+      childWhenDragging: Opacity(opacity: 0.35, child: row),
+      child: row,
     );
   }
 
