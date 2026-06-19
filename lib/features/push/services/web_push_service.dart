@@ -185,8 +185,7 @@ class WebPushService {
     } catch (_) {}
   }
 
-  /// 테스트 푸시 전송. 응답에서 sent/failed/cleaned 카운트 반환.
-  /// 방해금지 시간대 등 사유로 발송이 스킵된 경우 skipped 키도 함께.
+  /// 테스트 푸시 전송. 응답에서 sent/failed/cleaned 카운트 + debug 정보 반환.
   static Future<Map<String, dynamic>> sendTest() async {
     final res = await SupabaseService.client.functions
         .invoke('web-push', body: {'action': 'send_test'});
@@ -199,6 +198,7 @@ class WebPushService {
       'failed': (data?['failed'] as num?)?.toInt() ?? 0,
       'cleaned': (data?['cleaned'] as num?)?.toInt() ?? 0,
       if (data?['skipped'] != null) 'skipped': data!['skipped'],
+      if (data?['debug'] != null) 'debug': data!['debug'],
     };
   }
 

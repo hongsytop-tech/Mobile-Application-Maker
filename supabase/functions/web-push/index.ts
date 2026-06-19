@@ -417,6 +417,7 @@ async function sendTest(userId: string, admin: any) {
   // 사용자의 진동 / 방해금지 설정 반영
   let vibrate: number[] = [200, 100, 200];
   let opts: any = null;
+  let optsRawType: string = 'none';
   try {
     const { data: row } = await admin
       .from('user_data')
@@ -424,12 +425,35 @@ async function sendTest(userId: string, admin: any) {
       .eq('user_id', userId)
       .maybeSingle();
     const raw = row?.settings?.notification_settings_v1;
+    optsRawType = typeof raw;
     opts = typeof raw === 'string' ? JSON.parse(raw) : raw;
     if (opts?.vibrate === false) vibrate = [0];
-  } catch (_) {}
+  } catch (e) {
+    console.log('sendTest: loadSettings error', String(e));
+  }
+
+  const nowMs = Date.now();
+  const inQuiet = opts?.quietHoursEnabled
+    ? isInQuietHours(nowMs, opts)
+    : false;
+  const kstNow = new Date(nowMs + KST_OFFSET).toISOString();
+  const debug = {
+    rawType: optsRawType,
+    quietHoursEnabled: opts?.quietHoursEnabled ?? null,
+    quietStart: opts
+      ? `${opts.quietStartHour ?? '?'}:${opts.quietStartMinute ?? '?'}`
+      : null,
+    quietEnd: opts
+      ? `${opts.quietEndHour ?? '?'}:${opts.quietEndMinute ?? '?'}`
+      : null,
+    inQuietHours: inQuiet,
+    vibrate: opts?.vibrate ?? null,
+    nowKST: kstNow.slice(11, 19),
+  };
+  console.log('sendTest: debug=', JSON.stringify(debug));
 
   // 방해금지 시간대면 테스트도 발송하지 않음 (스케줄러 동작과 일치).
-  if (opts?.quietHoursEnabled && isInQuietHours(Date.now(), opts)) {
+  if (inQuiet) {
     return j(200, {
       ok: true,
       sent: 0,
@@ -437,6 +461,7 @@ async function sendTest(userId: string, admin: any) {
       cleaned: 0,
       skipped: 'quiet_hours',
       errors: [],
+      debug,
     });
   }
 
@@ -476,7 +501,14 @@ async function sendTest(userId: string, admin: any) {
     await admin.from('web_push_subscriptions').delete().in('id', expiredIds);
   }
 
-  return j(200, { ok: true, sent, failed, cleaned: expiredIds.length, errors });
+  return j(200, {
+    ok: true,
+    sent,
+    failed,
+    cleaned: expiredIds.length,
+    errors,
+    debug,
+  });
 }
 
 /// 호출자 본인에게 5초 뒤 알림 1건을 예약하고 즉시 run_due 를 돌려서
