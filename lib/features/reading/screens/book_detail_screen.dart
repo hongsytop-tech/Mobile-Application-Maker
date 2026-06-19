@@ -140,17 +140,25 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
               icon: const Icon(Icons.undo),
               onPressed: _savingToc ? null : _discardDraft,
             ),
-            IconButton(
-              tooltip: '진행도 저장',
-              icon: _savingToc
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.save),
-              onPressed: _savingToc ? null : () => _saveDraft(book),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: FilledButton(
+                onPressed: _savingToc ? null : () => _saveDraft(book),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  minimumSize: const Size(0, 36),
+                ),
+                child: _savingToc
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text('저장'),
+              ),
             ),
+            const SizedBox(width: 4),
           ],
           IconButton(
             tooltip: '삭제',
@@ -285,7 +293,7 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 child: Text(
-                  '${_draftToc!.length}개 항목 변경됨 — 우측 상단 💾 버튼으로 저장',
+                  '${_draftToc!.length}개 항목 변경됨 — 우측 상단 "저장" 버튼으로 저장',
                   style: TextStyle(
                     fontSize: 12,
                     color: primary,
