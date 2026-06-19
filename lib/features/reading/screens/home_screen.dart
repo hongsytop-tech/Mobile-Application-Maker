@@ -40,6 +40,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final asyncBooks = ref.watch(booksProvider);
 
     return Scaffold(
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _openSearch(),
+        icon: const Icon(Icons.add),
+        label: const Text('책 추가'),
+      ),
       appBar: AppBar(
         title: const Text('내 책장'),
         actions: [
@@ -52,37 +57,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ),
           const SizedBox(width: 4),
         ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(112),
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                child: SearchBar(
-                  leading: const Padding(
-                    padding: EdgeInsets.only(left: 8),
-                    child: Icon(Icons.search),
-                  ),
-                  hintText: '책 제목 검색',
-                  elevation: const WidgetStatePropertyAll(0),
-                  onTap: () => _openSearch(),
-                  onChanged: (q) {
-                    if (q.isNotEmpty) _openSearch(initialQuery: q);
-                  },
-                ),
-              ),
-              TabBar(
-                controller: _tab,
-                isScrollable: false,
-                labelPadding: EdgeInsets.zero,
-                tabs: const [
-                  Tab(text: '읽고 있는 책'),
-                  Tab(text: '내가 읽은 책'),
-                  Tab(text: '위시리스트'),
-                ],
-              ),
-            ],
-          ),
+        bottom: TabBar(
+          controller: _tab,
+          isScrollable: false,
+          labelPadding: EdgeInsets.zero,
+          tabs: const [
+            Tab(text: '읽고 있는 책'),
+            Tab(text: '내가 읽은 책'),
+            Tab(text: '위시리스트'),
+          ],
         ),
       ),
       body: asyncBooks.when(
@@ -97,7 +80,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             children: [
               _BookList(
                 books: reading,
-                emptyText: '아직 읽고 있는 책이 없어요.\n위의 검색창에서 책을 찾아보세요.',
+                emptyText: '아직 읽고 있는 책이 없어요.\n오른쪽 아래 "+ 책 추가" 버튼으로 검색해서 담아보세요.',
               ),
               _BookList(
                 books: finished,
@@ -106,7 +89,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               ),
               _BookList(
                 books: wishlist,
-                emptyText: '읽고 싶은 책을 위시리스트에 담아보세요.\n검색 후 "위시리스트 담기"를 누르면 됩니다.',
+                emptyText: '읽고 싶은 책을 위시리스트에 담아보세요.\n"+ 책 추가" 로 검색 후 "위시리스트 담기"를 누르면 됩니다.',
                 showProgress: false,
               ),
             ],
@@ -160,7 +143,7 @@ class _BookList extends ConsumerWidget {
       onRefresh: () => SyncManager.instance.pullOnLogin(),
       child: ListView.separated(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.fromLTRB(0, 8, 0, 88),
       itemCount: books.length,
       separatorBuilder: (_, __) => const Divider(height: 1),
       itemBuilder: (context, i) {
