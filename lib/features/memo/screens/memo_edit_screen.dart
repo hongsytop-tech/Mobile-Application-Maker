@@ -108,41 +108,50 @@ class _MemoEditScreenState extends ConsumerState<MemoEditScreen>
             ),
           ],
         ),
-        body: ListView(
+        body: Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-          children: [
-            TextField(
-              controller: _titleCtrl,
-              decoration: const InputDecoration(
-                hintText: '제목 (선택)',
-                border: InputBorder.none,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextField(
+                controller: _titleCtrl,
+                decoration: const InputDecoration(
+                  hintText: '제목 (선택)',
+                  border: InputBorder.none,
+                ),
+                style: const TextStyle(
+                    fontSize: 20, fontWeight: FontWeight.bold),
+                maxLines: 1,
+                magnifierConfiguration: TextMagnifierConfiguration.disabled,
               ),
-              style: const TextStyle(
-                  fontSize: 20, fontWeight: FontWeight.bold),
-              maxLines: 1,
-              magnifierConfiguration: TextMagnifierConfiguration.disabled,
-            ),
-            const Divider(height: 16),
-            TextField(
-              controller: _contentCtrl,
-              focusNode: _contentFocus,
-              minLines: 16,
-              maxLines: null,
-              decoration: const InputDecoration(
-                hintText: '내용을 입력하세요...',
-                border: OutlineInputBorder(),
-                alignLabelWithHint: true,
+              const Divider(height: 16),
+              // expands:true 로 본문 TextField 가 남은 세로 공간 전체를 채워서,
+              // 입력되지 않은 빈 줄을 탭해도 그 위치에 포커스가 잡힌다.
+              Expanded(
+                child: TextField(
+                  controller: _contentCtrl,
+                  focusNode: _contentFocus,
+                  maxLines: null,
+                  expands: true,
+                  decoration: const InputDecoration(
+                    hintText: '내용을 입력하세요...',
+                    border: OutlineInputBorder(),
+                    alignLabelWithHint: true,
+                  ),
+                  keyboardType: TextInputType.multiline,
+                  textInputAction: TextInputAction.newline,
+                  textAlignVertical: TextAlignVertical.top,
+                  // 한글 IME 가 커서를 다음 줄로 밀어내는 문제 회피.
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  enableIMEPersonalizedLearning: false,
+                  // CanvasKit 렌더러에서 선택 돋보기가 사라지지 않는 버그 회피.
+                  magnifierConfiguration:
+                      TextMagnifierConfiguration.disabled,
+                ),
               ),
-              keyboardType: TextInputType.multiline,
-              textInputAction: TextInputAction.newline,
-              // 한글 IME 가 커서를 다음 줄로 밀어내는 문제 회피.
-              autocorrect: false,
-              enableSuggestions: false,
-              enableIMEPersonalizedLearning: false,
-              // CanvasKit 렌더러에서 선택 돋보기가 사라지지 않는 버그 회피.
-              magnifierConfiguration: TextMagnifierConfiguration.disabled,
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
