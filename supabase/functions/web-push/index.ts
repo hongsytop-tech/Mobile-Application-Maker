@@ -146,11 +146,13 @@ async function runDue(admin: any) {
       const inQuietHours = opts?.quietHoursEnabled
         ? isInQuietHours(now, opts)
         : false;
-      // 진동: false 면 [0] (0ms = 무진동) 으로 명시.
-      // vibrate 키 자체를 빼면 브라우저가 OS 기본 진동을 사용해서 진동을 못 끔.
-      const vibrate: number[] = opts?.vibrate === false ? [0] : [200, 100, 200];
+      // 진동: false 면 [0] (무진동) + silent:true 명시.
+      // Android Chrome 은 vibrate 만으로는 OS 알림 채널 기본을 못 덮어쓰기 때문에
+      // silent:true 가 함께 있어야 확실히 무진동이 된다 (소리도 같이 꺼짐).
+      const vibrateOff = opts?.vibrate === false;
+      const vibrate: number[] = vibrateOff ? [0] : [200, 100, 200];
       console.log(
-        `[row ${p.id.slice(0, 8)}] quietHours=${inQuietHours} vibrate=${opts?.vibrate === false ? 'off' : 'on'}`,
+        `[row ${p.id.slice(0, 8)}] quietHours=${inQuietHours} vibrate=${vibrateOff ? 'off' : 'on'}`,
       );
 
       // 방해금지 시간대에 도래한 알림 → 발송 생략하고 다음 시각으로 전진
@@ -205,6 +207,7 @@ async function runDue(admin: any) {
         url: p.url || 'https://hongsytop-tech.github.io/Mobile-Application-Maker/',
         tag: `${p.kind}-${p.id}`,
         vibrate,
+        silent: vibrateOff,
       });
 
       const expiredIds: string[] = [];
@@ -443,6 +446,7 @@ async function sendTest(userId: string, admin: any) {
     url: 'https://hongsytop-tech.github.io/Mobile-Application-Maker/',
     tag: 'test',
     vibrate,
+    silent: opts?.vibrate === false,
   });
 
   let sent = 0;

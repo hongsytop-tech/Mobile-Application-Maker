@@ -21,6 +21,8 @@ self.addEventListener('push', (event) => {
   if (Array.isArray(data.vibrate) && data.vibrate.length > 0) {
     options.vibrate = data.vibrate;
   }
+  // silent: 진동/소리 모두 끄기 (안드로이드 알림 채널 기본을 덮어쓰는 유일한 방법)
+  if (data.silent === true) options.silent = true;
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
