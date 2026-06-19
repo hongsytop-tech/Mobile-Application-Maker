@@ -130,14 +130,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('내 정보 · 백업')),
-      body: userAsync.when(
+      body: RefreshIndicator(
+        onRefresh: () => SyncManager.instance.pullOnLogin(),
+        child: userAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('오류: $e')),
         data: (user) {
           if (user == null) {
-            return _LoggedOutView();
+            return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.7,
+                  child: _LoggedOutView(),
+                ),
+              ],
+            );
           }
           return ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(20),
             children: [
               Container(
@@ -228,6 +239,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ],
           );
         },
+        ),
       ),
     );
   }

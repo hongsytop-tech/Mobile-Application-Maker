@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../auth/services/sync_manager.dart';
 import '../models/memo.dart';
 import '../providers/memo_providers.dart';
 import '../services/memo_url_helper.dart'
@@ -26,37 +27,49 @@ class MemoListScreen extends ConsumerWidget {
         icon: const Icon(Icons.add),
         label: const Text('새 메모'),
       ),
-      body: asyncMemos.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('오류: $e')),
-        data: (_) {
-          if (sorted.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.sticky_note_2_outlined,
-                        size: 56, color: Colors.grey.shade400),
-                    const SizedBox(height: 12),
-                    Text(
-                      '아직 메모가 없어요.\n오른쪽 아래에서 새 메모를 추가해 보세요.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey.shade600),
+      body: RefreshIndicator(
+        onRefresh: () => SyncManager.instance.pullOnLogin(),
+        child: asyncMemos.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Text('오류: $e')),
+          data: (_) {
+            if (sorted.isEmpty) {
+              return ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.6,
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.sticky_note_2_outlined,
+                                size: 56, color: Colors.grey.shade400),
+                            const SizedBox(height: 12),
+                            Text(
+                              '아직 메모가 없어요.\n오른쪽 아래에서 새 메모를 추가해 보세요.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Colors.grey.shade600),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ],
-                ),
-              ),
+                  ),
+                ],
+              );
+            }
+            return ListView.separated(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 88),
+              itemCount: sorted.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (context, i) => _MemoCard(memo: sorted[i]),
             );
-          }
-          return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 88),
-            itemCount: sorted.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (context, i) => _MemoCard(memo: sorted[i]),
-          );
-        },
+          },
+        ),
       ),
     );
   }

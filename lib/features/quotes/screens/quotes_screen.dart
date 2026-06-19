@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../auth/services/sync_manager.dart';
 import '../models/quote.dart';
 import '../providers/quote_providers.dart';
 import 'quote_edit_screen.dart';
@@ -55,29 +56,39 @@ class _QuotesScreenState extends ConsumerState<QuotesScreen> {
         icon: const Icon(Icons.add),
         label: const Text('문구 추가'),
       ),
-      body: asyncQuotes.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('오류: $e')),
-        data: (_) {
-          if (sorted.isEmpty) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(32),
-                child: Text(
-                  '아직 저장된 문구가 없어요.\n오른쪽 아래에서 새 문구를 추가해 보세요.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey),
-                ),
-              ),
-            );
-          }
-          return _AutoScrollOnDrag(
-            controller: _scrollCtrl,
-            child: ListView(
+      body: RefreshIndicator(
+        onRefresh: () => SyncManager.instance.pullOnLogin(),
+        child: asyncQuotes.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Text('오류: $e')),
+          data: (_) {
+            if (sorted.isEmpty) {
+              return ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.6,
+                    child: const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(32),
+                        child: Text(
+                          '아직 저장된 문구가 없어요.\n오른쪽 아래에서 새 문구를 추가해 보세요.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            }
+            return _AutoScrollOnDrag(
               controller: _scrollCtrl,
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 88),
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: [
+              child: ListView(
+                controller: _scrollCtrl,
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 88),
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
                 if (sorted.pinned.isNotEmpty) ...[
                   _SectionLabel(
                     icon: Icons.push_pin,
@@ -95,12 +106,13 @@ class _QuotesScreenState extends ConsumerState<QuotesScreen> {
                   ),
                   const SizedBox(height: 8),
                 ],
-                if (sorted.others.isNotEmpty)
-                  _DraggableQuoteList(quotes: sorted.others),
-              ],
-            ),
-          );
-        },
+                  if (sorted.others.isNotEmpty)
+                    _DraggableQuoteList(quotes: sorted.others),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }

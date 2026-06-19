@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
+import '../../auth/services/sync_manager.dart';
 import '../models/diary.dart';
 import '../providers/diary_providers.dart';
 import 'diary_edit_screen.dart';
@@ -40,7 +41,10 @@ class _DiaryCalendarScreenState extends ConsumerState<DiaryCalendarScreen> {
         icon: Icon(selectedDiary == null ? Icons.edit : Icons.edit_note),
         label: Text(selectedDiary == null ? '일기 쓰기' : '일기 수정'),
       ),
-      body: ListView(
+      body: RefreshIndicator(
+        onRefresh: () => SyncManager.instance.pullOnLogin(),
+        child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
         children: [
           TableCalendar(
             firstDay: DateTime.utc(2020, 1, 1),
@@ -101,6 +105,7 @@ class _DiaryCalendarScreenState extends ConsumerState<DiaryCalendarScreen> {
             ),
           ),
         ],
+        ),
       ),
     );
   }

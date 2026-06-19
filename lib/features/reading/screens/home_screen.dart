@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../auth/services/sync_manager.dart';
 import '../models/book.dart';
 import '../providers/book_providers.dart';
 import '../widgets/book_cover.dart';
@@ -132,19 +133,33 @@ class _BookList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (books.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Text(
-            emptyText,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.grey),
-          ),
+      return RefreshIndicator(
+        onRefresh: () => SyncManager.instance.pullOnLogin(),
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            SizedBox(
+              height: MediaQuery.of(context).size.height * 0.6,
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Text(
+                    emptyText,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.grey),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       );
     }
     final df = DateFormat('yyyy.MM.dd');
-    return ListView.separated(
+    return RefreshIndicator(
+      onRefresh: () => SyncManager.instance.pullOnLogin(),
+      child: ListView.separated(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(vertical: 8),
       itemCount: books.length,
       separatorBuilder: (_, __) => const Divider(height: 1),
@@ -262,6 +277,7 @@ class _BookList extends ConsumerWidget {
           ),
         );
       },
+      ),
     );
   }
 }

@@ -129,7 +129,11 @@ jobs:
 
       - name: Build web
         run: |
+          # 기본값(auto)은 모바일에서 HTML 렌더러를 쓰는데, HTML 렌더러는
+          # 안드로이드 한글 IME 와 호환성이 떨어져 커서가 다음 줄로 밀려나는
+          # 버그가 있다. CanvasKit 으로 강제해 PC 와 동일한 렌더러를 쓰도록.
           flutter build web --release \
+            --web-renderer canvaskit \
             --base-href "/${REPO_NAME}/" \
             --build-number=${{ github.run_number }}
 
