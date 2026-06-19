@@ -12,16 +12,19 @@ class MemoEditScreen extends ConsumerStatefulWidget {
   ConsumerState<MemoEditScreen> createState() => _MemoEditScreenState();
 }
 
-class _MemoEditScreenState extends ConsumerState<MemoEditScreen> {
+class _MemoEditScreenState extends ConsumerState<MemoEditScreen>
+    with WidgetsBindingObserver {
   late final TextEditingController _titleCtrl;
   late final TextEditingController _contentCtrl;
   bool _dirty = false;
+  bool _saving = false;
 
   bool get _isNew => widget.memo == null;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _titleCtrl = TextEditingController(text: widget.memo?.title ?? '');
     _contentCtrl = TextEditingController(text: widget.memo?.content ?? '');
     _titleCtrl.addListener(_markDirty);
@@ -34,63 +37,52 @@ class _MemoEditScreenState extends ConsumerState<MemoEditScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _titleCtrl.dispose();
     _contentCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _save() async {
-    final title = _titleCtrl.text.trim();
-    final content = _contentCtrl.text;
-    final notifier = ref.read(memosProvider.notifier);
-    if (_isNew) {
-      if (title.isEmpty && content.isEmpty) return;
-      await notifier.add(title: title, content: content);
-    } else {
-      await notifier.save(widget.memo!.copyWith(
-        title: title,
-        content: content,
-        updatedAt: DateTime.now(),
-      ));
-    }
-    if (mounted) {
-      setState(() => _dirty = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('저장됨'),
-            duration: Duration(milliseconds: 800)),
-      );
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // 백그라운드 진입 시 자동 저장
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.hidden) {
+      if (_dirty) _save(silent: true);
     }
   }
 
-  Future<bool> _confirmExit() async {
-    if (!_dirty) return true;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('저장하지 않은 변경이 있어요'),
-        content: const Text('변경 사항을 저장할까요?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, null),
-            child: const Text('취소'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('버리기'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('저장'),
-          ),
-        ],
-      ),
-    );
-    if (ok == true) {
-      await _save();
-      return true;
+  Future<void> _save({bool silent = false}) async {
+    if (_saving) return;
+    _saving = true;
+    try {
+      final title = _titleCtrl.text.trim();
+      final content = _contentCtrl.text;
+      final notifier = ref.read(memosProvider.notifier);
+      if (_isNew) {
+        if (title.isEmpty && content.isEmpty) return;
+        await notifier.add(title: title, content: content);
+      } else {
+        await notifier.save(widget.memo!.copyWith(
+          title: title,
+          content: content,
+          updatedAt: DateTime.now(),
+        ));
+      }
+      if (mounted) {
+        setState(() => _dirty = false);
+        if (!silent) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('저장됨'),
+                duration: Duration(milliseconds: 800)),
+          );
+        }
+      }
+    } finally {
+      _saving = false;
     }
-    return ok == false; // 'false' means discard
   }
 
   @override
@@ -99,9 +91,9 @@ class _MemoEditScreenState extends ConsumerState<MemoEditScreen> {
       canPop: !_dirty,
       onPopInvoked: (didPop) async {
         if (didPop) return;
-        if (await _confirmExit() && mounted) {
-          Navigator.of(context).pop();
-        }
+        // 뒤로가기 시 자동 저장
+        if (_dirty) await _save(silent: true);
+        if (mounted) Navigator.of(context).pop();
       },
       child: Scaffold(
         appBar: AppBar(
@@ -124,6 +116,7 @@ class _MemoEditScreenState extends ConsumerState<MemoEditScreen> {
                 decoration: const InputDecoration(
                   hintText: '제목 (선택)',
                   border: InputBorder.none,
+                  isCollapsed: true,
                 ),
                 style: const TextStyle(
                     fontSize: 20, fontWeight: FontWeight.bold),
@@ -131,16 +124,19 @@ class _MemoEditScreenState extends ConsumerState<MemoEditScreen> {
               ),
               const Divider(height: 16),
               Expanded(
-                child: TextField(
-                  controller: _contentCtrl,
-                  decoration: const InputDecoration(
-                    hintText: '내용을 입력하세요...',
-                    border: InputBorder.none,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(bottom: 80),
+                  child: TextField(
+                    controller: _contentCtrl,
+                    decoration: const InputDecoration(
+                      hintText: '내용을 입력하세요...',
+                      border: InputBorder.none,
+                      isCollapsed: true,
+                    ),
+                    maxLines: null,
+                    keyboardType: TextInputType.multiline,
+                    textAlignVertical: TextAlignVertical.top,
                   ),
-                  maxLines: null,
-                  expands: true,
-                  textAlignVertical: TextAlignVertical.top,
-                  keyboardType: TextInputType.multiline,
                 ),
               ),
             ],
