@@ -7,6 +7,7 @@ import '../models/book.dart';
 import '../providers/book_providers.dart';
 import '../services/book_toc_service.dart';
 import '../widgets/book_cover.dart';
+import 'book_note_screen.dart';
 
 class BookDetailScreen extends ConsumerStatefulWidget {
   final String bookId;
@@ -24,6 +25,9 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
   /// null이면 드래프트 없음(저장된 상태와 동일).
   Map<int, bool>? _draftToc;
   bool _savingToc = false;
+
+  /// 목차 섹션 접기/펼치기 — 기본은 접힘
+  bool _tocExpanded = false;
 
   static final _won = NumberFormat('#,###');
 
@@ -124,10 +128,30 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
   }
 
   Widget _buildScaffold(Book book, bool isReading) {
+    final primary = Theme.of(context).colorScheme.primary;
     return Scaffold(
       appBar: AppBar(
         title: const Text('책 상세'),
         actions: [
+          // 진행도 변경 사항이 있을 때만 저장 버튼 노출 (삭제 버튼 옆 좌측)
+          if (_hasDraftChanges) ...[
+            IconButton(
+              tooltip: '진행도 변경 취소',
+              icon: const Icon(Icons.undo),
+              onPressed: _savingToc ? null : _discardDraft,
+            ),
+            IconButton(
+              tooltip: '진행도 저장',
+              icon: _savingToc
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.save),
+              onPressed: _savingToc ? null : () => _saveDraft(book),
+            ),
+          ],
           IconButton(
             tooltip: '삭제',
             icon: const Icon(Icons.delete_outline),
@@ -152,151 +176,124 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
             Text(book.description),
           ],
           const SizedBox(height: 24),
-          Row(
-            children: [
-              Text('목차', style: Theme.of(context).textTheme.titleMedium),
-              const Spacer(),
-              TextButton.icon(
-                icon: const Icon(Icons.edit_outlined, size: 18),
-                label: const Text('편집'),
-                onPressed: () => _editToc(book),
+          // ---- 독서 노트 카드 ----
+          _NoteCard(
+            book: book,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => BookNoteScreen(bookId: book.id),
               ),
-            ],
+            ),
           ),
-          const SizedBox(height: 4),
-          if (book.toc.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              child: Text(
-                '목차를 직접 추가해 진행도를 관리할 수 있어요.\n"편집"을 눌러 한 줄에 하나씩 챕터를 입력하세요.',
-                style: TextStyle(color: Colors.grey.shade600),
-              ),
-            )
-          else
-            ...List.generate(book.toc.length, (i) {
-              final item = book.toc[i];
-              final isRead = _draftIsRead(book, i);
-              final changed =
-                  _draftToc != null && _draftToc!.containsKey(i);
-              return CheckboxListTile(
-                value: isRead,
-                onChanged: (_) => _toggleDraft(book, i),
-                title: Row(
-                  children: [
-                    Expanded(
+          const SizedBox(height: 24),
+          // ---- 목차 섹션 (접기/펼치기) ----
+          InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: () => setState(() => _tocExpanded = !_tocExpanded),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Row(
+                children: [
+                  Icon(
+                    _tocExpanded ? Icons.expand_more : Icons.chevron_right,
+                    color: Colors.grey.shade700,
+                  ),
+                  const SizedBox(width: 4),
+                  Text('목차 (진행도 관리)',
+                      style: Theme.of(context).textTheme.titleMedium),
+                  if (book.toc.isNotEmpty) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                       child: Text(
-                        item.title,
+                        '${book.toc.where((e) => e.isRead).length}/${book.toc.length}',
                         style: TextStyle(
-                          decoration:
-                              isRead ? TextDecoration.lineThrough : null,
-                          color: isRead ? Colors.grey : null,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: primary,
                         ),
                       ),
                     ),
-                    if (changed) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        width: 6,
-                        height: 6,
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primary,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ],
                   ],
-                ),
-                controlAffinity: ListTileControlAffinity.leading,
-                contentPadding: EdgeInsets.zero,
-                dense: true,
-              );
-            }),
-          if (book.toc.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: _hasDraftChanges
-                    ? Theme.of(context)
-                        .colorScheme
-                        .primary
-                        .withOpacity(0.08)
-                    : Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: _hasDraftChanges
-                      ? Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withOpacity(0.4)
-                      : Colors.grey.shade300,
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        _hasDraftChanges
-                            ? Icons.edit_note
-                            : Icons.check_circle_outline,
-                        size: 18,
-                        color: _hasDraftChanges
-                            ? Theme.of(context).colorScheme.primary
-                            : Colors.grey.shade600,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        _hasDraftChanges
-                            ? '${_draftToc!.length}개 항목 변경됨'
-                            : '저장된 상태입니다',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: _hasDraftChanges
-                              ? Theme.of(context).colorScheme.primary
-                              : Colors.grey.shade700,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: (_hasDraftChanges && !_savingToc)
-                              ? _discardDraft
-                              : null,
-                          child: const Text('취소'),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        flex: 2,
-                        child: FilledButton.icon(
-                          onPressed:
-                              (_hasDraftChanges && !_savingToc)
-                                  ? () => _saveDraft(book)
-                                  : null,
-                          icon: _savingToc
-                              ? const SizedBox(
-                                  width: 14,
-                                  height: 14,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white),
-                                )
-                              : const Icon(Icons.save, size: 18),
-                          label: const Text('진행도 저장'),
-                        ),
-                      ),
-                    ],
-                  ),
+                  const Spacer(),
+                  if (_tocExpanded)
+                    TextButton.icon(
+                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      label: const Text('편집'),
+                      onPressed: () => _editToc(book),
+                    ),
                 ],
               ),
             ),
+          ),
+          if (_tocExpanded) ...[
+            const SizedBox(height: 4),
+            if (book.toc.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Text(
+                  '목차를 직접 추가해 진행도를 관리할 수 있어요.\n"편집"을 눌러 한 줄에 하나씩 챕터를 입력하세요.',
+                  style: TextStyle(color: Colors.grey.shade600),
+                ),
+              )
+            else
+              ...List.generate(book.toc.length, (i) {
+                final item = book.toc[i];
+                final isRead = _draftIsRead(book, i);
+                final changed =
+                    _draftToc != null && _draftToc!.containsKey(i);
+                return CheckboxListTile(
+                  value: isRead,
+                  onChanged: (_) => _toggleDraft(book, i),
+                  title: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          item.title,
+                          style: TextStyle(
+                            decoration:
+                                isRead ? TextDecoration.lineThrough : null,
+                            color: isRead ? Colors.grey : null,
+                          ),
+                        ),
+                      ),
+                      if (changed) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: primary,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  controlAffinity: ListTileControlAffinity.leading,
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                );
+              }),
+            if (_hasDraftChanges) ...[
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Text(
+                  '${_draftToc!.length}개 항목 변경됨 — 우측 상단 💾 버튼으로 저장',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ],
           const SizedBox(height: 32),
           if (book.status == BookStatus.wishlist)
@@ -441,6 +438,77 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
       await ref.read(booksProvider.notifier).remove(id);
       if (mounted) Navigator.of(context).pop();
     }
+  }
+}
+
+class _NoteCard extends StatelessWidget {
+  final Book book;
+  final VoidCallback onTap;
+  const _NoteCard({required this.book, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+    final notes = book.notes.trim();
+    final preview = notes.isEmpty
+        ? null
+        : notes
+            .split('\n')
+            .where((s) => s.trim().isNotEmpty)
+            .take(3)
+            .join('\n');
+    return Material(
+      color: primary.withOpacity(0.04),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: primary.withOpacity(0.25)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.edit_note, size: 20, color: primary),
+                  const SizedBox(width: 6),
+                  Text(
+                    '독서 노트',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: primary,
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(Icons.chevron_right,
+                      size: 18, color: Colors.grey.shade500),
+                ],
+              ),
+              const SizedBox(height: 8),
+              if (preview == null)
+                Text(
+                  '책을 읽으면서 떠오른 생각이나 인상 깊은 구절을 메모로 남겨보세요.',
+                  style: TextStyle(
+                      fontSize: 13, color: Colors.grey.shade600, height: 1.4),
+                )
+              else
+                Text(
+                  preview,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 13, color: Colors.grey.shade800, height: 1.5),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

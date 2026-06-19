@@ -65,6 +65,12 @@ class BooksNotifier extends AsyncNotifier<List<Book>> {
     await updateBook(book.copyWith(toc: toc));
   }
 
+  Future<void> setNotes(String id, String notes) async {
+    final list = state.value ?? const <Book>[];
+    final book = list.firstWhere((b) => b.id == id);
+    await updateBook(book.copyWith(notes: notes));
+  }
+
   Future<void> applyMetadata(String id, BookMetadata m) async {
     final list = state.value ?? const <Book>[];
     final book = list.firstWhere((b) => b.id == id);

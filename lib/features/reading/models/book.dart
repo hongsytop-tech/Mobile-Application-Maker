@@ -30,6 +30,9 @@ class Book {
   final DateTime addedAt;
   final DateTime? finishedAt;
 
+  /// 독서 노트 (메모장처럼 자유 서술)
+  final String notes;
+
   // 외부 메타데이터 (알라딘/교보문고/추후 쿠팡)
   final int? priceStandard;
   final int? priceSales;
@@ -49,6 +52,7 @@ class Book {
     required this.status,
     required this.addedAt,
     this.finishedAt,
+    this.notes = '',
     this.priceStandard,
     this.priceSales,
     this.aladinLink,
@@ -66,6 +70,7 @@ class Book {
     List<TocItem>? toc,
     BookStatus? status,
     DateTime? finishedAt,
+    String? notes,
     int? priceStandard,
     int? priceSales,
     String? aladinLink,
@@ -84,6 +89,7 @@ class Book {
       status: status ?? this.status,
       addedAt: addedAt,
       finishedAt: finishedAt ?? this.finishedAt,
+      notes: notes ?? this.notes,
       priceStandard: priceStandard ?? this.priceStandard,
       priceSales: priceSales ?? this.priceSales,
       aladinLink: aladinLink ?? this.aladinLink,
@@ -104,6 +110,7 @@ class Book {
         'status': status.name,
         'addedAt': addedAt.toIso8601String(),
         'finishedAt': finishedAt?.toIso8601String(),
+        'notes': notes,
         'priceStandard': priceStandard,
         'priceSales': priceSales,
         'aladinLink': aladinLink,
@@ -127,6 +134,7 @@ class Book {
         finishedAt: j['finishedAt'] == null
             ? null
             : DateTime.parse(j['finishedAt'] as String),
+        notes: j['notes'] as String? ?? '',
         priceStandard: j['priceStandard'] as int?,
         priceSales: j['priceSales'] as int?,
         aladinLink: j['aladinLink'] as String?,
