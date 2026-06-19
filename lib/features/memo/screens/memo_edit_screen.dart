@@ -120,6 +120,7 @@ class _MemoEditScreenState extends ConsumerState<MemoEditScreen>
               style: const TextStyle(
                   fontSize: 20, fontWeight: FontWeight.bold),
               maxLines: 1,
+              magnifierConfiguration: TextMagnifierConfiguration.disabled,
             ),
             const Divider(height: 16),
             TextField(
@@ -138,6 +139,8 @@ class _MemoEditScreenState extends ConsumerState<MemoEditScreen>
               autocorrect: false,
               enableSuggestions: false,
               enableIMEPersonalizedLearning: false,
+              // CanvasKit 렌더러에서 선택 돋보기가 사라지지 않는 버그 회피.
+              magnifierConfiguration: TextMagnifierConfiguration.disabled,
             ),
           ],
         ),

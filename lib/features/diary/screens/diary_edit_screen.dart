@@ -169,6 +169,8 @@ class _DiaryEditScreenState extends ConsumerState<DiaryEditScreen> {
               autocorrect: false,
               enableSuggestions: false,
               enableIMEPersonalizedLearning: false,
+              // CanvasKit 렌더러에서 선택 돋보기가 사라지지 않는 버그 회피.
+              magnifierConfiguration: TextMagnifierConfiguration.disabled,
             )
           else
             _SentenceList(
