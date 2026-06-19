@@ -125,11 +125,12 @@ class _MemoEditScreenState extends ConsumerState<MemoEditScreen>
             TextField(
               controller: _contentCtrl,
               focusNode: _contentFocus,
-              minLines: 20,
+              minLines: 16,
               maxLines: null,
               decoration: const InputDecoration(
                 hintText: '내용을 입력하세요...',
-                border: InputBorder.none,
+                border: OutlineInputBorder(),
+                alignLabelWithHint: true,
               ),
               keyboardType: TextInputType.multiline,
               textInputAction: TextInputAction.newline,

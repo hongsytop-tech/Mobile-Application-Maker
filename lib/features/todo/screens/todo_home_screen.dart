@@ -490,13 +490,16 @@ class _ItemTileState extends ConsumerState<_ItemTile> {
               value: done,
               activeColor: color,
               onChanged: (_) async {
-                final wasOnce = item.repeat == TodoRepeat.once;
-                final wasDone = item.isCompletedNow;
+                // 토글 직후 리스트가 재구성되어 widget.item 이 다른 항목으로
+                // 바뀔 수 있으니 클릭한 시점의 항목을 로컬 변수에 캡처.
+                final clicked = item;
+                final wasOnce = clicked.repeat == TodoRepeat.once;
+                final wasDone = clicked.isCompletedNow;
                 // 토글 후 이 위젯이 unmount 될 수 있으니 messenger·notifier 를 미리 캡처
                 // (unmount 된 ref 로는 read 가 동작하지 않아 실행취소가 무산되던 문제)
                 final messenger = ScaffoldMessenger.of(context);
                 final notifier = ref.read(todoItemsProvider.notifier);
-                await notifier.toggleComplete(item.id);
+                await notifier.toggleComplete(clicked.id);
                 // 수시(once) 항목을 방금 "완료"로 바꾼 경우만 → 10초 Undo 스낵바
                 if (!wasOnce || wasDone) return;
                 messenger.hideCurrentSnackBar();
@@ -504,13 +507,13 @@ class _ItemTileState extends ConsumerState<_ItemTile> {
                   SnackBar(
                     duration: const Duration(seconds: 10),
                     behavior: SnackBarBehavior.floating,
-                    content: Text('완료: ${item.text}',
+                    content: Text('완료: ${clicked.text}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontSize: 15)),
                     action: SnackBarAction(
                       label: '실행 취소',
-                      onPressed: () => notifier.toggleComplete(item.id),
+                      onPressed: () => notifier.toggleComplete(clicked.id),
                     ),
                   ),
                 );
