@@ -87,15 +87,6 @@ class _MemoEditScreenState extends ConsumerState<MemoEditScreen>
     }
   }
 
-  void _focusContentAtEnd() {
-    if (!_contentFocus.hasFocus) {
-      _contentFocus.requestFocus();
-    }
-    // 빈 영역 탭 시 마지막 위치로 커서 이동
-    final len = _contentCtrl.text.length;
-    _contentCtrl.selection = TextSelection.collapsed(offset: len);
-  }
-
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -117,53 +108,33 @@ class _MemoEditScreenState extends ConsumerState<MemoEditScreen>
             ),
           ],
         ),
-        body: Padding(
+        body: ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextField(
-                controller: _titleCtrl,
-                decoration: const InputDecoration(
-                  hintText: '제목 (선택)',
-                  border: InputBorder.none,
-                  isCollapsed: true,
-                ),
-                style: const TextStyle(
-                    fontSize: 20, fontWeight: FontWeight.bold),
-                maxLines: 1,
+          children: [
+            TextField(
+              controller: _titleCtrl,
+              decoration: const InputDecoration(
+                hintText: '제목 (선택)',
+                border: InputBorder.none,
               ),
-              const Divider(height: 16),
-              Expanded(
-                child: LayoutBuilder(
-                  builder: (ctx, constraints) => GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: _focusContentAtEnd,
-                    child: SingleChildScrollView(
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minHeight: constraints.maxHeight,
-                        ),
-                        child: TextField(
-                          controller: _contentCtrl,
-                          focusNode: _contentFocus,
-                          decoration: const InputDecoration(
-                            hintText: '내용을 입력하세요...',
-                            border: InputBorder.none,
-                            isCollapsed: true,
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                          maxLines: null,
-                          keyboardType: TextInputType.multiline,
-                          scrollPadding: const EdgeInsets.only(bottom: 120),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+              style: const TextStyle(
+                  fontSize: 20, fontWeight: FontWeight.bold),
+              maxLines: 1,
+            ),
+            const Divider(height: 16),
+            TextField(
+              controller: _contentCtrl,
+              focusNode: _contentFocus,
+              minLines: 20,
+              maxLines: null,
+              decoration: const InputDecoration(
+                hintText: '내용을 입력하세요...',
+                border: InputBorder.none,
               ),
-            ],
-          ),
+              keyboardType: TextInputType.multiline,
+              textInputAction: TextInputAction.newline,
+            ),
+          ],
         ),
       ),
     );
