@@ -135,23 +135,30 @@ class _MemoEditScreenState extends ConsumerState<MemoEditScreen>
               ),
               const Divider(height: 16),
               Expanded(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: _focusContentAtEnd,
-                  child: TextField(
-                    controller: _contentCtrl,
-                    focusNode: _contentFocus,
-                    decoration: const InputDecoration(
-                      hintText: '내용을 입력하세요...',
-                      border: InputBorder.none,
-                      isCollapsed: true,
-                      contentPadding: EdgeInsets.zero,
+                child: LayoutBuilder(
+                  builder: (ctx, constraints) => GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: _focusContentAtEnd,
+                    child: SingleChildScrollView(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: constraints.maxHeight,
+                        ),
+                        child: TextField(
+                          controller: _contentCtrl,
+                          focusNode: _contentFocus,
+                          decoration: const InputDecoration(
+                            hintText: '내용을 입력하세요...',
+                            border: InputBorder.none,
+                            isCollapsed: true,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                          maxLines: null,
+                          keyboardType: TextInputType.multiline,
+                          scrollPadding: const EdgeInsets.only(bottom: 120),
+                        ),
+                      ),
                     ),
-                    maxLines: null,
-                    expands: true,
-                    keyboardType: TextInputType.multiline,
-                    textAlignVertical: TextAlignVertical.top,
-                    scrollPadding: const EdgeInsets.only(bottom: 120),
                   ),
                 ),
               ),
