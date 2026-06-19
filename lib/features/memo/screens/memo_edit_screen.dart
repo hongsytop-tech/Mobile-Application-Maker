@@ -134,6 +134,10 @@ class _MemoEditScreenState extends ConsumerState<MemoEditScreen>
               ),
               keyboardType: TextInputType.multiline,
               textInputAction: TextInputAction.newline,
+              // 한글 IME 가 커서를 다음 줄로 밀어내는 문제 회피.
+              autocorrect: false,
+              enableSuggestions: false,
+              enableIMEPersonalizedLearning: false,
             ),
           ],
         ),
