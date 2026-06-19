@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -7,11 +9,24 @@ import '../providers/quote_providers.dart';
 import 'quote_edit_screen.dart';
 import 'quote_rotation_settings_screen.dart';
 
-class QuotesScreen extends ConsumerWidget {
+class QuotesScreen extends ConsumerStatefulWidget {
   const QuotesScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<QuotesScreen> createState() => _QuotesScreenState();
+}
+
+class _QuotesScreenState extends ConsumerState<QuotesScreen> {
+  final ScrollController _scrollCtrl = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final asyncQuotes = ref.watch(quotesProvider);
     final sorted = ref.watch(sortedQuotesProvider);
 
@@ -56,28 +71,34 @@ class QuotesScreen extends ConsumerWidget {
               ),
             );
           }
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 88),
-            children: [
-              if (sorted.pinned.isNotEmpty) ...[
-                _SectionLabel(
-                  icon: Icons.push_pin,
-                  text: '고정됨 (${sorted.pinned.length})',
-                ),
-                const SizedBox(height: 8),
-                _DraggableQuoteList(quotes: sorted.pinned),
+          return _AutoScrollOnDrag(
+            controller: _scrollCtrl,
+            child: ListView(
+              controller: _scrollCtrl,
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 88),
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                if (sorted.pinned.isNotEmpty) ...[
+                  _SectionLabel(
+                    icon: Icons.push_pin,
+                    text: '고정됨 (${sorted.pinned.length})',
+                  ),
+                  const SizedBox(height: 8),
+                  _DraggableQuoteList(quotes: sorted.pinned),
+                ],
+                if (sorted.pinned.isNotEmpty &&
+                    sorted.others.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  _SectionLabel(
+                    icon: Icons.history,
+                    text: '전체 (${sorted.others.length})',
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                if (sorted.others.isNotEmpty)
+                  _DraggableQuoteList(quotes: sorted.others),
               ],
-              if (sorted.pinned.isNotEmpty && sorted.others.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                _SectionLabel(
-                  icon: Icons.history,
-                  text: '전체 (${sorted.others.length})',
-                ),
-                const SizedBox(height: 8),
-              ],
-              if (sorted.others.isNotEmpty)
-                _DraggableQuoteList(quotes: sorted.others),
-            ],
+            ),
           );
         },
       ),
@@ -391,6 +412,99 @@ class _QuoteCardState extends ConsumerState<_QuoteCard> {
       duration: const Duration(milliseconds: 120),
       opacity: _dragging ? 0.35 : 1.0,
       child: card,
+    );
+  }
+}
+
+/// 드래그 중 화면 상/하 가장자리에 손가락이 들어오면 자동 스크롤.
+class _AutoScrollOnDrag extends StatefulWidget {
+  final Widget child;
+  final ScrollController controller;
+  final double edgeSize;
+
+  const _AutoScrollOnDrag({
+    required this.child,
+    required this.controller,
+    this.edgeSize = 90,
+  });
+
+  @override
+  State<_AutoScrollOnDrag> createState() => _AutoScrollOnDragState();
+}
+
+class _AutoScrollOnDragState extends State<_AutoScrollOnDrag> {
+  Timer? _timer;
+  double _direction = 0;
+  DateTime _lastMove = DateTime.fromMillisecondsSinceEpoch(0);
+
+  void _ensureScrolling(double dir) {
+    _direction = dir;
+    _lastMove = DateTime.now();
+    if (_timer != null) return;
+    _timer = Timer.periodic(const Duration(milliseconds: 16), (_) {
+      if (DateTime.now().difference(_lastMove) >
+          const Duration(milliseconds: 100)) {
+        _stop();
+        return;
+      }
+      final ctrl = widget.controller;
+      if (!ctrl.hasClients) return;
+      final pos = ctrl.position;
+      final next = (ctrl.offset + _direction * 10)
+          .clamp(pos.minScrollExtent, pos.maxScrollExtent);
+      if (next == ctrl.offset) {
+        _stop();
+        return;
+      }
+      ctrl.jumpTo(next);
+    });
+  }
+
+  void _stop() {
+    _timer?.cancel();
+    _timer = null;
+  }
+
+  @override
+  void dispose() {
+    _stop();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        widget.child,
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          height: widget.edgeSize,
+          child: DragTarget<Object>(
+            onWillAcceptWithDetails: (_) => true,
+            onMove: (_) => _ensureScrolling(-1),
+            onLeave: (_) => _stop(),
+            onAcceptWithDetails: (_) {},
+            builder: (_, __, ___) =>
+                const IgnorePointer(child: SizedBox.expand()),
+          ),
+        ),
+        Positioned(
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: widget.edgeSize,
+          child: DragTarget<Object>(
+            onWillAcceptWithDetails: (_) => true,
+            onMove: (_) => _ensureScrolling(1),
+            onLeave: (_) => _stop(),
+            onAcceptWithDetails: (_) {},
+            builder: (_, __, ___) =>
+                const IgnorePointer(child: SizedBox.expand()),
+          ),
+        ),
+      ],
     );
   }
 }
