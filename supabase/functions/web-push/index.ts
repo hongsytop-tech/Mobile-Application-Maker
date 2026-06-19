@@ -207,7 +207,6 @@ async function runDue(admin: any) {
         url: p.url || 'https://hongsytop-tech.github.io/Mobile-Application-Maker/',
         tag: `${p.kind}-${p.id}`,
         vibrate,
-        silent: vibrateOff,
       });
 
       const expiredIds: string[] = [];
@@ -471,7 +470,6 @@ async function sendTest(userId: string, admin: any) {
     url: 'https://hongsytop-tech.github.io/Mobile-Application-Maker/',
     tag: 'test',
     vibrate,
-    silent: opts?.vibrate === false,
   });
 
   let sent = 0;

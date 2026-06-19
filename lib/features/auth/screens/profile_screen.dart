@@ -81,6 +81,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ref.invalidate(diariesProvider);
       ref.invalidate(todoCategoriesProvider);
       ref.invalidate(todoItemsProvider);
+      ref.invalidate(notificationSettingsProvider);
       // 순차 알림 설정 화면 등 pullCompleted 구독자에게 갱신 신호
       SyncManager.instance.notifyPullCompleted();
       setState(() => _statusMsg =

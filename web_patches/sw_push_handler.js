@@ -18,11 +18,11 @@ self.addEventListener('push', (event) => {
   };
   // 진동: 서버가 vibrate 패턴을 보내준 경우 그대로 사용.
   // 무진동은 [0] (0ms 1회) — 길이 0 인 빈 배열은 안드로이드 크롬에서 알림 자체 차단됨.
+  // 주의: Android Chrome 은 알림 채널 기본 진동을 vibrate 만으론 못 끄는 경우가 있어,
+  // 완전 무진동이 필요하면 사이트 알림 권한에서 "진동" 옵션을 OS 측에서 꺼야 한다.
   if (Array.isArray(data.vibrate) && data.vibrate.length > 0) {
     options.vibrate = data.vibrate;
   }
-  // silent: 진동/소리 모두 끄기 (안드로이드 알림 채널 기본을 덮어쓰는 유일한 방법)
-  if (data.silent === true) options.silent = true;
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
