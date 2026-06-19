@@ -101,8 +101,17 @@ jobs:
           '''
           if 'apple-mobile-web-app-capable' not in html:
               html = re.sub(r'(<title>.*?</title>)', inject + r'\1', html, count=1, flags=re.S)
+          # 모바일 가상 키보드가 viewport 를 축소하도록 viewport 메타 태그 보강.
+          # 이게 없으면 iOS Safari PWA 에서 키보드가 떴을 때 커서/입력 위치가
+          # 화면 하단으로 밀려 보이는 문제가 발생.
+          html = re.sub(
+              r'<meta name="viewport"[^>]*>',
+              '<meta name="viewport" content="width=device-width, initial-scale=1.0, '
+              'maximum-scale=1.0, user-scalable=no, viewport-fit=cover, '
+              'interactive-widget=resizes-content">',
+              html, count=1)
           p.write_text(html, encoding='utf-8')
-          print('iOS PWA meta tags injected')
+          print('iOS PWA meta tags injected (+ viewport interactive-widget)')
           PY
 
       - name: Create .env
