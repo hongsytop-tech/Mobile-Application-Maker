@@ -16,8 +16,11 @@ self.addEventListener('push', (event) => {
     data: { url: data.url || './' },
     requireInteraction: false,
   };
-  // 진동: 서버가 vibrate 패턴을 보내주면 그대로 사용, 빈 배열이면 무진동.
-  if (Array.isArray(data.vibrate)) options.vibrate = data.vibrate;
+  // 진동: 서버가 vibrate 패턴을 보내준 경우에만 설정.
+  // 빈 배열 [] 은 일부 안드로이드 크롬에서 알림 자체가 차단되므로 길이가 0 이면 미설정.
+  if (Array.isArray(data.vibrate) && data.vibrate.length > 0) {
+    options.vibrate = data.vibrate;
+  }
   event.waitUntil(self.registration.showNotification(title, options));
 });
 

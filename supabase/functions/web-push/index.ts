@@ -135,7 +135,10 @@ async function runDue(admin: any) {
       const inQuietHours = opts?.quietHoursEnabled
         ? isInQuietHours(now, opts)
         : false;
-      const vibrate = opts?.vibrate === false ? [] : [200, 100, 200];
+      // 진동 OFF 일 때는 payload 에 vibrate 자체를 넣지 않는다.
+      // vibrate:[] (빈 배열) 는 일부 안드로이드 크롬에서 알림 자체를 차단.
+      const vibrate: number[] | null =
+        opts?.vibrate === false ? null : [200, 100, 200];
 
       // 방해금지 시간대에 도래한 알림 → 발송 생략하고 다음 시각으로 전진
       // (1회성이면 종료 시각 이후로 미루기)
@@ -179,13 +182,14 @@ async function runDue(admin: any) {
         continue;
       }
 
-      const payload = JSON.stringify({
+      const payloadObj: Record<string, unknown> = {
         title: p.title,
         body: p.body,
         url: p.url || 'https://hongsytop-tech.github.io/Mobile-Application-Maker/',
         tag: `${p.kind}-${p.id}`,
-        vibrate,
-      });
+      };
+      if (vibrate) payloadObj.vibrate = vibrate;
+      const payload = JSON.stringify(payloadObj);
 
       const expiredIds: string[] = [];
       let anyOk = false;
