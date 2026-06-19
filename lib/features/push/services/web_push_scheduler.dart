@@ -71,9 +71,11 @@ class WebPushScheduler {
 
   /// 여러 문구를 한 번에 스케줄링 (앱 시작/pull 후 호출).
   /// 알림 있는 문구는 등록, 없는(껐던) 문구는 기존 행 삭제 → reconcile.
+  /// local 에 없는 ref_id (삭제됐는데 백엔드에 남은 고아 행) 도 정리.
   static Future<void> scheduleAll(List<Quote> quotes) async {
     if (!kIsWeb) return;
     if (!SupabaseService.isAuthenticated) return;
+    await _deleteOrphans(_kind, quotes.map((q) => q.id).toSet());
     for (final q in quotes) {
       if (q.hasSchedule) {
         await scheduleQuote(q);
@@ -190,6 +192,7 @@ class WebPushScheduler {
   static Future<void> scheduleAllTodos(List<TodoItem> items) async {
     if (!kIsWeb) return;
     if (!SupabaseService.isAuthenticated) return;
+    await _deleteOrphans(_todoKind, items.map((i) => i.id).toSet());
     for (final i in items) {
       await scheduleTodo(i);
     }
@@ -262,9 +265,41 @@ class WebPushScheduler {
       List<TodoCategory> cats, List<TodoItem> allItems) async {
     if (!kIsWeb) return;
     if (!SupabaseService.isAuthenticated) return;
+    await _deleteOrphans(_catKind, cats.map((c) => c.id).toSet());
     for (final c in cats) {
       final items = allItems.where((i) => i.categoryId == c.id).toList();
       await scheduleCategory(c, items);
+    }
+  }
+
+  /// 백엔드에는 있는데 local 에 없는 ref_id (= 삭제된 항목의 잔재) 를 일괄 삭제.
+  /// 같은 사용자/kind 의 행 중 localIds 에 없는 ref_id 를 모두 제거한다.
+  static Future<void> _deleteOrphans(String kind, Set<String> localIds) async {
+    if (!SupabaseService.isAuthenticated) return;
+    final uid = SupabaseService.currentUser!.id;
+    try {
+      final rows = await SupabaseService.client
+          .from('scheduled_pushes')
+          .select('ref_id')
+          .eq('user_id', uid)
+          .eq('kind', kind);
+      final orphans = (rows as List)
+          .map((r) => r['ref_id'] as String?)
+          .whereType<String>()
+          .where((id) => !localIds.contains(id))
+          .toList();
+      if (orphans.isEmpty) return;
+      await SupabaseService.client
+          .from('scheduled_pushes')
+          .delete()
+          .eq('user_id', uid)
+          .eq('kind', kind)
+          .inFilter('ref_id', orphans);
+      if (kDebugMode) {
+        print('Deleted ${orphans.length} orphan(s) for kind=$kind');
+      }
+    } catch (e) {
+      if (kDebugMode) print('_deleteOrphans($kind) failed: $e');
     }
   }
 }
