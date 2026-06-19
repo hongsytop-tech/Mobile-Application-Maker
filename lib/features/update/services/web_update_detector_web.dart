@@ -12,6 +12,9 @@ class WebUpdateDetector {
   static bool _initialized = false;
   static bool _notified = false;
 
+  /// 이미 새 버전이 발견된 상태인지.
+  static bool get hasUpdate => _notified;
+
   static void init() {
     if (_initialized) return;
     _initialized = true;
@@ -56,5 +59,40 @@ class WebUpdateDetector {
   /// 다음 로드에서 새 콘텐츠가 즉시 서빙된다.
   static Future<void> apply() async {
     html.window.location.reload();
+  }
+
+  /// 수동으로 서버에 새 SW 가 있는지 확인. 새 버전이 발견되면 true.
+  /// 5초 안에 응답이 없거나 변화가 없으면 false (= 최신).
+  static Future<bool> checkForUpdate() async {
+    final sw = html.window.navigator.serviceWorker;
+    if (sw == null) return false;
+
+    // 이미 적용 대기 중인 SW 가 있으면 즉시 true
+    if (_notified) return true;
+
+    final reg = await sw.getRegistration();
+    if (reg == null) return false;
+
+    // updatefound 시 listen → notify 흐름이 트리거하는 broadcast 를 기다린다.
+    final completer = Completer<bool>();
+    final sub = _controller.stream.listen((_) {
+      if (!completer.isCompleted) completer.complete(true);
+    });
+    try {
+      await reg.update();
+    } catch (_) {
+      await sub.cancel();
+      return false;
+    }
+    // 시작 직후 reg.waiting 이 채워졌을 수도 있으므로 한 번 더 확인
+    if (reg.waiting != null && sw.controller != null) {
+      _notify();
+    }
+    final result = await Future.any<bool>([
+      completer.future,
+      Future<bool>.delayed(const Duration(seconds: 5), () => false),
+    ]);
+    await sub.cancel();
+    return result;
   }
 }

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,6 +7,8 @@ import '../../push/widgets/web_push_card.dart';
 import '../../quotes/providers/quote_providers.dart';
 import '../../reading/providers/book_providers.dart';
 import '../../todo/providers/todo_providers.dart';
+import '../../update/services/web_update_detector_stub.dart'
+    if (dart.library.html) '../../update/services/web_update_detector_web.dart';
 import '../providers/auth_providers.dart';
 import '../services/supabase_service.dart';
 import '../services/sync_manager.dart';
@@ -187,6 +190,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               const _AutoSyncCard(),
               const SizedBox(height: 12),
               const WebPushCard(),
+              if (kIsWeb) ...[
+                const SizedBox(height: 12),
+                const _UpdateCheckCard(),
+              ],
               const SizedBox(height: 24),
               Text('수동 백업 / 복원',
                   style: Theme.of(context).textTheme.titleMedium),
@@ -348,5 +355,110 @@ class _AutoSyncCard extends StatelessWidget {
     final h = d.hour.toString().padLeft(2, '0');
     final m = d.minute.toString().padLeft(2, '0');
     return '$h:$m';
+  }
+}
+
+/// 수동 업데이트 확인 카드 — 웹 PWA 전용.
+class _UpdateCheckCard extends StatefulWidget {
+  const _UpdateCheckCard();
+
+  @override
+  State<_UpdateCheckCard> createState() => _UpdateCheckCardState();
+}
+
+class _UpdateCheckCardState extends State<_UpdateCheckCard> {
+  bool _checking = false;
+  bool _hasUpdate = false;
+  String? _statusMsg;
+
+  @override
+  void initState() {
+    super.initState();
+    // 백그라운드 감지기가 이미 새 버전을 발견한 상태면 그대로 반영
+    if (WebUpdateDetector.hasUpdate) {
+      _hasUpdate = true;
+      _statusMsg = '🎉 새 버전이 준비됐어요';
+    }
+  }
+
+  Future<void> _check() async {
+    setState(() {
+      _checking = true;
+      _statusMsg = null;
+    });
+    final result = await WebUpdateDetector.checkForUpdate();
+    if (!mounted) return;
+    setState(() {
+      _checking = false;
+      _hasUpdate = result;
+      _statusMsg = result ? '🎉 새 버전이 준비됐어요' : '✓ 최신 버전입니다';
+    });
+  }
+
+  Future<void> _apply() async {
+    await WebUpdateDetector.apply();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.system_update_alt,
+                  size: 18, color: Colors.grey.shade700),
+              const SizedBox(width: 6),
+              Text(
+                '앱 업데이트',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+            ],
+          ),
+          if (_statusMsg != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              _statusMsg!,
+              style: TextStyle(
+                fontSize: 12,
+                color: _hasUpdate ? primary : Colors.grey.shade600,
+                fontWeight: _hasUpdate ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ],
+          const SizedBox(height: 10),
+          if (_hasUpdate)
+            FilledButton.icon(
+              onPressed: _apply,
+              icon: const Icon(Icons.download_done, size: 18),
+              label: const Text('업데이트 적용 (새로고침)'),
+            )
+          else
+            OutlinedButton.icon(
+              onPressed: _checking ? null : _check,
+              icon: _checking
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.refresh, size: 18),
+              label: Text(_checking ? '확인 중...' : '업데이트 확인'),
+            ),
+        ],
+      ),
+    );
   }
 }
