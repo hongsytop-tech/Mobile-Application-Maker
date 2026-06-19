@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -16,11 +18,24 @@ Future<void> _pullFromCloud(WidgetRef ref) async {
   await SyncManager.instance.pullOnLogin();
 }
 
-class TodoHomeScreen extends ConsumerWidget {
+class TodoHomeScreen extends ConsumerStatefulWidget {
   const TodoHomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TodoHomeScreen> createState() => _TodoHomeScreenState();
+}
+
+class _TodoHomeScreenState extends ConsumerState<TodoHomeScreen> {
+  final ScrollController _scrollCtrl = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final asyncCats = ref.watch(todoCategoriesProvider);
     final itemsByCat = ref.watch(todoItemsByCategoryProvider);
 
@@ -77,21 +92,26 @@ class TodoHomeScreen extends ConsumerWidget {
           }
           final sorted = [...categories]
             ..sort((a, b) => a.order.compareTo(b.order));
-          return RefreshIndicator(
-            onRefresh: () => _pullFromCloud(ref),
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 80),
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: [
-                for (int i = 0; i < sorted.length; i++)
-                  _CategorySection(
-                    key: ValueKey(sorted[i].id),
-                    category: sorted[i],
-                    items: itemsByCat[sorted[i].id] ?? const <TodoItem>[],
-                    allCategoryIdsInOrder:
-                        sorted.map((c) => c.id).toList(),
-                  ),
-              ],
+          return _AutoScrollOnDrag(
+            controller: _scrollCtrl,
+            child: RefreshIndicator(
+              onRefresh: () => _pullFromCloud(ref),
+              child: ListView(
+                controller: _scrollCtrl,
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 80),
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  for (int i = 0; i < sorted.length; i++)
+                    _CategorySection(
+                      key: ValueKey(sorted[i].id),
+                      category: sorted[i],
+                      items:
+                          itemsByCat[sorted[i].id] ?? const <TodoItem>[],
+                      allCategoryIdsInOrder:
+                          sorted.map((c) => c.id).toList(),
+                    ),
+                ],
+              ),
             ),
           );
         },
@@ -647,6 +667,101 @@ class _ItemTileState extends ConsumerState<_ItemTile> {
         Icon(icon, size: 12, color: color),
         const SizedBox(width: 3),
         Text(text, style: TextStyle(fontSize: 11, color: color)),
+      ],
+    );
+  }
+}
+
+/// 드래그 중 화면 가장자리(상/하)에 손가락이 들어오면 자동 스크롤.
+/// 가장자리에 invisible DragTarget 을 두고 onMove 가 firing 되는 동안 timer 로 스크롤.
+class _AutoScrollOnDrag extends StatefulWidget {
+  final Widget child;
+  final ScrollController controller;
+  final double edgeSize;
+
+  const _AutoScrollOnDrag({
+    required this.child,
+    required this.controller,
+    this.edgeSize = 90,
+  });
+
+  @override
+  State<_AutoScrollOnDrag> createState() => _AutoScrollOnDragState();
+}
+
+class _AutoScrollOnDragState extends State<_AutoScrollOnDrag> {
+  Timer? _timer;
+  double _direction = 0;
+  DateTime _lastMove = DateTime.fromMillisecondsSinceEpoch(0);
+
+  void _ensureScrolling(double dir) {
+    _direction = dir;
+    _lastMove = DateTime.now();
+    if (_timer != null) return;
+    _timer = Timer.periodic(const Duration(milliseconds: 16), (_) {
+      // onMove 가 일정 시간 안 들어오면 손가락이 빠져나간 것으로 간주
+      if (DateTime.now().difference(_lastMove) >
+          const Duration(milliseconds: 100)) {
+        _stop();
+        return;
+      }
+      final ctrl = widget.controller;
+      if (!ctrl.hasClients) return;
+      final pos = ctrl.position;
+      final next = (ctrl.offset + _direction * 10)
+          .clamp(pos.minScrollExtent, pos.maxScrollExtent);
+      if (next == ctrl.offset) {
+        _stop();
+        return;
+      }
+      ctrl.jumpTo(next);
+    });
+  }
+
+  void _stop() {
+    _timer?.cancel();
+    _timer = null;
+  }
+
+  @override
+  void dispose() {
+    _stop();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        widget.child,
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          height: widget.edgeSize,
+          child: DragTarget<Object>(
+            onWillAcceptWithDetails: (_) => true,
+            onMove: (_) => _ensureScrolling(-1),
+            onLeave: (_) => _stop(),
+            onAcceptWithDetails: (_) {},
+            builder: (_, __, ___) =>
+                const IgnorePointer(child: SizedBox.expand()),
+          ),
+        ),
+        Positioned(
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: widget.edgeSize,
+          child: DragTarget<Object>(
+            onWillAcceptWithDetails: (_) => true,
+            onMove: (_) => _ensureScrolling(1),
+            onLeave: (_) => _stop(),
+            onAcceptWithDetails: (_) {},
+            builder: (_, __, ___) =>
+                const IgnorePointer(child: SizedBox.expand()),
+          ),
+        ),
       ],
     );
   }
