@@ -16,6 +16,7 @@ class _MemoEditScreenState extends ConsumerState<MemoEditScreen>
     with WidgetsBindingObserver {
   late final TextEditingController _titleCtrl;
   late final TextEditingController _contentCtrl;
+  final FocusNode _contentFocus = FocusNode();
   bool _dirty = false;
   bool _saving = false;
 
@@ -38,6 +39,7 @@ class _MemoEditScreenState extends ConsumerState<MemoEditScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _contentFocus.dispose();
     _titleCtrl.dispose();
     _contentCtrl.dispose();
     super.dispose();
@@ -85,6 +87,15 @@ class _MemoEditScreenState extends ConsumerState<MemoEditScreen>
     }
   }
 
+  void _focusContentAtEnd() {
+    if (!_contentFocus.hasFocus) {
+      _contentFocus.requestFocus();
+    }
+    // 빈 영역 탭 시 마지막 위치로 커서 이동
+    final len = _contentCtrl.text.length;
+    _contentCtrl.selection = TextSelection.collapsed(offset: len);
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -124,18 +135,23 @@ class _MemoEditScreenState extends ConsumerState<MemoEditScreen>
               ),
               const Divider(height: 16),
               Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.only(bottom: 80),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _focusContentAtEnd,
                   child: TextField(
                     controller: _contentCtrl,
+                    focusNode: _contentFocus,
                     decoration: const InputDecoration(
                       hintText: '내용을 입력하세요...',
                       border: InputBorder.none,
                       isCollapsed: true,
+                      contentPadding: EdgeInsets.zero,
                     ),
                     maxLines: null,
+                    expands: true,
                     keyboardType: TextInputType.multiline,
                     textAlignVertical: TextAlignVertical.top,
+                    scrollPadding: const EdgeInsets.only(bottom: 120),
                   ),
                 ),
               ),

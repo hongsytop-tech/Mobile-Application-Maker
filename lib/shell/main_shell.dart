@@ -1,30 +1,38 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/auth/screens/profile_screen.dart';
 import '../features/diary/screens/diary_calendar_screen.dart';
 import '../features/kakao/services/kakao_link_service.dart';
+import '../features/memo/providers/memo_providers.dart';
+import '../features/memo/screens/memo_edit_screen.dart';
 import '../features/memo/screens/memo_list_screen.dart';
+import '../features/memo/services/memo_url_helper.dart'
+    if (dart.library.html) '../features/memo/services/memo_url_helper_web.dart';
 import '../features/quotes/screens/quotes_screen.dart';
 import '../features/reading/screens/home_screen.dart';
 import '../features/todo/screens/todo_home_screen.dart';
 import '../features/update/widgets/update_banner.dart';
 import '../features/update/widgets/web_update_banner.dart';
 
-class MainShell extends StatefulWidget {
+class MainShell extends ConsumerStatefulWidget {
   const MainShell({super.key});
 
   @override
-  State<MainShell> createState() => _MainShellState();
+  ConsumerState<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class _MainShellState extends ConsumerState<MainShell> {
   int _index = 0; // To do 가 첫 화면 (첫 번째 탭)
   late final PageController _pageCtrl = PageController(initialPage: _index);
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _handleKakaoCallback());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _handleKakaoCallback();
+      _handleMemoDeepLink();
+    });
   }
 
   @override
@@ -59,6 +67,37 @@ class _MainShellState extends State<MainShell> {
         content: Text(msg),
         duration: const Duration(seconds: 5),
       ));
+  }
+
+  Future<void> _handleMemoDeepLink() async {
+    final memoId = readMemoIdFromUrl();
+    if (memoId == null) return;
+
+    // 새로고침 시 같은 메모가 재진입되지 않도록 쿼리 파라미터 제거
+    clearMemoQueryParam();
+
+    // 메모 탭으로 전환
+    const memoTabIndex = 4;
+    setState(() => _index = memoTabIndex);
+    _pageCtrl.jumpToPage(memoTabIndex);
+
+    // 메모 데이터 로드를 대기 (최대 5초)
+    final start = DateTime.now();
+    while (mounted) {
+      final asyncMemos = ref.read(memosProvider);
+      if (asyncMemos.hasValue) {
+        final memos = asyncMemos.value!;
+        final idx = memos.indexWhere((m) => m.id == memoId);
+        if (idx >= 0) {
+          await Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => MemoEditScreen(memo: memos[idx])),
+          );
+        }
+        return;
+      }
+      if (DateTime.now().difference(start) > const Duration(seconds: 5)) return;
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
   }
 
   @override

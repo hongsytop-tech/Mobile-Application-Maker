@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../models/memo.dart';
 import '../providers/memo_providers.dart';
+import '../services/memo_url_helper.dart'
+    if (dart.library.html) '../services/memo_url_helper_web.dart';
 import 'memo_edit_screen.dart';
 
 class MemoListScreen extends ConsumerWidget {
@@ -90,9 +93,74 @@ class _MemoCard extends ConsumerWidget {
     }
   }
 
+  Future<void> _showShortcut(BuildContext context) async {
+    final url = buildMemoShareUrl(memo.id);
+    final title = memo.title.trim().isEmpty ? '(제목 없음)' : memo.title;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('홈 화면 바로가기'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('"$title" 메모를 바로 열 수 있는 URL입니다.',
+                style: const TextStyle(fontSize: 13)),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: SelectableText(
+                url,
+                style: const TextStyle(
+                    fontSize: 11, fontFamily: 'monospace'),
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              '홈 화면에 추가하는 방법',
+              style:
+                  TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              '1. 아래 "URL 복사" 버튼을 누르세요\n'
+              '2. 모바일 브라우저(Safari/Chrome)에서 새 탭을 열고 주소창에 붙여넣기\n'
+              '3. 브라우저 메뉴 → "홈 화면에 추가" 선택\n'
+              '4. 홈 화면 아이콘을 누르면 이 메모가 바로 열립니다',
+              style: TextStyle(fontSize: 12, height: 1.5),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('닫기')),
+          FilledButton.icon(
+            icon: const Icon(Icons.copy, size: 16),
+            label: const Text('URL 복사'),
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: url));
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text('URL이 복사되었어요'),
+                      duration: Duration(seconds: 2)),
+                );
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final primary = Theme.of(context).colorScheme.primary;
     final df = DateFormat('yyyy.MM.dd HH:mm');
     final preview =
         memo.content.replaceAll(RegExp(r'\s+'), ' ').trim();
@@ -134,6 +202,16 @@ class _MemoCard extends ConsumerWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  InkWell(
+                    onTap: () => _showShortcut(context),
+                    borderRadius: BorderRadius.circular(20),
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(Icons.add_to_home_screen_outlined,
+                          size: 20, color: Colors.blue.shade400),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
                   InkWell(
                     onTap: () => _confirmDelete(context, ref),
                     borderRadius: BorderRadius.circular(20),
