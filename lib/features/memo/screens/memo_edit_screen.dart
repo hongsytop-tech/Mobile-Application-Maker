@@ -153,10 +153,12 @@ class _MemoEditScreenState extends ConsumerState<MemoEditScreen>
               // expands:true 로 본문 TextField 가 남은 세로 공간 전체를 채워서,
               // 입력되지 않은 빈 줄을 탭해도 그 위치에 포커스가 잡힌다.
               Expanded(
-                child: GestureDetector(
+                child: Listener(
+                  // GestureDetector 는 TextField 내부 제스처와 경합해서
+                  // onTapDown 이 묻히는 경우가 있어 Listener.onPointerDown 사용.
                   behavior: HitTestBehavior.translucent,
-                  onTapDown: (details) =>
-                      _padToTapAndFocus(details.localPosition),
+                  onPointerDown: (event) =>
+                      _padToTapAndFocus(event.localPosition),
                   child: TextField(
                     controller: _contentCtrl,
                     focusNode: _contentFocus,
