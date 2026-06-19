@@ -520,8 +520,15 @@ class _PushDebugCardState extends State<_PushDebugCard> {
     try {
       final r = await WebPushService.sendTest();
       if (!mounted) return;
-      setState(() => _result =
-          '✅ send_test: sent=${r['sent']}, failed=${r['failed']}, cleaned=${r['cleaned']}');
+      setState(() {
+        if (r['skipped'] == 'quiet_hours') {
+          _result =
+              '⏸ 방해금지 시간이라 발송 안 함. (방해금지 OFF 하고 다시 시도)';
+        } else {
+          _result =
+              '✅ send_test: sent=${r['sent']}, failed=${r['failed']}, cleaned=${r['cleaned']}';
+        }
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() => _result = '❌ send_test 실패: $e');

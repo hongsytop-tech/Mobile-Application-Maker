@@ -146,12 +146,11 @@ async function runDue(admin: any) {
       const inQuietHours = opts?.quietHoursEnabled
         ? isInQuietHours(now, opts)
         : false;
-      // 진동 OFF 일 때는 payload 에 vibrate 자체를 넣지 않는다.
-      // vibrate:[] (빈 배열) 는 일부 안드로이드 크롬에서 알림 자체를 차단.
-      const vibrate: number[] | null =
-        opts?.vibrate === false ? null : [200, 100, 200];
+      // 진동: false 면 [0] (0ms = 무진동) 으로 명시.
+      // vibrate 키 자체를 빼면 브라우저가 OS 기본 진동을 사용해서 진동을 못 끔.
+      const vibrate: number[] = opts?.vibrate === false ? [0] : [200, 100, 200];
       console.log(
-        `[row ${p.id.slice(0, 8)}] quietHours=${inQuietHours} vibrate=${vibrate ? 'on' : 'off'}`,
+        `[row ${p.id.slice(0, 8)}] quietHours=${inQuietHours} vibrate=${opts?.vibrate === false ? 'off' : 'on'}`,
       );
 
       // 방해금지 시간대에 도래한 알림 → 발송 생략하고 다음 시각으로 전진
@@ -200,14 +199,13 @@ async function runDue(admin: any) {
         continue;
       }
 
-      const payloadObj: Record<string, unknown> = {
+      const payload = JSON.stringify({
         title: p.title,
         body: p.body,
         url: p.url || 'https://hongsytop-tech.github.io/Mobile-Application-Maker/',
         tag: `${p.kind}-${p.id}`,
-      };
-      if (vibrate) payloadObj.vibrate = vibrate;
-      const payload = JSON.stringify(payloadObj);
+        vibrate,
+      });
 
       const expiredIds: string[] = [];
       let anyOk = false;
@@ -413,11 +411,38 @@ async function sendTest(userId: string, admin: any) {
   if (error) return j(500, { error: 'db_query_failed', detail: error.message });
   if (!subs || subs.length === 0) return j(400, { error: 'no_subscription' });
 
+  // 사용자의 진동 / 방해금지 설정 반영
+  let vibrate: number[] = [200, 100, 200];
+  let opts: any = null;
+  try {
+    const { data: row } = await admin
+      .from('user_data')
+      .select('settings')
+      .eq('user_id', userId)
+      .maybeSingle();
+    const raw = row?.settings?.notification_settings_v1;
+    opts = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (opts?.vibrate === false) vibrate = [0];
+  } catch (_) {}
+
+  // 방해금지 시간대면 테스트도 발송하지 않음 (스케줄러 동작과 일치).
+  if (opts?.quietHoursEnabled && isInQuietHours(Date.now(), opts)) {
+    return j(200, {
+      ok: true,
+      sent: 0,
+      failed: 0,
+      cleaned: 0,
+      skipped: 'quiet_hours',
+      errors: [],
+    });
+  }
+
   const payload = JSON.stringify({
     title: '🔔 알림 테스트',
     body: '웹 푸시 알림이 정상적으로 동작합니다.',
     url: 'https://hongsytop-tech.github.io/Mobile-Application-Maker/',
     tag: 'test',
+    vibrate,
   });
 
   let sent = 0;

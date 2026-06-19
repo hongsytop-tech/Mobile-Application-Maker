@@ -124,6 +124,9 @@ class _WebPushCardState extends State<WebPushCard> {
     if (!kIsWeb) {
       return 'PWA(웹)을 홈 화면에 추가한 뒤 그 안에서 켜면, 휴대폰 시스템 알림으로 옵니다.';
     }
+    if (kIsWeb && !WebPushService.isMobile()) {
+      return 'PC 에서는 알림을 받지 않습니다.\n모바일에서 PWA 를 홈 화면에 추가한 뒤 켜주세요.';
+    }
     if (!_supported) return '이 브라우저는 웹 푸시를 지원하지 않습니다.';
     if (_permission == 'denied') {
       return '브라우저 설정에서 이 사이트의 알림 권한이 차단돼 있어요.\n주소창 옆 자물쇠 아이콘 → 알림 → "허용"으로 바꿔주세요.';

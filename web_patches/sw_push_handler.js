@@ -16,8 +16,8 @@ self.addEventListener('push', (event) => {
     data: { url: data.url || './' },
     requireInteraction: false,
   };
-  // 진동: 서버가 vibrate 패턴을 보내준 경우에만 설정.
-  // 빈 배열 [] 은 일부 안드로이드 크롬에서 알림 자체가 차단되므로 길이가 0 이면 미설정.
+  // 진동: 서버가 vibrate 패턴을 보내준 경우 그대로 사용.
+  // 무진동은 [0] (0ms 1회) — 길이 0 인 빈 배열은 안드로이드 크롬에서 알림 자체 차단됨.
   if (Array.isArray(data.vibrate) && data.vibrate.length > 0) {
     options.vibrate = data.vibrate;
   }

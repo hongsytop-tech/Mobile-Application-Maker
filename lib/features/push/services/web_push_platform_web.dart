@@ -7,6 +7,20 @@ Future<bool> isPushSupported() async {
   return sw != null;
 }
 
+/// 모바일 기기인지 (User-Agent 기반).
+/// PC(데스크톱) 에서는 알림을 받지 않는 정책이므로 이 값으로 게이팅한다.
+bool isMobileDevice() {
+  final ua = (html.window.navigator.userAgent).toLowerCase();
+  // 안드로이드/iOS/iPadOS 만 모바일로 인정.
+  if (ua.contains('android')) return true;
+  if (ua.contains('iphone') || ua.contains('ipod')) return true;
+  if (ua.contains('ipad')) return true;
+  // iPadOS 사파리는 데스크톱처럼 보이지만 maxTouchPoints 로 구분 가능.
+  final isMac = ua.contains('macintosh');
+  if (isMac && (html.window.navigator.maxTouchPoints ?? 0) > 1) return true;
+  return false;
+}
+
 Future<String> currentPermission() async {
   return html.Notification.permission ?? 'default';
 }

@@ -24,10 +24,15 @@ class WebPushService {
   static Future<bool> optedOut() => _isOptedOut();
 
   /// 현재 브라우저에서 Web Push 가 가능한지.
+  /// PC(데스크톱) 에서는 정책상 알림을 받지 않으므로 false 반환.
   static Future<bool> isSupported() async {
     if (!kIsWeb) return false;
+    if (!platform.isMobileDevice()) return false;
     return platform.isPushSupported();
   }
+
+  /// 모바일 기기 여부 (UI 상태 분기용).
+  static bool isMobile() => kIsWeb && platform.isMobileDevice();
 
   /// 브라우저 알림 권한 상태: granted / denied / default / unsupported
   static Future<String> permission() async {
@@ -58,6 +63,8 @@ class WebPushService {
   static Future<WebPushEnableResult> enable() async {
     try {
       if (!kIsWeb) return WebPushEnableResult.unsupported();
+      // PC(데스크톱) 에서는 정책상 알림 받지 않음.
+      if (!platform.isMobileDevice()) return WebPushEnableResult.unsupported();
       if (!await platform.isPushSupported()) {
         return WebPushEnableResult.unsupported();
       }
@@ -117,9 +124,15 @@ class WebPushService {
   /// 앱 시작/로그인 시 호출 — 권한이 이미 허용된 경우에만 조용히 재구독해서
   /// DB 구독 행을 항상 최신으로 유지한다. (cron 발송 시 no_subscription 방지)
   /// 권한 요청 팝업은 절대 띄우지 않는다. 사용자가 끈 경우(opt-out)면 아무것도 안 함.
+  /// PC(데스크톱) 에서는 자동으로 구독 해제 + DB 행 삭제.
   static Future<void> ensureSubscribed() async {
     try {
       if (!kIsWeb) return;
+      // PC 에서는 알림을 받지 않는 정책 — 기존 구독이 있으면 정리.
+      if (!platform.isMobileDevice()) {
+        await _cleanupCurrentDeviceSubscription();
+        return;
+      }
       if (await _isOptedOut()) return; // 사용자가 끈 상태면 자동 재구독 금지
       if (!await platform.isPushSupported()) return;
       if (!SupabaseService.isAuthenticated) return;
@@ -153,6 +166,11 @@ class WebPushService {
   static Future<void> disable() async {
     if (!kIsWeb) return;
     await _setOptedOut(true);
+    await _cleanupCurrentDeviceSubscription();
+  }
+
+  /// 이 기기의 구독을 브라우저 + DB 양쪽에서 정리.
+  static Future<void> _cleanupCurrentDeviceSubscription() async {
     // 이 기기의 endpoint 를 먼저 확인한 뒤 unsubscribe (해제 후엔 endpoint 가 사라짐)
     final endpoint = await platform.currentEndpoint();
     await platform.unsubscribe();
@@ -168,7 +186,8 @@ class WebPushService {
   }
 
   /// 테스트 푸시 전송. 응답에서 sent/failed/cleaned 카운트 반환.
-  static Future<Map<String, int>> sendTest() async {
+  /// 방해금지 시간대 등 사유로 발송이 스킵된 경우 skipped 키도 함께.
+  static Future<Map<String, dynamic>> sendTest() async {
     final res = await SupabaseService.client.functions
         .invoke('web-push', body: {'action': 'send_test'});
     final data = res.data as Map?;
@@ -179,6 +198,7 @@ class WebPushService {
       'sent': (data?['sent'] as num?)?.toInt() ?? 0,
       'failed': (data?['failed'] as num?)?.toInt() ?? 0,
       'cleaned': (data?['cleaned'] as num?)?.toInt() ?? 0,
+      if (data?['skipped'] != null) 'skipped': data!['skipped'],
     };
   }
 
