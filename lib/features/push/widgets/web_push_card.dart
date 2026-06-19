@@ -128,7 +128,9 @@ class _WebPushCardState extends State<WebPushCard> {
     if (_permission == 'denied') {
       return '브라우저 설정에서 이 사이트의 알림 권한이 차단돼 있어요.\n주소창 옆 자물쇠 아이콘 → 알림 → "허용"으로 바꿔주세요.';
     }
-    if (_enabled) return '✅ 알림 켜짐 — 문구·할일 알림이 시스템 알림으로 옵니다.';
-    return '꺼짐 — 스위치를 켜면 알림을 받습니다.';
+    if (_enabled) {
+      return '✅ 이 기기에서 알림 켜짐 — 다른 기기의 알림 설정과 별개입니다.';
+    }
+    return '이 기기에서 꺼짐 — 스위치를 켜면 이 기기에서만 알림을 받습니다.\n(다른 기기의 알림은 영향 없음)';
   }
 }

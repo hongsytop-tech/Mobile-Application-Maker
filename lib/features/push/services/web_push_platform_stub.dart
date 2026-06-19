@@ -4,3 +4,4 @@ Future<String> currentPermission() async => 'unsupported';
 Future<Map<String, String>?> subscribe(String vapidPublicBase64) async => null;
 Future<bool> unsubscribe() async => false;
 Future<bool> hasActiveSubscription() async => false;
+Future<String?> currentEndpoint() async => null;

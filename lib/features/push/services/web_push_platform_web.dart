@@ -88,6 +88,21 @@ Future<bool> hasActiveSubscription() async {
   return sub != null;
 }
 
+/// 이 브라우저(=기기)의 현재 구독 endpoint. 구독 없거나 비웹이면 null.
+Future<String?> currentEndpoint() async {
+  final sw = html.window.navigator.serviceWorker;
+  if (sw == null) return null;
+  final reg = await sw.ready;
+  final pm = reg.pushManager;
+  if (pm == null) return null;
+  try {
+    final sub = await pm.getSubscription();
+    return sub?.endpoint;
+  } catch (_) {
+    return null;
+  }
+}
+
 Uint8List _urlBase64ToUint8List(String b64) {
   final padding = '=' * ((4 - b64.length % 4) % 4);
   final padded = (b64 + padding).replaceAll('-', '+').replaceAll('_', '/');

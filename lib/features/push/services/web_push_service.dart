@@ -146,21 +146,25 @@ class WebPushService {
     }
   }
 
-  /// 구독 해제 + DB 정리. 사용자가 명시적으로 끈 것이므로 opt-out 기록 →
-  /// 다음 앱 시작 시 자동 재구독되지 않음.
+  /// 구독 해제 + DB 정리 (이 기기의 endpoint 만).
+  /// 사용자가 명시적으로 끈 것이므로 opt-out 기록 →
+  /// 다음 앱 시작 시 이 기기에서는 자동 재구독되지 않음.
+  /// 다른 기기의 구독은 영향 받지 않는다.
   static Future<void> disable() async {
     if (!kIsWeb) return;
     await _setOptedOut(true);
+    // 이 기기의 endpoint 를 먼저 확인한 뒤 unsubscribe (해제 후엔 endpoint 가 사라짐)
+    final endpoint = await platform.currentEndpoint();
     await platform.unsubscribe();
     final uid = SupabaseService.currentUser?.id;
-    if (uid != null) {
-      try {
-        await SupabaseService.client
-            .from('web_push_subscriptions')
-            .delete()
-            .eq('user_id', uid);
-      } catch (_) {}
-    }
+    if (uid == null || endpoint == null) return;
+    try {
+      await SupabaseService.client
+          .from('web_push_subscriptions')
+          .delete()
+          .eq('user_id', uid)
+          .eq('endpoint', endpoint);
+    } catch (_) {}
   }
 
   /// 테스트 푸시 전송. 응답에서 sent/failed/cleaned 카운트 반환.
