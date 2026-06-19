@@ -18,11 +18,30 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _index = 0; // To do 가 첫 화면 (첫 번째 탭)
+  late final PageController _pageCtrl = PageController(initialPage: _index);
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _handleKakaoCallback());
+  }
+
+  @override
+  void dispose() {
+    _pageCtrl.dispose();
+    super.dispose();
+  }
+
+  void _goToTab(int i) {
+    if (i == _index) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    setState(() => _index = i);
+    // 빠르고 부드럽게 전환
+    _pageCtrl.animateToPage(
+      i,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOut,
+    );
   }
 
   Future<void> _handleKakaoCallback() async {
@@ -51,8 +70,12 @@ class _MainShellState extends State<MainShell> {
             const UpdateBanner(),
             const WebUpdateBanner(),
             Expanded(
-              child: IndexedStack(
-                index: _index,
+              child: PageView(
+                controller: _pageCtrl,
+                onPageChanged: (i) {
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                  setState(() => _index = i);
+                },
                 children: const [
                   TodoHomeScreen(),
                   HomeScreen(),
@@ -67,11 +90,7 @@ class _MainShellState extends State<MainShell> {
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
-        onDestinationSelected: (i) {
-          // 다른 탭으로 이동 시 진행 중인 스낵바(예: 즉시 할일 완료 Undo) 닫기
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          setState(() => _index = i);
-        },
+        onDestinationSelected: _goToTab,
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.checklist_outlined),
