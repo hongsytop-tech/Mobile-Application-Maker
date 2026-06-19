@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../diary/providers/diary_providers.dart';
 import '../../push/models/notification_settings.dart';
 import '../../push/providers/notification_settings_providers.dart';
+import '../../push/services/web_push_service.dart';
 import '../../push/widgets/web_push_card.dart';
 import '../../quotes/providers/quote_providers.dart';
 import '../../todo/widgets/wheel_time_picker.dart';
@@ -198,6 +199,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               if (kIsWeb) ...[
                 const SizedBox(height: 12),
                 const _UpdateCheckCard(),
+                const SizedBox(height: 12),
+                const _PushDebugCard(),
               ],
               const SizedBox(height: 24),
               Text('수동 백업 / 복원',
@@ -493,6 +496,130 @@ class _NotificationOptionsCard extends ConsumerWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// 푸시 진단용 디버그 카드 — 즉시 푸시 / 스케줄러 흐름 테스트.
+class _PushDebugCard extends StatefulWidget {
+  const _PushDebugCard();
+
+  @override
+  State<_PushDebugCard> createState() => _PushDebugCardState();
+}
+
+class _PushDebugCardState extends State<_PushDebugCard> {
+  bool _busy = false;
+  String? _result;
+
+  Future<void> _sendTest() async {
+    setState(() {
+      _busy = true;
+      _result = null;
+    });
+    try {
+      final r = await WebPushService.sendTest();
+      if (!mounted) return;
+      setState(() => _result =
+          '✅ send_test: sent=${r['sent']}, failed=${r['failed']}, cleaned=${r['cleaned']}');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _result = '❌ send_test 실패: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _testScheduler() async {
+    setState(() {
+      _busy = true;
+      _result = null;
+    });
+    try {
+      final r = await WebPushService.testScheduler();
+      if (!mounted) return;
+      setState(() => _result =
+          '✅ test_scheduled: processed=${r['processed']}, failed=${r['failed']}, total=${r['total']}');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _result = '❌ test_scheduled 실패: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.amber.shade50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.amber.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.bug_report, size: 18, color: Colors.amber.shade800),
+              const SizedBox(width: 6),
+              Text(
+                '푸시 디버그',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.amber.shade900,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '알림이 안 올 때 발송 흐름을 직접 트리거해 결과를 확인합니다.',
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _busy ? null : _sendTest,
+                  icon: const Icon(Icons.send, size: 16),
+                  label: const Text('즉시 푸시'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _busy ? null : _testScheduler,
+                  icon: const Icon(Icons.schedule_send, size: 16),
+                  label: const Text('스케줄러 테스트'),
+                ),
+              ),
+            ],
+          ),
+          if (_busy) ...[
+            const SizedBox(height: 10),
+            const LinearProgressIndicator(minHeight: 3),
+          ],
+          if (_result != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: SelectableText(
+                _result!,
+                style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

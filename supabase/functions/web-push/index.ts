@@ -85,6 +85,7 @@ Deno.serve(async (req) => {
 
 async function runDue(admin: any) {
   if (!VAPID_PUBLIC || !VAPID_PRIVATE) {
+    console.log('runDue: VAPID not configured');
     return j(500, { error: 'vapid_not_configured' });
   }
 
@@ -95,8 +96,15 @@ async function runDue(admin: any) {
     .lte('scheduled_at', new Date().toISOString())
     .order('scheduled_at', { ascending: true })
     .limit(100);
-  if (error) return j(500, { error: 'query_failed', detail: error.message });
-  if (!due || due.length === 0) return j(200, { ok: true, processed: 0 });
+  if (error) {
+    console.log('runDue: query failed', error.message);
+    return j(500, { error: 'query_failed', detail: error.message });
+  }
+  if (!due || due.length === 0) {
+    console.log('runDue: no due rows');
+    return j(200, { ok: true, processed: 0 });
+  }
+  console.log(`runDue: ${due.length} due row(s)`);
 
   const now = Date.now();
   const GRACE_MS = 5 * 60 * 1000; // 5분 이상 늦은 알림은 발송 생략(전진만)
@@ -129,6 +137,9 @@ async function runDue(admin: any) {
     try {
       const scheduledMs = new Date(p.scheduled_at).getTime();
       const tooStale = now - scheduledMs > GRACE_MS;
+      console.log(
+        `[row ${p.id.slice(0, 8)}] kind=${p.kind} ref=${p.ref_id} title="${p.title}" recur=${!!p.recur}`,
+      );
 
       // 사용자 알림 설정 조회 (방해금지/진동)
       const opts = await loadSettings(p.user_id);
@@ -139,6 +150,9 @@ async function runDue(admin: any) {
       // vibrate:[] (빈 배열) 는 일부 안드로이드 크롬에서 알림 자체를 차단.
       const vibrate: number[] | null =
         opts?.vibrate === false ? null : [200, 100, 200];
+      console.log(
+        `[row ${p.id.slice(0, 8)}] quietHours=${inQuietHours} vibrate=${vibrate ? 'on' : 'off'}`,
+      );
 
       // 방해금지 시간대에 도래한 알림 → 발송 생략하고 다음 시각으로 전진
       // (1회성이면 종료 시각 이후로 미루기)
@@ -165,6 +179,10 @@ async function runDue(admin: any) {
         .from('web_push_subscriptions')
         .select('*')
         .eq('user_id', p.user_id);
+
+      console.log(
+        `[row ${p.id.slice(0, 8)}] subscriptions=${subs?.length ?? 0}`,
+      );
 
       if (!subs || subs.length === 0) {
         // 구독 없음 — 반복 행은 전진, 1회성은 sent 마킹
@@ -202,9 +220,15 @@ async function runDue(admin: any) {
             payload,
           );
           anyOk = true;
+          console.log(
+            `[row ${p.id.slice(0, 8)}] sub=${s.id.slice(0, 8)} -> OK`,
+          );
         } catch (e: any) {
           const status = e?.statusCode;
           lastErr = `status=${status} ${String(e?.body ?? e?.message ?? e).slice(0, 120)}`;
+          console.log(
+            `[row ${p.id.slice(0, 8)}] sub=${s.id.slice(0, 8)} -> FAIL ${lastErr}`,
+          );
           if (status === 404 || status === 410) { // 영구 만료만 삭제 (401/403 전송오류는 유지)
             expiredIds.push(s.id);
           }
