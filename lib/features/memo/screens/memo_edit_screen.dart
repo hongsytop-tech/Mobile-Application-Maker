@@ -97,7 +97,7 @@ class _MemoEditScreenState extends ConsumerState<MemoEditScreen> {
   Widget build(BuildContext context) {
     return PopScope(
       canPop: !_dirty,
-      onPopInvokedWithResult: (didPop, _) async {
+      onPopInvoked: (didPop) async {
         if (didPop) return;
         if (await _confirmExit() && mounted) {
           Navigator.of(context).pop();
