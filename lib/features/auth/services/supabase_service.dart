@@ -112,6 +112,7 @@ class SupabaseService {
     required List<String> diaries,
     required List<String> todoCategories,
     required List<String> todoItems,
+    required List<String> memos,
     Map<String, dynamic>? settings,
   }) async {
     final user = currentUser;
@@ -125,6 +126,7 @@ class SupabaseService {
       'diaries': diaries,
       'todo_categories': todoCategories,
       'todo_items': todoItems,
+      'memos': memos,
       if (settings != null) 'settings': settings,
       'updated_at': DateTime.now().toIso8601String(),
     });
