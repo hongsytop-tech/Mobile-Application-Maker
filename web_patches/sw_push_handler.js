@@ -16,6 +16,8 @@ self.addEventListener('push', (event) => {
     data: { url: data.url || './' },
     requireInteraction: false,
   };
+  // 진동: 서버가 vibrate 패턴을 보내주면 그대로 사용, 빈 배열이면 무진동.
+  if (Array.isArray(data.vibrate)) options.vibrate = data.vibrate;
   event.waitUntil(self.registration.showNotification(title, options));
 });
 

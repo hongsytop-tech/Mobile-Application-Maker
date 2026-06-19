@@ -103,10 +103,54 @@ async function runDue(admin: any) {
   let processed = 0;
   let failed = 0;
 
+  // 사용자별 알림 설정 캐시 (동일 user_id 가 여러 행을 가질 수 있음)
+  const settingsCache = new Map<string, any>();
+  async function loadSettings(userId: string): Promise<any> {
+    if (settingsCache.has(userId)) return settingsCache.get(userId);
+    let opts: any = null;
+    try {
+      const { data: row } = await admin
+        .from('user_data')
+        .select('settings')
+        .eq('user_id', userId)
+        .maybeSingle();
+      const raw = row?.settings?.notification_settings_v1;
+      if (typeof raw === 'string') {
+        opts = JSON.parse(raw);
+      } else if (raw && typeof raw === 'object') {
+        opts = raw;
+      }
+    } catch (_) {}
+    settingsCache.set(userId, opts);
+    return opts;
+  }
+
   for (const p of due) {
     try {
       const scheduledMs = new Date(p.scheduled_at).getTime();
       const tooStale = now - scheduledMs > GRACE_MS;
+
+      // 사용자 알림 설정 조회 (방해금지/진동)
+      const opts = await loadSettings(p.user_id);
+      const inQuietHours = opts?.quietHoursEnabled
+        ? isInQuietHours(now, opts)
+        : false;
+      const vibrate = opts?.vibrate === false ? [] : [200, 100, 200];
+
+      // 방해금지 시간대에 도래한 알림 → 발송 생략하고 다음 시각으로 전진
+      // (1회성이면 종료 시각 이후로 미루기)
+      if (inQuietHours) {
+        if (p.recur) {
+          await advanceRecurRow(admin, p, now, 'quiet_hours');
+        } else {
+          const resumeAt = quietHoursEndAfter(now, opts);
+          await admin
+            .from('scheduled_pushes')
+            .update({ scheduled_at: new Date(resumeAt).toISOString() })
+            .eq('id', p.id);
+        }
+        continue;
+      }
 
       // 반복(recur) 행이고 너무 늦었으면 발송 생략하고 다음 시각으로 전진만
       if (p.recur && tooStale) {
@@ -140,6 +184,7 @@ async function runDue(admin: any) {
         body: p.body,
         url: p.url || 'https://hongsytop-tech.github.io/Mobile-Application-Maker/',
         tag: `${p.kind}-${p.id}`,
+        vibrate,
       });
 
       const expiredIds: string[] = [];
@@ -278,6 +323,33 @@ function nextDailyAfter(nowMs: number, hour: number, minute: number): number {
     if (cand > nowMs) return cand;
   }
   return dayAt(nowMs, 1, hour, minute);
+}
+
+/// KST 기준 현재 시각이 방해금지 시간대 안에 있는지.
+/// start > end 면 자정을 넘기는 구간 (예: 23:00 → 08:00).
+function isInQuietHours(nowMs: number, opts: any): boolean {
+  const k = new Date(nowMs + KST_OFFSET);
+  const curMin = k.getUTCHours() * 60 + k.getUTCMinutes();
+  const startMin =
+    Number(opts.quietStartHour ?? 23) * 60 + Number(opts.quietStartMinute ?? 0);
+  const endMin =
+    Number(opts.quietEndHour ?? 8) * 60 + Number(opts.quietEndMinute ?? 0);
+  if (startMin === endMin) return false;
+  if (startMin < endMin) {
+    return curMin >= startMin && curMin < endMin;
+  }
+  // 자정 넘김
+  return curMin >= startMin || curMin < endMin;
+}
+
+/// 방해금지 구간이 끝나는 다음 시각 (ms UTC).
+function quietHoursEndAfter(nowMs: number, opts: any): number {
+  const endHour = Number(opts.quietEndHour ?? 8);
+  const endMinute = Number(opts.quietEndMinute ?? 0);
+  // 오늘 KST 의 종료 시각
+  let cand = dayAt(nowMs, 0, endHour, endMinute);
+  if (cand <= nowMs) cand = dayAt(nowMs, 1, endHour, endMinute);
+  return cand;
 }
 
 // KST(UTC+9) 기준으로 날짜 계산. (한국 사용자 고정)

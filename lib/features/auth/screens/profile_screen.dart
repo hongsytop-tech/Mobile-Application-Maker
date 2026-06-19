@@ -3,8 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../diary/providers/diary_providers.dart';
+import '../../push/models/notification_settings.dart';
+import '../../push/providers/notification_settings_providers.dart';
 import '../../push/widgets/web_push_card.dart';
 import '../../quotes/providers/quote_providers.dart';
+import '../../todo/widgets/wheel_time_picker.dart';
 import '../../reading/providers/book_providers.dart';
 import '../../todo/providers/todo_providers.dart';
 import '../../update/services/web_update_detector_stub.dart'
@@ -190,6 +193,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               const _AutoSyncCard(),
               const SizedBox(height: 12),
               const WebPushCard(),
+              const SizedBox(height: 12),
+              const _NotificationOptionsCard(),
               if (kIsWeb) ...[
                 const SizedBox(height: 12),
                 const _UpdateCheckCard(),
@@ -355,6 +360,140 @@ class _AutoSyncCard extends StatelessWidget {
     final h = d.hour.toString().padLeft(2, '0');
     final m = d.minute.toString().padLeft(2, '0');
     return '$h:$m';
+  }
+}
+
+/// 알림 옵션 카드 — 방해금지 시간 / 진동.
+class _NotificationOptionsCard extends ConsumerWidget {
+  const _NotificationOptionsCard();
+
+  Future<void> _pickStart(BuildContext context, WidgetRef ref,
+      NotificationSettings s) async {
+    final picked = await pickWheelTime(context,
+        initialHour: s.quietStartHour, initialMinute: s.quietStartMinute);
+    if (picked == null) return;
+    await ref.read(notificationSettingsProvider.notifier).save(
+          s.copyWith(
+            quietStartHour: picked.hour,
+            quietStartMinute: picked.minute,
+          ),
+        );
+  }
+
+  Future<void> _pickEnd(BuildContext context, WidgetRef ref,
+      NotificationSettings s) async {
+    final picked = await pickWheelTime(context,
+        initialHour: s.quietEndHour, initialMinute: s.quietEndMinute);
+    if (picked == null) return;
+    await ref.read(notificationSettingsProvider.notifier).save(
+          s.copyWith(
+            quietEndHour: picked.hour,
+            quietEndMinute: picked.minute,
+          ),
+        );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final asyncSettings = ref.watch(notificationSettingsProvider);
+    return asyncSettings.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (s) {
+        final primary = Theme.of(context).colorScheme.primary;
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
+                child: Row(
+                  children: [
+                    Icon(Icons.tune, size: 18, color: Colors.grey.shade700),
+                    const SizedBox(width: 6),
+                    Text(
+                      '알림 옵션',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // 방해금지 시간
+              SwitchListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14),
+                title: const Text('방해금지 시간'),
+                subtitle: Text(
+                  s.quietHoursEnabled
+                      ? '${s.quietStartLabel} → ${s.quietEndLabel} 동안 알림 보류'
+                      : '지정한 시간대에는 알림을 보류해요',
+                  style: const TextStyle(fontSize: 12),
+                ),
+                value: s.quietHoursEnabled,
+                onChanged: (v) => ref
+                    .read(notificationSettingsProvider.notifier)
+                    .save(s.copyWith(quietHoursEnabled: v)),
+              ),
+              if (s.quietHoursEnabled) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _pickStart(context, ref, s),
+                          icon: const Icon(Icons.bedtime_outlined, size: 18),
+                          label: Text('시작 ${s.quietStartLabel}'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _pickEnd(context, ref, s),
+                          icon: const Icon(Icons.wb_sunny_outlined, size: 18),
+                          label: Text('종료 ${s.quietEndLabel}'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+                  child: Text(
+                    '💡 방해금지 시간대에 도래한 알림은 종료 시각 이후로 미뤄집니다.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: primary.withOpacity(0.8),
+                    ),
+                  ),
+                ),
+              ],
+              const Divider(height: 1),
+              // 진동
+              SwitchListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14),
+                title: const Text('진동'),
+                subtitle: const Text(
+                  '알림 수신 시 진동 (지원 기기에 한함)',
+                  style: TextStyle(fontSize: 12),
+                ),
+                value: s.vibrate,
+                onChanged: (v) => ref
+                    .read(notificationSettingsProvider.notifier)
+                    .save(s.copyWith(vibrate: v)),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }
 

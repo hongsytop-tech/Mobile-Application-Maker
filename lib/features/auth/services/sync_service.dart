@@ -15,6 +15,7 @@ const _listKeyMap = <String, String>{
 /// 단일 String으로 저장되는 설정 키들 (settings jsonb에 한꺼번에 저장)
 const _settingKeys = <String>[
   'quote_rotation_settings_v1',
+  'notification_settings_v1',
 ];
 
 class SyncStats {
