@@ -8,6 +8,8 @@ import '../../../shell/menu_settings_provider.dart';
 import '../../diary/providers/diary_providers.dart';
 import '../../push/providers/notification_settings_providers.dart';
 import '../../push/services/web_push_scheduler.dart';
+import '../../recommend/providers/recommend_providers.dart';
+import '../../recommend/services/quote_recommend_service.dart';
 import '../../push/services/web_push_service.dart';
 import '../../quotes/models/quote.dart';
 import '../../quotes/providers/quote_providers.dart';
@@ -54,10 +56,11 @@ class _SyncGateState extends ConsumerState<SyncGate> {
     ref.invalidate(diariesProvider);
     ref.invalidate(todoCategoriesProvider);
     ref.invalidate(todoItemsProvider);
-    // 알림 옵션 + 메뉴 설정도 다른 기기의 변경분을 즉시 반영
+    // 알림 옵션 + 메뉴 설정 + 추천 알림 설정도 다른 기기의 변경분을 즉시 반영
     ref.invalidate(notificationSettingsProvider);
     ref.invalidate(menuSettingsProvider);
-    // 문구 순차 알림 + 개별 문구 + 할일 알림 재스케줄
+    ref.invalidate(quoteRecommendSettingsProvider);
+    // 문구 순차 알림 + 개별 문구 + 할일 알림 + 추천 알림 재스케줄
     () async {
       try {
         final quotes = await ref.read(quotesProvider.future) as List<Quote>;
@@ -67,6 +70,7 @@ class _SyncGateState extends ConsumerState<SyncGate> {
         await WebPushScheduler.scheduleAllTodos(todos);
         final cats = await ref.read(todoCategoriesProvider.future);
         await WebPushScheduler.scheduleAllCategories(cats, todos);
+        await QuoteRecommendService.reschedule();
       } catch (_) {}
     }();
   }
