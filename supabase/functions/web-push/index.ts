@@ -2,7 +2,6 @@
 //
 // actions:
 //   - public_key : VAPID 공개키 반환 (인증 불필요)
-//   - send_test  : 호출자의 모든 구독에 테스트 푸시 전송 (사용자 JWT)
 //   - run_due    : 도래한 scheduled_pushes 를 일괄 발송 (스케줄러 시크릿)
 //
 // Secrets:
@@ -71,10 +70,8 @@ Deno.serve(async (req) => {
 
   try {
     switch (action) {
-      case 'send_test':
-        return await sendTest(user.id, admin);
-      case 'test_scheduled':
-        return await testScheduled(user.id, admin);
+      // 디버그용 액션(send_test/test_scheduled) 은 UI 제거에 맞춰 제거.
+      // 의도치 않은 테스트 알림이 발송되는 것을 방지.
       default:
         return j(400, { error: 'unknown_action' });
     }
@@ -402,133 +399,6 @@ function isoWeekday(ms: number): number {
   return wd === 0 ? 7 : wd; // 1=Mon..7=Sun
 }
 
-async function sendTest(userId: string, admin: any) {
-  if (!VAPID_PUBLIC || !VAPID_PRIVATE) {
-    return j(500, { error: 'vapid_not_configured' });
-  }
-  const { data: subs, error } = await admin
-    .from('web_push_subscriptions')
-    .select('*')
-    .eq('user_id', userId);
-  if (error) return j(500, { error: 'db_query_failed', detail: error.message });
-  if (!subs || subs.length === 0) return j(400, { error: 'no_subscription' });
-
-  // 사용자의 진동 / 방해금지 설정 반영
-  let vibrate: number[] = [200, 100, 200];
-  let opts: any = null;
-  let optsRawType: string = 'none';
-  try {
-    const { data: row } = await admin
-      .from('user_data')
-      .select('settings')
-      .eq('user_id', userId)
-      .maybeSingle();
-    const raw = row?.settings?.notification_settings_v1;
-    optsRawType = typeof raw;
-    opts = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    if (opts?.vibrate === false) vibrate = [0];
-  } catch (e) {
-    console.log('sendTest: loadSettings error', String(e));
-  }
-
-  const nowMs = Date.now();
-  const inQuiet = opts?.quietHoursEnabled
-    ? isInQuietHours(nowMs, opts)
-    : false;
-  const kstNow = new Date(nowMs + KST_OFFSET).toISOString();
-  const debug = {
-    rawType: optsRawType,
-    quietHoursEnabled: opts?.quietHoursEnabled ?? null,
-    quietStart: opts
-      ? `${opts.quietStartHour ?? '?'}:${opts.quietStartMinute ?? '?'}`
-      : null,
-    quietEnd: opts
-      ? `${opts.quietEndHour ?? '?'}:${opts.quietEndMinute ?? '?'}`
-      : null,
-    inQuietHours: inQuiet,
-    vibrate: opts?.vibrate ?? null,
-    nowKST: kstNow.slice(11, 19),
-  };
-  console.log('sendTest: debug=', JSON.stringify(debug));
-
-  // 방해금지 시간대면 테스트도 발송하지 않음 (스케줄러 동작과 일치).
-  if (inQuiet) {
-    return j(200, {
-      ok: true,
-      sent: 0,
-      failed: 0,
-      cleaned: 0,
-      skipped: 'quiet_hours',
-      errors: [],
-      debug,
-    });
-  }
-
-  const payload = JSON.stringify({
-    title: '🔔 알림 테스트',
-    body: '웹 푸시 알림이 정상적으로 동작합니다.',
-    url: 'https://hongsytop-tech.github.io/Mobile-Application-Maker/',
-    tag: 'test',
-    vibrate,
-  });
-
-  let sent = 0;
-  let failed = 0;
-  const expiredIds: string[] = [];
-  const errors: { id: string; status?: number; body?: string }[] = [];
-
-  for (const s of subs) {
-    try {
-      await webpush.sendNotification(
-        { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-        payload,
-      );
-      sent++;
-    } catch (e: any) {
-      failed++;
-      const status = e?.statusCode;
-      errors.push({ id: s.id, status, body: String(e?.body ?? e?.message ?? e).slice(0, 200) });
-      // 만료/거부 = 구독 정리 (404/410=gone, 401/403=signature mismatch)
-      if (status === 404 || status === 410) { // 영구 만료만 삭제 (401/403 전송오류는 유지)
-        expiredIds.push(s.id);
-      }
-    }
-  }
-
-  if (expiredIds.length > 0) {
-    await admin.from('web_push_subscriptions').delete().in('id', expiredIds);
-  }
-
-  return j(200, {
-    ok: true,
-    sent,
-    failed,
-    cleaned: expiredIds.length,
-    errors,
-    debug,
-  });
-}
-
-/// 호출자 본인에게 5초 뒤 알림 1건을 예약하고 즉시 run_due 를 돌려서
-/// pg_cron 을 기다리지 않고 스케줄러 흐름을 검증.
-async function testScheduled(userId: string, admin: any) {
-  const scheduledAt = new Date(Date.now() + 5000).toISOString();
-  const { error: insertErr } = await admin
-    .from('scheduled_pushes')
-    .insert({
-      user_id: userId,
-      kind: 'test',
-      title: '⏱️ 스케줄러 테스트',
-      body: '백엔드 스케줄러로 전송된 알림입니다.',
-      scheduled_at: scheduledAt,
-    });
-  if (insertErr) {
-    return j(500, { error: 'insert_failed', detail: insertErr.message });
-  }
-  // 5.5초 대기 → scheduled_at 이 도래 → run_due 가 즉시 발송
-  await new Promise((r) => setTimeout(r, 5500));
-  return await runDue(admin);
-}
 
 function j(status: number, payload: unknown) {
   return new Response(JSON.stringify(payload), {
