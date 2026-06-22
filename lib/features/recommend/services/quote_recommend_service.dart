@@ -16,6 +16,18 @@ class QuoteRecommendService {
   static const _kind = 'quote_recommend';
   static const _refId = 'recommend';
 
+  /// 날짜 기반으로 풀에서 1개 선택 (앱 화면 카드용).
+  /// 푸시 알림과 별개로 "오늘의 문구" 라벨이 일관되게 같은 문구를 가리키도록 한다.
+  static String get todaysQuote {
+    if (kRecommendedQuotes.isEmpty) return '';
+    final now = DateTime.now();
+    final epoch = DateTime(2026, 1, 1);
+    final d = DateTime(now.year, now.month, now.day);
+    final days = d.difference(epoch).inDays;
+    final n = kRecommendedQuotes.length;
+    return kRecommendedQuotes[((days % n) + n) % n];
+  }
+
   static Future<RecommendSettings> load() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(settingsKey);

@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../auth/services/sync_manager.dart';
+import '../../recommend/screens/book_recommend_detail_screen.dart';
 import '../../recommend/screens/book_recommend_settings_screen.dart';
+import '../../recommend/services/book_recommend_service.dart';
 import '../models/book.dart';
 import '../providers/book_providers.dart';
 import '../widgets/book_cover.dart';
@@ -84,9 +86,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           final wishlist = ref.watch(wishlistBooksProvider);
           final reading = ref.watch(readingBooksProvider);
           final finished = ref.watch(finishedBooksProvider);
-          return TabBarView(
-            controller: _tab,
+          return Column(
             children: [
+              const _TodayBookCard(),
+              Expanded(
+                child: TabBarView(
+                  controller: _tab,
+                  children: [
               _BookList(
                 books: reading,
                 emptyText: '아직 읽고 있는 책이 없어요.\n오른쪽 아래 "+ 책 추가" 버튼으로 검색해서 담아보세요.',
@@ -101,9 +107,81 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 emptyText: '읽고 싶은 책을 위시리스트에 담아보세요.\n"+ 책 추가" 로 검색 후 "위시리스트 담기"를 누르면 됩니다.',
                 showProgress: false,
               ),
+                  ],
+                ),
+              ),
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+/// 독서 탭 상단의 "오늘의 추천 도서" 카드.
+class _TodayBookCard extends StatelessWidget {
+  const _TodayBookCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+    final book = BookRecommendService.todaysBook;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+      child: Material(
+        color: primary.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => BookRecommendDetailScreen(book: book),
+            ),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: primary.withOpacity(0.25)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.auto_stories, color: primary, size: 26),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.auto_awesome, size: 12, color: primary),
+                          const SizedBox(width: 4),
+                          Text('오늘의 추천 도서',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: primary)),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Text(book.title,
+                          style: const TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.bold),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                      Text(book.author,
+                          style: const TextStyle(
+                              fontSize: 12, color: Colors.grey),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right, color: Colors.grey.shade400),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

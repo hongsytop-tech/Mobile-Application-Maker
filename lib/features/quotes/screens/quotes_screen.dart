@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import '../../auth/services/sync_manager.dart';
 import '../../recommend/screens/recommend_settings_screen.dart';
+import '../../recommend/services/quote_recommend_service.dart';
 import '../models/quote.dart';
 import '../providers/quote_providers.dart';
 import 'quote_edit_screen.dart';
@@ -64,7 +65,11 @@ class _QuotesScreenState extends ConsumerState<QuotesScreen> {
         icon: const Icon(Icons.add),
         label: const Text('문구 추가'),
       ),
-      body: RefreshIndicator(
+      body: Column(
+        children: [
+          const _TodayQuoteCard(),
+          Expanded(
+            child: RefreshIndicator(
         onRefresh: () => SyncManager.instance.pullOnLogin(),
         child: asyncQuotes.when(
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -120,6 +125,57 @@ class _QuotesScreenState extends ConsumerState<QuotesScreen> {
               ),
             );
           },
+        ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 문구 화면 상단의 "오늘의 추천 문구" 카드.
+class _TodayQuoteCard extends StatelessWidget {
+  const _TodayQuoteCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+    final quote = QuoteRecommendService.todaysQuote;
+    if (quote.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+      child: Material(
+        color: primary.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: primary.withOpacity(0.25)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.auto_awesome, size: 14, color: primary),
+                  const SizedBox(width: 4),
+                  Text('오늘의 추천 문구',
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: primary)),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                quote,
+                style: const TextStyle(
+                    fontSize: 14, height: 1.55, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
         ),
       ),
     );
