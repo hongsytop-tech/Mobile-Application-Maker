@@ -175,8 +175,12 @@ class _MemoCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final df = DateFormat('yyyy.MM.dd HH:mm');
-    final preview =
-        memo.content.replaceAll(RegExp(r'\s+'), ' ').trim();
+    // 줄바꿈은 유지하고, 각 줄 내부의 연속 공백/탭만 압축. 앞뒤 공백/빈 줄만 정리.
+    final preview = memo.content
+        .split('\n')
+        .map((line) => line.replaceAll(RegExp(r'[ \t]+'), ' ').trimRight())
+        .join('\n')
+        .trim();
     final title =
         memo.title.trim().isEmpty ? '(제목 없음)' : memo.title;
 
@@ -240,7 +244,7 @@ class _MemoCard extends ConsumerWidget {
                 const SizedBox(height: 6),
                 Text(
                   preview,
-                  maxLines: 2,
+                  maxLines: 4,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                       fontSize: 13, color: Colors.grey.shade700, height: 1.4),

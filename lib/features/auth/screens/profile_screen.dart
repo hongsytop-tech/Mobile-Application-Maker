@@ -14,8 +14,6 @@ import '../../todo/providers/todo_providers.dart';
 import '../../update/services/web_update_detector_stub.dart'
     if (dart.library.html) '../../update/services/web_update_detector_web.dart';
 import '../../recommend/providers/recommend_providers.dart';
-import '../../recommend/screens/book_recommend_settings_screen.dart';
-import '../../recommend/screens/recommend_settings_screen.dart';
 import '../../../shell/menu_settings_provider.dart';
 import '../../../shell/menu_settings_screen.dart';
 import '../providers/auth_providers.dart';
@@ -206,8 +204,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               const SizedBox(height: 12),
               const _NotificationOptionsCard(),
               const SizedBox(height: 12),
-              const _RecommendNotificationsCard(),
-              const SizedBox(height: 12),
               _MenuEditCard(),
               if (kIsWeb) ...[
                 const SizedBox(height: 12),
@@ -377,124 +373,6 @@ class _AutoSyncCard extends StatelessWidget {
   }
 }
 
-/// 오늘의 문구·도서 알림 빠른 토글 카드.
-/// 자세한 시각/간격 설정은 각각의 메뉴 우상단 진입점에서.
-class _RecommendNotificationsCard extends ConsumerWidget {
-  const _RecommendNotificationsCard();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final quoteAsync = ref.watch(quoteRecommendSettingsProvider);
-    final bookAsync = ref.watch(bookRecommendSettingsProvider);
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
-            child: Row(
-              children: [
-                Icon(Icons.auto_awesome,
-                    size: 18, color: Colors.grey.shade700),
-                const SizedBox(width: 6),
-                Text('추천 알림',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey.shade800,
-                    )),
-              ],
-            ),
-          ),
-          // 오늘의 문구
-          quoteAsync.when(
-            loading: () => const SizedBox(
-                height: 60, child: Center(child: Text('...'))),
-            error: (_, __) => const SizedBox.shrink(),
-            data: (s) => SwitchListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14),
-              secondary: const Icon(Icons.format_quote),
-              title: const Text('오늘의 추천 문구 알림'),
-              subtitle: Text(
-                s.enabled
-                    ? '${s.describe()} · 자세히 ▶'
-                    : '꺼짐 · 자세히 ▶',
-                style: const TextStyle(fontSize: 12),
-              ),
-              value: s.enabled,
-              onChanged: (v) async {
-                await ref
-                    .read(quoteRecommendSettingsProvider.notifier)
-                    .save(s.copyWith(enabled: v));
-              },
-            ),
-          ),
-          const Divider(height: 1),
-          // 오늘의 추천 도서
-          bookAsync.when(
-            loading: () => const SizedBox(
-                height: 60, child: Center(child: Text('...'))),
-            error: (_, __) => const SizedBox.shrink(),
-            data: (s) => SwitchListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14),
-              secondary: const Icon(Icons.auto_stories),
-              title: const Text('오늘의 추천 도서 알림'),
-              subtitle: Text(
-                s.enabled
-                    ? '${s.describe()} · 자세히 ▶'
-                    : '꺼짐 · 자세히 ▶',
-                style: const TextStyle(fontSize: 12),
-              ),
-              value: s.enabled,
-              onChanged: (v) async {
-                await ref
-                    .read(bookRecommendSettingsProvider.notifier)
-                    .save(s.copyWith(enabled: v));
-              },
-            ),
-          ),
-          // 자세한 설정 진입 안내
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.format_quote, size: 16),
-                    label: const Text('문구 상세 설정'),
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const RecommendSettingsScreen(),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.auto_stories, size: 16),
-                    label: const Text('도서 상세 설정'),
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const BookRecommendSettingsScreen(),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// 하단 메뉴(탭) 표시·순서 편집 진입 카드.
 class _MenuEditCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
