@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../auth/services/sync_manager.dart';
+import '../../recommend/screens/recommend_settings_screen.dart';
 import '../models/quote.dart';
 import '../providers/quote_providers.dart';
 import 'quote_edit_screen.dart';
@@ -35,6 +36,15 @@ class _QuotesScreenState extends ConsumerState<QuotesScreen> {
       appBar: AppBar(
         title: const Text('기억하고 싶은 문구'),
         actions: [
+          IconButton(
+            tooltip: '오늘의 추천 문구',
+            icon: const Icon(Icons.auto_awesome),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const RecommendSettingsScreen(),
+              ),
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             child: FilledButton.tonalIcon(

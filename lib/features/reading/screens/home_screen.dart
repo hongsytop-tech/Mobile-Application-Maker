@@ -3,8 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../auth/services/sync_manager.dart';
-import '../../recommend/screens/book_recommend_detail_screen.dart';
-import '../../recommend/services/book_recommend_service.dart';
+import '../../recommend/screens/book_recommend_settings_screen.dart';
 import '../models/book.dart';
 import '../providers/book_providers.dart';
 import '../widgets/book_cover.dart';
@@ -50,6 +49,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       appBar: AppBar(
         title: const Text('내 책장'),
         actions: [
+          IconButton(
+            tooltip: '오늘의 추천 책',
+            icon: const Icon(Icons.auto_stories),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                  builder: (_) => const BookRecommendSettingsScreen()),
+            ),
+          ),
           TextButton.icon(
             icon: const Icon(Icons.bar_chart),
             label: const Text('독서 통계'),
@@ -77,11 +84,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           final wishlist = ref.watch(wishlistBooksProvider);
           final reading = ref.watch(readingBooksProvider);
           final finished = ref.watch(finishedBooksProvider);
-          return Column(
-            children: [
-              const _TodayBookCard(),
-              Expanded(
-                child: TabBarView(
+          return TabBarView(
             controller: _tab,
             children: [
               _BookList(
@@ -99,80 +102,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 showProgress: false,
               ),
             ],
-                ),
-              ),
-            ],
           );
         },
-      ),
-    );
-  }
-}
-
-/// 독서 탭 상단의 "오늘의 추천 책" 카드.
-class _TodayBookCard extends StatelessWidget {
-  const _TodayBookCard();
-
-  @override
-  Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
-    final book = BookRecommendService.todaysBook;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
-      child: Material(
-        color: primary.withOpacity(0.06),
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => BookRecommendDetailScreen(book: book),
-            ),
-          ),
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: primary.withOpacity(0.25)),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.auto_stories, color: primary, size: 26),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.auto_awesome, size: 12, color: primary),
-                          const SizedBox(width: 4),
-                          Text('오늘의 추천 책',
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: primary)),
-                        ],
-                      ),
-                      const SizedBox(height: 3),
-                      Text(book.title,
-                          style: const TextStyle(
-                              fontSize: 14, fontWeight: FontWeight.bold),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis),
-                      Text(book.author,
-                          style: const TextStyle(
-                              fontSize: 12, color: Colors.grey),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis),
-                    ],
-                  ),
-                ),
-                Icon(Icons.chevron_right, color: Colors.grey.shade400),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }

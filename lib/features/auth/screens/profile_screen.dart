@@ -14,8 +14,6 @@ import '../../todo/providers/todo_providers.dart';
 import '../../update/services/web_update_detector_stub.dart'
     if (dart.library.html) '../../update/services/web_update_detector_web.dart';
 import '../../recommend/providers/recommend_providers.dart';
-import '../../recommend/screens/recommend_settings_screen.dart';
-import '../../recommend/screens/book_recommend_settings_screen.dart';
 import '../../../shell/menu_settings_provider.dart';
 import '../../../shell/menu_settings_screen.dart';
 import '../providers/auth_providers.dart';
@@ -206,10 +204,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               const SizedBox(height: 12),
               const _NotificationOptionsCard(),
               const SizedBox(height: 12),
-              const _RecommendCard(),
-              const SizedBox(height: 12),
-              const _BookRecommendCard(),
-              const SizedBox(height: 12),
               _MenuEditCard(),
               if (kIsWeb) ...[
                 const SizedBox(height: 12),
@@ -379,120 +373,6 @@ class _AutoSyncCard extends StatelessWidget {
   }
 }
 
-/// "오늘의 추천 문구" 알림 설정 진입 카드.
-class _RecommendCard extends ConsumerWidget {
-  const _RecommendCard();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final primary = Theme.of(context).colorScheme.primary;
-    final async = ref.watch(quoteRecommendSettingsProvider);
-    final desc = async.value?.describe() ?? '...';
-    final on = async.value?.enabled ?? false;
-    return Material(
-      color: Colors.grey.shade50,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const RecommendSettingsScreen()),
-        ),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade300),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.auto_awesome, size: 20, color: primary),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('오늘의 추천 문구',
-                        style: TextStyle(
-                            fontSize: 14, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 2),
-                    Text(
-                      on ? '켜짐 · $desc' : '엄선된 동기부여 문구를 주기적으로 받기',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: on ? primary : Colors.grey,
-                        fontWeight: on ? FontWeight.w600 : FontWeight.normal,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.chevron_right, color: Colors.grey.shade400),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// "오늘의 추천 책" 알림 설정 진입 카드.
-class _BookRecommendCard extends ConsumerWidget {
-  const _BookRecommendCard();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final primary = Theme.of(context).colorScheme.primary;
-    final async = ref.watch(bookRecommendSettingsProvider);
-    final desc = async.value?.describe() ?? '...';
-    final on = async.value?.enabled ?? false;
-    return Material(
-      color: Colors.grey.shade50,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(
-              builder: (_) => const BookRecommendSettingsScreen()),
-        ),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade300),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.auto_stories, size: 20, color: primary),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('오늘의 추천 책',
-                        style: TextStyle(
-                            fontSize: 14, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 2),
-                    Text(
-                      on ? '켜짐 · $desc' : '매일 추천 책 한 권 받기',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: on ? primary : Colors.grey,
-                        fontWeight: on ? FontWeight.w600 : FontWeight.normal,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.chevron_right, color: Colors.grey.shade400),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// 하단 메뉴(탭) 표시·순서 편집 진입 카드.
 class _MenuEditCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
