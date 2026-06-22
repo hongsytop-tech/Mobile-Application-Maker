@@ -2,3 +2,8 @@ project_id = "self-dev-app"
 
 [functions.book-toc]
 verify_jwt = false
+
+# web-push 는 자체 인증을 한다 (run_due=SCHEDULER_SECRET, 그 외=user JWT).
+# 게이트웨이 JWT 검증을 켜면 cron 의 secret 호출이 "Invalid JWT" 로 차단되므로 끈다.
+[functions.web-push]
+verify_jwt = false
