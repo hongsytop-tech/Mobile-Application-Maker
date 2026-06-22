@@ -39,7 +39,7 @@ class _QuotesScreenState extends ConsumerState<QuotesScreen> {
         actions: [
           TextButton.icon(
             icon: const Icon(Icons.auto_awesome, size: 18),
-            label: const Text('오늘의 문구'),
+            label: const Text('오늘의 추천 문구'),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) => const RecommendSettingsScreen(),

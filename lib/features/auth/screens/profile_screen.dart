@@ -418,7 +418,7 @@ class _RecommendNotificationsCard extends ConsumerWidget {
             data: (s) => SwitchListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 14),
               secondary: const Icon(Icons.format_quote),
-              title: const Text('오늘의 문구 알림'),
+              title: const Text('오늘의 추천 문구 알림'),
               subtitle: Text(
                 s.enabled
                     ? '${s.describe()} · 자세히 ▶'
