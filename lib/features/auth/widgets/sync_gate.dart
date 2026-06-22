@@ -9,6 +9,7 @@ import '../../diary/providers/diary_providers.dart';
 import '../../push/providers/notification_settings_providers.dart';
 import '../../push/services/web_push_scheduler.dart';
 import '../../recommend/providers/recommend_providers.dart';
+import '../../recommend/services/book_recommend_service.dart';
 import '../../recommend/services/quote_recommend_service.dart';
 import '../../push/services/web_push_service.dart';
 import '../../quotes/models/quote.dart';
@@ -60,6 +61,7 @@ class _SyncGateState extends ConsumerState<SyncGate> {
     ref.invalidate(notificationSettingsProvider);
     ref.invalidate(menuSettingsProvider);
     ref.invalidate(quoteRecommendSettingsProvider);
+    ref.invalidate(bookRecommendSettingsProvider);
     // 문구 순차 알림 + 개별 문구 + 할일 알림 + 추천 알림 재스케줄
     () async {
       try {
@@ -71,6 +73,7 @@ class _SyncGateState extends ConsumerState<SyncGate> {
         final cats = await ref.read(todoCategoriesProvider.future);
         await WebPushScheduler.scheduleAllCategories(cats, todos);
         await QuoteRecommendService.reschedule();
+        await BookRecommendService.reschedule();
       } catch (_) {}
     }();
   }

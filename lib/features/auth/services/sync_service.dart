@@ -18,6 +18,7 @@ const _settingKeys = <String>[
   'notification_settings_v1',
   'menu_settings_v1',
   'quote_recommend_settings_v1',
+  'book_recommend_settings_v1',
 ];
 
 class SyncStats {

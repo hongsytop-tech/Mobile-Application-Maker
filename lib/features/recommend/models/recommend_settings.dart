@@ -85,3 +85,44 @@ class RecommendSettings {
     return '${parts.join(' ')}마다';
   }
 }
+
+/// "오늘의 추천 책" 알림 설정 — 매일 1권이라 daily 만 지원 (계정 동기화).
+class BookRecommendSettings {
+  final bool enabled;
+  final int hour;
+  final int minute;
+
+  const BookRecommendSettings({
+    this.enabled = false,
+    this.hour = 8,
+    this.minute = 0,
+  });
+
+  BookRecommendSettings copyWith({bool? enabled, int? hour, int? minute}) =>
+      BookRecommendSettings(
+        enabled: enabled ?? this.enabled,
+        hour: hour ?? this.hour,
+        minute: minute ?? this.minute,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'enabled': enabled,
+        'hour': hour,
+        'minute': minute,
+      };
+
+  factory BookRecommendSettings.fromJson(Map<String, dynamic> j) =>
+      BookRecommendSettings(
+        enabled: j['enabled'] as bool? ?? false,
+        hour: j['hour'] as int? ?? 8,
+        minute: j['minute'] as int? ?? 0,
+      );
+
+  String toJsonString() => jsonEncode(toJson());
+  factory BookRecommendSettings.fromJsonString(String s) =>
+      BookRecommendSettings.fromJson(jsonDecode(s) as Map<String, dynamic>);
+
+  String describe() => enabled
+      ? '매일 ${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}'
+      : '꺼짐';
+}
