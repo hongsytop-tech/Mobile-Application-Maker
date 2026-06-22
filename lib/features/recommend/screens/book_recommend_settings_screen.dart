@@ -103,57 +103,31 @@ class _Body extends ConsumerWidget {
           ),
           child: Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                child: Row(
-                  children: [
-                    Icon(Icons.schedule,
-                        size: 16, color: Colors.grey.shade700),
-                    const SizedBox(width: 6),
-                    Text(
-                      '발송 시각 설정',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey.shade800,
-                      ),
-                    ),
-                  ],
-                ),
+              SwitchListTile(
+                title: const Text('추천 책 알림 받기'),
+                subtitle: const Text('매일 추천 책 한 권을 알려드려요'),
+                value: s.enabled,
+                onChanged: (v) => _save(ref, s.copyWith(enabled: v)),
               ),
-              ListTile(
-                leading: const Icon(Icons.access_time),
-                title: const Text('알림 시각'),
-                trailing: Text(
-                  '${s.hour.toString().padLeft(2, '0')}:${s.minute.toString().padLeft(2, '0')}',
-                  style: const TextStyle(fontSize: 16),
+              if (s.enabled) ...[
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.access_time),
+                  title: const Text('알림 시각'),
+                  trailing: Text(
+                    '${s.hour.toString().padLeft(2, '0')}:${s.minute.toString().padLeft(2, '0')}',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                  onTap: () async {
+                    final picked = await pickWheelTime(context,
+                        initialHour: s.hour, initialMinute: s.minute);
+                    if (picked != null) {
+                      await _save(ref,
+                          s.copyWith(hour: picked.hour, minute: picked.minute));
+                    }
+                  },
                 ),
-                onTap: () async {
-                  final picked = await pickWheelTime(context,
-                      initialHour: s.hour, initialMinute: s.minute);
-                  if (picked != null) {
-                    await _save(ref,
-                        s.copyWith(hour: picked.hour, minute: picked.minute));
-                  }
-                },
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline,
-                        size: 12, color: Colors.grey.shade500),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        '알림 켜고 끄기는 마이페이지 → 추천 알림 에서.',
-                        style: TextStyle(
-                            fontSize: 11, color: Colors.grey.shade600),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              ],
             ],
           ),
         ),

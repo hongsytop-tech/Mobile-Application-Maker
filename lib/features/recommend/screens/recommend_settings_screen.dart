@@ -68,82 +68,56 @@ class _Body extends ConsumerWidget {
           ),
           child: Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                child: Row(
-                  children: [
-                    Icon(Icons.schedule,
-                        size: 16, color: Colors.grey.shade700),
-                    const SizedBox(width: 6),
-                    Text(
-                      '발송 시각 설정',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey.shade800,
+              SwitchListTile(
+                title: const Text('추천 문구 알림 받기'),
+                subtitle: const Text('엄선된 동기부여 문구를 주기적으로 보내드려요'),
+                value: s.enabled,
+                onChanged: (v) => _save(ref, s.copyWith(enabled: v)),
+              ),
+              if (s.enabled) ...[
+                const Divider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                  child: SegmentedButton<RecommendMode>(
+                    segments: const [
+                      ButtonSegment(
+                        value: RecommendMode.daily,
+                        label: Text('매일 지정 시각'),
+                        icon: Icon(Icons.schedule),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-                child: SegmentedButton<RecommendMode>(
-                  segments: const [
-                    ButtonSegment(
-                      value: RecommendMode.daily,
-                      label: Text('매일 지정 시각'),
-                      icon: Icon(Icons.schedule),
-                    ),
-                    ButtonSegment(
-                      value: RecommendMode.interval,
-                      label: Text('반복 간격'),
-                      icon: Icon(Icons.repeat),
-                    ),
-                  ],
-                  selected: {s.mode},
-                  showSelectedIcon: false,
-                  onSelectionChanged: (set) =>
-                      _save(ref, s.copyWith(mode: set.first)),
-                ),
-              ),
-              if (s.mode == RecommendMode.daily)
-                ListTile(
-                  leading: const Icon(Icons.access_time),
-                  title: const Text('알림 시각'),
-                  trailing: Text(
-                    '${s.hour.toString().padLeft(2, '0')}:${s.minute.toString().padLeft(2, '0')}',
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                  onTap: () => _pickTime(context, ref),
-                )
-              else
-                ListTile(
-                  leading: const Icon(Icons.timelapse),
-                  title: const Text('반복 간격'),
-                  trailing: Text(
-                    '${s.intervalHours}시간 ${s.intervalMinutes}분',
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                  onTap: () => _pickInterval(context, ref),
-                ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline,
-                        size: 12, color: Colors.grey.shade500),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        '알림 켜고 끄기는 마이페이지 → 추천 알림 에서.',
-                        style: TextStyle(
-                            fontSize: 11, color: Colors.grey.shade600),
+                      ButtonSegment(
+                        value: RecommendMode.interval,
+                        label: Text('반복 간격'),
+                        icon: Icon(Icons.repeat),
                       ),
-                    ),
-                  ],
+                    ],
+                    selected: {s.mode},
+                    showSelectedIcon: false,
+                    onSelectionChanged: (set) =>
+                        _save(ref, s.copyWith(mode: set.first)),
+                  ),
                 ),
-              ),
+                if (s.mode == RecommendMode.daily)
+                  ListTile(
+                    leading: const Icon(Icons.access_time),
+                    title: const Text('알림 시각'),
+                    trailing: Text(
+                      '${s.hour.toString().padLeft(2, '0')}:${s.minute.toString().padLeft(2, '0')}',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                    onTap: () => _pickTime(context, ref),
+                  )
+                else
+                  ListTile(
+                    leading: const Icon(Icons.timelapse),
+                    title: const Text('반복 간격'),
+                    trailing: Text(
+                      '${s.intervalHours}시간 ${s.intervalMinutes}분',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                    onTap: () => _pickInterval(context, ref),
+                  ),
+              ],
             ],
           ),
         ),

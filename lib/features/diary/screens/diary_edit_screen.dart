@@ -26,7 +26,7 @@ class _DiaryEditScreenState extends ConsumerState<DiaryEditScreen> {
     super.initState();
     final existing =
         ref.read(diaryByDateProvider(Diary.normalize(widget.date)));
-    _mode = existing?.mode ?? DiaryMode.freeform;
+    _mode = existing?.mode ?? DiaryMode.sentences;
     _freeCtrl = TextEditingController(text: existing?.freeText ?? '');
     final initSentences = existing?.sentences ?? const <String>[];
     _sentenceCtrls = initSentences.isEmpty
