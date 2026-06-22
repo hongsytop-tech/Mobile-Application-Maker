@@ -53,7 +53,7 @@ final Map<String, AppTab> kAppTabs = {
   ),
   'quotes': AppTab(
     id: 'quotes',
-    label: '문구',
+    label: '동기부여',
     icon: Icons.format_quote_outlined,
     selectedIcon: Icons.format_quote,
     builder: (_) => const QuotesScreen(),
