@@ -57,7 +57,7 @@ class _DiaryCalendarScreenState extends ConsumerState<DiaryCalendarScreen> {
               CalendarFormat.twoWeeks: '2주',
               CalendarFormat.week: '주',
             },
-            startingDayOfWeek: StartingDayOfWeek.monday,
+            startingDayOfWeek: StartingDayOfWeek.sunday,
             onFormatChanged: (f) => setState(() => _format = f),
             onDaySelected: (selected, focused) {
               setState(() {

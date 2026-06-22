@@ -137,14 +137,14 @@ class _DiaryEditScreenState extends ConsumerState<DiaryEditScreen> {
           SegmentedButton<DiaryMode>(
             segments: const [
               ButtonSegment(
-                value: DiaryMode.freeform,
-                label: Text('서술형'),
-                icon: Icon(Icons.notes),
-              ),
-              ButtonSegment(
                 value: DiaryMode.sentences,
                 label: Text('문장별'),
                 icon: Icon(Icons.format_list_bulleted),
+              ),
+              ButtonSegment(
+                value: DiaryMode.freeform,
+                label: Text('서술형'),
+                icon: Icon(Icons.notes),
               ),
             ],
             selected: {_mode},
