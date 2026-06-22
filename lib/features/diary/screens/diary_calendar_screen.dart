@@ -158,15 +158,33 @@ class _DiaryPreview extends StatelessWidget {
                     fontSize: 13,
                   ),
                 )
-              else if (diary!.mode == DiaryMode.freeform)
-                Text(
-                  diary!.freeText,
-                  style: const TextStyle(fontSize: 14, height: 1.5),
-                )
-              else
+              else ...[
+                Row(
+                  children: [
+                    Icon(
+                      diary!.mode == DiaryMode.gratitude
+                          ? Icons.favorite
+                          : Icons.format_list_bulleted,
+                      size: 14,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      diary!.mode == DiaryMode.gratitude ? '감사 일기' : '일상',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: diary!.sentences
+                  children: (diary!.mode == DiaryMode.gratitude
+                          ? diary!.gratitudes
+                          : diary!.sentences)
                       .where((s) => s.trim().isNotEmpty)
                       .map((s) => Padding(
                             padding: const EdgeInsets.only(bottom: 4),
@@ -176,6 +194,7 @@ class _DiaryPreview extends StatelessWidget {
                           ))
                       .toList(),
                 ),
+              ],
             ],
           ),
         ),

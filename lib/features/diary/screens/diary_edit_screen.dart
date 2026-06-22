@@ -15,11 +15,11 @@ class DiaryEditScreen extends ConsumerStatefulWidget {
 
 class _DiaryEditScreenState extends ConsumerState<DiaryEditScreen> {
   late DiaryMode _mode;
-  late final TextEditingController _freeCtrl;
   late List<TextEditingController> _sentenceCtrls;
+  late List<TextEditingController> _gratitudeCtrls;
   bool _saving = false;
 
-  static const _newSentenceCount = 3;
+  static const _newItemCount = 3;
 
   @override
   void initState() {
@@ -27,33 +27,41 @@ class _DiaryEditScreenState extends ConsumerState<DiaryEditScreen> {
     final existing =
         ref.read(diaryByDateProvider(Diary.normalize(widget.date)));
     _mode = existing?.mode ?? DiaryMode.sentences;
-    _freeCtrl = TextEditingController(text: existing?.freeText ?? '');
-    final initSentences = existing?.sentences ?? const <String>[];
-    _sentenceCtrls = initSentences.isEmpty
-        ? List.generate(
-            _newSentenceCount, (_) => TextEditingController())
-        : initSentences
-            .map((s) => TextEditingController(text: s))
-            .toList();
+    // 옛 freeform 데이터는 모델 fromJson 에서 이미 sentences 로 옮겨졌으니
+    // 여기서는 sentences 만 보면 된다.
+    _sentenceCtrls = _initControllers(existing?.sentences ?? const []);
+    _gratitudeCtrls = _initControllers(existing?.gratitudes ?? const []);
+  }
+
+  List<TextEditingController> _initControllers(List<String> source) {
+    if (source.isEmpty) {
+      return List.generate(_newItemCount, (_) => TextEditingController());
+    }
+    return source.map((s) => TextEditingController(text: s)).toList();
   }
 
   @override
   void dispose() {
-    _freeCtrl.dispose();
     for (final c in _sentenceCtrls) {
+      c.dispose();
+    }
+    for (final c in _gratitudeCtrls) {
       c.dispose();
     }
     super.dispose();
   }
 
-  void _addSentence() {
-    setState(() => _sentenceCtrls.add(TextEditingController()));
+  List<TextEditingController> get _activeCtrls =>
+      _mode == DiaryMode.gratitude ? _gratitudeCtrls : _sentenceCtrls;
+
+  void _addItem() {
+    setState(() => _activeCtrls.add(TextEditingController()));
   }
 
-  void _removeSentence(int i) {
+  void _removeItem(int i) {
     setState(() {
-      _sentenceCtrls[i].dispose();
-      _sentenceCtrls.removeAt(i);
+      _activeCtrls[i].dispose();
+      _activeCtrls.removeAt(i);
     });
   }
 
@@ -62,16 +70,17 @@ class _DiaryEditScreenState extends ConsumerState<DiaryEditScreen> {
     try {
       final sentences =
           _sentenceCtrls.map((c) => c.text.trim()).toList();
+      final gratitudes =
+          _gratitudeCtrls.map((c) => c.text.trim()).toList();
       final diary = Diary(
         date: Diary.normalize(widget.date),
         mode: _mode,
-        freeText: _freeCtrl.text,
         sentences: sentences,
+        gratitudes: gratitudes,
         updatedAt: DateTime.now(),
       );
 
       if (diary.isEmpty) {
-        // 비어있으면 저장하지 않고 삭제 (있던 경우)
         await ref
             .read(diariesProvider.notifier)
             .removeByDate(diary.date);
@@ -114,6 +123,7 @@ class _DiaryEditScreenState extends ConsumerState<DiaryEditScreen> {
     final df = DateFormat('yyyy년 M월 d일 (E)', 'ko_KR');
     final hasExisting =
         ref.watch(diaryByDateProvider(Diary.normalize(widget.date))) != null;
+    final isGratitude = _mode == DiaryMode.gratitude;
 
     return Scaffold(
       appBar: AppBar(
@@ -138,13 +148,13 @@ class _DiaryEditScreenState extends ConsumerState<DiaryEditScreen> {
             segments: const [
               ButtonSegment(
                 value: DiaryMode.sentences,
-                label: Text('문장별'),
+                label: Text('일상'),
                 icon: Icon(Icons.format_list_bulleted),
               ),
               ButtonSegment(
-                value: DiaryMode.freeform,
-                label: Text('서술형'),
-                icon: Icon(Icons.notes),
+                value: DiaryMode.gratitude,
+                label: Text('감사 일기'),
+                icon: Icon(Icons.favorite_outline),
               ),
             ],
             selected: {_mode},
@@ -152,45 +162,30 @@ class _DiaryEditScreenState extends ConsumerState<DiaryEditScreen> {
             onSelectionChanged: (s) => setState(() => _mode = s.first),
           ),
           const SizedBox(height: 16),
-          if (_mode == DiaryMode.freeform)
-            TextField(
-              controller: _freeCtrl,
-              minLines: 16,
-              maxLines: null,
-              autofocus: true,
-              decoration: const InputDecoration(
-                hintText: '오늘 하루를 자유롭게 기록하세요...',
-                border: OutlineInputBorder(),
-                alignLabelWithHint: true,
-              ),
-              keyboardType: TextInputType.multiline,
-              textInputAction: TextInputAction.newline,
-              // 한글 IME 가 커서를 다음 줄로 밀어내는 안드로이드 문제 회피.
-              autocorrect: false,
-              enableSuggestions: false,
-              enableIMEPersonalizedLearning: false,
-              // CanvasKit 렌더러에서 선택 돋보기가 사라지지 않는 버그 회피.
-              magnifierConfiguration: TextMagnifierConfiguration.disabled,
-            )
-          else
-            _SentenceList(
-              controllers: _sentenceCtrls,
-              onAdd: _addSentence,
-              onRemove: _removeSentence,
-            ),
+          _ItemList(
+            controllers: _activeCtrls,
+            hint: isGratitude ? '감사한 일 ' : '문장 ',
+            addLabel: isGratitude ? '감사한 일 추가' : '문장 추가',
+            onAdd: _addItem,
+            onRemove: _removeItem,
+          ),
         ],
       ),
     );
   }
 }
 
-class _SentenceList extends StatelessWidget {
+class _ItemList extends StatelessWidget {
   final List<TextEditingController> controllers;
+  final String hint;
+  final String addLabel;
   final VoidCallback onAdd;
   final void Function(int) onRemove;
 
-  const _SentenceList({
+  const _ItemList({
     required this.controllers,
+    required this.hint,
+    required this.addLabel,
     required this.onAdd,
     required this.onRemove,
   });
@@ -225,7 +220,7 @@ class _SentenceList extends StatelessWidget {
                     maxLines: 4,
                     autofocus: i == 0 && controllers[i].text.isEmpty,
                     decoration: InputDecoration(
-                      hintText: '문장 ${i + 1}',
+                      hintText: '$hint${i + 1}',
                       border: const OutlineInputBorder(),
                       isDense: true,
                       contentPadding: const EdgeInsets.symmetric(
@@ -235,7 +230,7 @@ class _SentenceList extends StatelessWidget {
                 ),
                 IconButton(
                   icon: const Icon(Icons.close, size: 18),
-                  tooltip: '이 문장 제거',
+                  tooltip: '이 항목 제거',
                   onPressed:
                       controllers.length > 1 ? () => onRemove(i) : null,
                 ),
@@ -247,7 +242,7 @@ class _SentenceList extends StatelessWidget {
         OutlinedButton.icon(
           onPressed: onAdd,
           icon: const Icon(Icons.add),
-          label: const Text('문장 추가'),
+          label: Text(addLabel),
         ),
       ],
     );
