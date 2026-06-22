@@ -36,27 +36,25 @@ class _QuotesScreenState extends ConsumerState<QuotesScreen> {
       appBar: AppBar(
         title: const Text('기억하고 싶은 문구'),
         actions: [
-          IconButton(
-            tooltip: '오늘의 추천 문구',
-            icon: const Icon(Icons.auto_awesome),
+          TextButton.icon(
+            icon: const Icon(Icons.auto_awesome, size: 18),
+            label: const Text('오늘의 문구'),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) => const RecommendSettingsScreen(),
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            child: FilledButton.tonalIcon(
-              icon: const Icon(Icons.campaign, size: 18),
-              label: const Text('순차 알림'),
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const QuoteRotationSettingsScreen(),
-                ),
+          IconButton(
+            tooltip: '순차 알림',
+            icon: const Icon(Icons.campaign),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const QuoteRotationSettingsScreen(),
               ),
             ),
           ),
+          const SizedBox(width: 4),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(

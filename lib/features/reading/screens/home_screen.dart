@@ -49,17 +49,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       appBar: AppBar(
         title: const Text('내 책장'),
         actions: [
-          IconButton(
-            tooltip: '오늘의 추천 책',
-            icon: const Icon(Icons.auto_stories),
+          TextButton.icon(
+            icon: const Icon(Icons.auto_stories, size: 18),
+            label: const Text('오늘의 추천 도서'),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(
                   builder: (_) => const BookRecommendSettingsScreen()),
             ),
           ),
-          TextButton.icon(
+          IconButton(
+            tooltip: '독서 통계',
             icon: const Icon(Icons.bar_chart),
-            label: const Text('독서 통계'),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const StatsScreen()),
             ),
