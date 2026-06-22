@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/book.dart';
+import '../models/book_note.dart';
 import '../services/book_search_service.dart';
 import '../services/book_storage_service.dart';
 import '../services/book_toc_service.dart' show BookTocService, BookMetadata;
@@ -69,6 +70,46 @@ class BooksNotifier extends AsyncNotifier<List<Book>> {
     final list = state.value ?? const <Book>[];
     final book = list.firstWhere((b) => b.id == id);
     await updateBook(book.copyWith(notes: notes));
+  }
+
+  /// 노트 1건 추가. 반환: 생성된 노트.
+  Future<BookNote> addNoteEntry(
+    String bookId, {
+    String content = '',
+    String location = '',
+  }) async {
+    final list = state.value ?? const <Book>[];
+    final book = list.firstWhere((b) => b.id == bookId);
+    final now = DateTime.now();
+    final note = BookNote(
+      id: _uuid.v4(),
+      content: content,
+      location: location,
+      createdAt: now,
+      updatedAt: now,
+    );
+    await updateBook(book.copyWith(noteEntries: [...book.noteEntries, note]));
+    return note;
+  }
+
+  /// 노트 1건 갱신.
+  Future<void> updateNoteEntry(String bookId, BookNote updated) async {
+    final list = state.value ?? const <Book>[];
+    final book = list.firstWhere((b) => b.id == bookId);
+    final newList = [
+      for (final n in book.noteEntries)
+        if (n.id == updated.id) updated else n,
+    ];
+    await updateBook(book.copyWith(noteEntries: newList));
+  }
+
+  /// 노트 1건 삭제.
+  Future<void> removeNoteEntry(String bookId, String noteId) async {
+    final list = state.value ?? const <Book>[];
+    final book = list.firstWhere((b) => b.id == bookId);
+    final newList =
+        book.noteEntries.where((n) => n.id != noteId).toList();
+    await updateBook(book.copyWith(noteEntries: newList));
   }
 
   Future<void> applyMetadata(String id, BookMetadata m) async {

@@ -7,7 +7,7 @@ import '../models/book.dart';
 import '../providers/book_providers.dart';
 import '../services/book_toc_service.dart';
 import '../widgets/book_cover.dart';
-import 'book_note_screen.dart';
+import 'book_notes_list_screen.dart';
 
 class BookDetailScreen extends ConsumerStatefulWidget {
   final String bookId;
@@ -189,7 +189,7 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
             book: book,
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => BookNoteScreen(bookId: book.id),
+                builder: (_) => BookNotesListScreen(bookId: book.id),
               ),
             ),
           ),
@@ -457,14 +457,9 @@ class _NoteCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
-    final notes = book.notes.trim();
-    final preview = notes.isEmpty
-        ? null
-        : notes
-            .split('\n')
-            .where((s) => s.trim().isNotEmpty)
-            .take(3)
-            .join('\n');
+    final entries = [...book.noteEntries]
+      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    final preview = entries.take(2).toList();
     return Material(
       color: primary.withOpacity(0.04),
       borderRadius: BorderRadius.circular(12),
@@ -492,25 +487,94 @@ class _NoteCard extends StatelessWidget {
                       color: primary,
                     ),
                   ),
+                  if (entries.isNotEmpty) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: primary.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '${entries.length}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
                   const Spacer(),
                   Icon(Icons.chevron_right,
                       size: 18, color: Colors.grey.shade500),
                 ],
               ),
               const SizedBox(height: 8),
-              if (preview == null)
+              if (entries.isEmpty)
                 Text(
-                  '책을 읽으면서 떠오른 생각이나 인상 깊은 구절을 메모로 남겨보세요.',
+                  '책을 읽으면서 떠오른 생각이나 인상 깊은 구절을 위치와 함께 남겨보세요.',
                   style: TextStyle(
                       fontSize: 13, color: Colors.grey.shade600, height: 1.4),
                 )
               else
-                Text(
-                  preview,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      fontSize: 13, color: Colors.grey.shade800, height: 1.5),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final n in preview)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (n.location.trim().isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                    right: 6, top: 1),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: primary.withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    n.location,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: primary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            Expanded(
+                              child: Text(
+                                n.content.trim().isEmpty
+                                    ? '(내용 없음)'
+                                    : n.content,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey.shade800,
+                                  height: 1.5,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (entries.length > preview.length)
+                      Text(
+                        '…외 ${entries.length - preview.length}건',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey.shade500,
+                        ),
+                      ),
+                  ],
                 ),
             ],
           ),

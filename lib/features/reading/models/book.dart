@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'book_note.dart';
+
 enum BookStatus { wishlist, reading, finished }
 
 class TocItem {
@@ -30,8 +32,12 @@ class Book {
   final DateTime addedAt;
   final DateTime? finishedAt;
 
-  /// 독서 노트 (메모장처럼 자유 서술)
+  /// (구버전) 독서 노트 자유 서술 — 새 데이터는 [noteEntries] 사용.
+  /// fromJson 단계에서 비어있지 않은 notes 는 단일 BookNote 로 마이그레이션.
   final String notes;
+
+  /// 독서 노트 항목들 (위치 + 내용)
+  final List<BookNote> noteEntries;
 
   // 외부 메타데이터 (알라딘/교보문고/추후 쿠팡)
   final int? priceStandard;
@@ -53,6 +59,7 @@ class Book {
     required this.addedAt,
     this.finishedAt,
     this.notes = '',
+    this.noteEntries = const [],
     this.priceStandard,
     this.priceSales,
     this.aladinLink,
@@ -71,6 +78,7 @@ class Book {
     BookStatus? status,
     DateTime? finishedAt,
     String? notes,
+    List<BookNote>? noteEntries,
     int? priceStandard,
     int? priceSales,
     String? aladinLink,
@@ -90,6 +98,7 @@ class Book {
       addedAt: addedAt,
       finishedAt: finishedAt ?? this.finishedAt,
       notes: notes ?? this.notes,
+      noteEntries: noteEntries ?? this.noteEntries,
       priceStandard: priceStandard ?? this.priceStandard,
       priceSales: priceSales ?? this.priceSales,
       aladinLink: aladinLink ?? this.aladinLink,
@@ -111,6 +120,7 @@ class Book {
         'addedAt': addedAt.toIso8601String(),
         'finishedAt': finishedAt?.toIso8601String(),
         'notes': notes,
+        'noteEntries': noteEntries.map((e) => e.toJson()).toList(),
         'priceStandard': priceStandard,
         'priceSales': priceSales,
         'aladinLink': aladinLink,
@@ -135,6 +145,7 @@ class Book {
             ? null
             : DateTime.parse(j['finishedAt'] as String),
         notes: j['notes'] as String? ?? '',
+        noteEntries: _readNoteEntries(j),
         priceStandard: j['priceStandard'] as int?,
         priceSales: j['priceSales'] as int?,
         aladinLink: j['aladinLink'] as String?,
@@ -145,4 +156,27 @@ class Book {
   String toJsonString() => jsonEncode(toJson());
   factory Book.fromJsonString(String s) =>
       Book.fromJson(jsonDecode(s) as Map<String, dynamic>);
+}
+
+/// noteEntries 가 있으면 그대로, 없고 옛 notes 가 채워져 있으면 단일 항목으로 마이그레이션.
+List<BookNote> _readNoteEntries(Map<String, dynamic> j) {
+  final raw = j['noteEntries'];
+  if (raw is List) {
+    return raw
+        .whereType<Map>()
+        .map((e) => BookNote.fromJson(e.cast<String, dynamic>()))
+        .toList();
+  }
+  final legacyNotes = (j['notes'] as String? ?? '').trim();
+  if (legacyNotes.isEmpty) return const [];
+  final ts = DateTime.tryParse(j['addedAt'] as String? ?? '') ?? DateTime.now();
+  return [
+    BookNote(
+      id: 'legacy-${j['id']}',
+      content: legacyNotes,
+      location: '',
+      createdAt: ts,
+      updatedAt: ts,
+    ),
+  ];
 }
