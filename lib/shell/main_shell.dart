@@ -1,30 +1,44 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../features/auth/screens/profile_screen.dart';
-import '../features/diary/screens/diary_calendar_screen.dart';
 import '../features/kakao/services/kakao_link_service.dart';
 import '../features/memo/providers/memo_providers.dart';
 import '../features/memo/screens/memo_edit_screen.dart';
-import '../features/memo/screens/memo_list_screen.dart';
 import '../features/memo/services/memo_url_helper.dart'
     if (dart.library.html) '../features/memo/services/memo_url_helper_web.dart';
-import '../features/quotes/screens/quotes_screen.dart';
-import '../features/reading/screens/home_screen.dart';
-import '../features/todo/screens/todo_home_screen.dart';
 import '../features/update/widgets/update_banner.dart';
 import '../features/update/widgets/web_update_banner.dart';
+import 'app_tabs.dart';
+import 'menu_settings.dart';
+import 'menu_settings_provider.dart';
 
-class MainShell extends ConsumerStatefulWidget {
+class MainShell extends ConsumerWidget {
   const MainShell({super.key});
 
   @override
-  ConsumerState<MainShell> createState() => _MainShellState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final asyncMenu = ref.watch(menuSettingsProvider);
+    final menu = asyncMenu.value ?? const MenuSettings();
+    // 설정 로딩 전이라도 기본 순서로 즉시 렌더 (깜빡임 방지)
+    var visibleIds = menu.visibleOrder;
+    // 안전장치: NavigationBar 는 최소 2개를 요구 → 손상된 설정이면 전체 표시
+    if (visibleIds.length < 2) visibleIds = menu.normalizedOrder;
+    final tabs = [for (final id in visibleIds) kAppTabs[id]!];
+    return _ShellScaffold(tabs: tabs);
+  }
 }
 
-class _MainShellState extends ConsumerState<MainShell> {
-  int _index = 0; // To do 가 첫 화면 (첫 번째 탭)
-  late final PageController _pageCtrl = PageController(initialPage: _index);
+class _ShellScaffold extends ConsumerStatefulWidget {
+  final List<AppTab> tabs;
+  const _ShellScaffold({required this.tabs});
+
+  @override
+  ConsumerState<_ShellScaffold> createState() => _ShellScaffoldState();
+}
+
+class _ShellScaffoldState extends ConsumerState<_ShellScaffold> {
+  int _index = 0;
+  late PageController _pageCtrl = PageController(initialPage: _index);
 
   @override
   void initState() {
@@ -33,6 +47,20 @@ class _MainShellState extends ConsumerState<MainShell> {
       _handleKakaoCallback();
       _handleMemoDeepLink();
     });
+  }
+
+  @override
+  void didUpdateWidget(_ShellScaffold old) {
+    super.didUpdateWidget(old);
+    // 탭 구성이 바뀌면 현재 인덱스를 범위 내로 보정
+    if (widget.tabs.length != old.tabs.length) {
+      if (_index >= widget.tabs.length) {
+        _index = widget.tabs.length - 1;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _pageCtrl.hasClients) _pageCtrl.jumpToPage(_index);
+        });
+      }
+    }
   }
 
   @override
@@ -45,7 +73,6 @@ class _MainShellState extends ConsumerState<MainShell> {
     if (i == _index) return;
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     setState(() => _index = i);
-    // 빠르고 부드럽게 전환
     _pageCtrl.animateToPage(
       i,
       duration: const Duration(milliseconds: 220),
@@ -72,16 +99,16 @@ class _MainShellState extends ConsumerState<MainShell> {
   Future<void> _handleMemoDeepLink() async {
     final memoId = readMemoIdFromUrl();
     if (memoId == null) return;
-
-    // 새로고침 시 같은 메모가 재진입되지 않도록 쿼리 파라미터 제거
     clearMemoQueryParam();
 
-    // 메모 탭으로 전환
-    const memoTabIndex = 4;
-    setState(() => _index = memoTabIndex);
-    _pageCtrl.jumpToPage(memoTabIndex);
+    // 메모 탭이 보이면 그 탭으로 전환
+    final memoTabIndex = widget.tabs.indexWhere((t) => t.id == 'memo');
+    if (memoTabIndex >= 0) {
+      setState(() => _index = memoTabIndex);
+      if (_pageCtrl.hasClients) _pageCtrl.jumpToPage(memoTabIndex);
+    }
 
-    // 메모 데이터 로드를 대기 (최대 5초)
+    // 메모 데이터 로드를 대기 (최대 5초) 후 편집 화면을 push
     final start = DateTime.now();
     while (mounted) {
       final asyncMemos = ref.read(memosProvider);
@@ -102,6 +129,8 @@ class _MainShellState extends ConsumerState<MainShell> {
 
   @override
   Widget build(BuildContext context) {
+    final tabs = widget.tabs;
+    final safeIndex = _index.clamp(0, tabs.length - 1);
     return Scaffold(
       body: SafeArea(
         bottom: false,
@@ -116,53 +145,22 @@ class _MainShellState extends ConsumerState<MainShell> {
                   ScaffoldMessenger.of(context).hideCurrentSnackBar();
                   setState(() => _index = i);
                 },
-                children: const [
-                  TodoHomeScreen(),
-                  HomeScreen(),
-                  DiaryCalendarScreen(),
-                  QuotesScreen(),
-                  MemoListScreen(),
-                  ProfileScreen(),
-                ],
+                children: [for (final t in tabs) t.builder(context)],
               ),
             ),
           ],
         ),
       ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
+        selectedIndex: safeIndex,
         onDestinationSelected: _goToTab,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.checklist_outlined),
-            selectedIcon: Icon(Icons.checklist),
-            label: 'To do',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.menu_book_outlined),
-            selectedIcon: Icon(Icons.menu_book),
-            label: '독서',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.calendar_month_outlined),
-            selectedIcon: Icon(Icons.calendar_month),
-            label: '일기',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.format_quote_outlined),
-            selectedIcon: Icon(Icons.format_quote),
-            label: '문구',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.sticky_note_2_outlined),
-            selectedIcon: Icon(Icons.sticky_note_2),
-            label: '메모',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: '마이',
-          ),
+        destinations: [
+          for (final t in tabs)
+            NavigationDestination(
+              icon: Icon(t.icon),
+              selectedIcon: Icon(t.selectedIcon),
+              label: t.label,
+            ),
         ],
       ),
     );

@@ -16,6 +16,7 @@ const _listKeyMap = <String, String>{
 const _settingKeys = <String>[
   'quote_rotation_settings_v1',
   'notification_settings_v1',
+  'menu_settings_v1',
 ];
 
 class SyncStats {

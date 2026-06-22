@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../shell/menu_settings_provider.dart';
 import '../../diary/providers/diary_providers.dart';
 import '../../push/providers/notification_settings_providers.dart';
 import '../../push/services/web_push_scheduler.dart';
@@ -53,8 +54,9 @@ class _SyncGateState extends ConsumerState<SyncGate> {
     ref.invalidate(diariesProvider);
     ref.invalidate(todoCategoriesProvider);
     ref.invalidate(todoItemsProvider);
-    // 알림 옵션도 다른 기기의 변경분을 즉시 반영
+    // 알림 옵션 + 메뉴 설정도 다른 기기의 변경분을 즉시 반영
     ref.invalidate(notificationSettingsProvider);
+    ref.invalidate(menuSettingsProvider);
     // 문구 순차 알림 + 개별 문구 + 할일 알림 재스케줄
     () async {
       try {

@@ -13,6 +13,8 @@ import '../../reading/providers/book_providers.dart';
 import '../../todo/providers/todo_providers.dart';
 import '../../update/services/web_update_detector_stub.dart'
     if (dart.library.html) '../../update/services/web_update_detector_web.dart';
+import '../../../shell/menu_settings_provider.dart';
+import '../../../shell/menu_settings_screen.dart';
 import '../providers/auth_providers.dart';
 import '../services/supabase_service.dart';
 import '../services/sync_manager.dart';
@@ -82,6 +84,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ref.invalidate(todoCategoriesProvider);
       ref.invalidate(todoItemsProvider);
       ref.invalidate(notificationSettingsProvider);
+      ref.invalidate(menuSettingsProvider);
       // 순차 알림 설정 화면 등 pullCompleted 구독자에게 갱신 신호
       SyncManager.instance.notifyPullCompleted();
       setState(() => _statusMsg =
@@ -197,11 +200,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               const WebPushCard(),
               const SizedBox(height: 12),
               const _NotificationOptionsCard(),
+              const SizedBox(height: 12),
+              _MenuEditCard(),
               if (kIsWeb) ...[
                 const SizedBox(height: 12),
                 const _UpdateCheckCard(),
-                const SizedBox(height: 12),
-                const _PushDebugCard(),
               ],
               const SizedBox(height: 24),
               Text('수동 백업 / 복원',
@@ -367,6 +370,52 @@ class _AutoSyncCard extends StatelessWidget {
   }
 }
 
+/// 하단 메뉴(탭) 표시·순서 편집 진입 카드.
+class _MenuEditCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+    return Material(
+      color: Colors.grey.shade50,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const MenuSettingsScreen()),
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.dashboard_customize_outlined,
+                  size: 20, color: primary),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('메뉴 편집',
+                        style: TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.bold)),
+                    SizedBox(height: 2),
+                    Text('하단 탭 표시 여부와 순서를 바꿉니다',
+                        style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: Colors.grey.shade400),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// 알림 옵션 카드 — 방해금지 시간 / 진동.
 class _NotificationOptionsCard extends ConsumerWidget {
   const _NotificationOptionsCard();
@@ -497,139 +546,6 @@ class _NotificationOptionsCard extends ConsumerWidget {
           ),
         );
       },
-    );
-  }
-}
-
-/// 푸시 진단용 디버그 카드 — 즉시 푸시 / 스케줄러 흐름 테스트.
-class _PushDebugCard extends StatefulWidget {
-  const _PushDebugCard();
-
-  @override
-  State<_PushDebugCard> createState() => _PushDebugCardState();
-}
-
-class _PushDebugCardState extends State<_PushDebugCard> {
-  bool _busy = false;
-  String? _result;
-
-  Future<void> _sendTest() async {
-    setState(() {
-      _busy = true;
-      _result = null;
-    });
-    try {
-      final r = await WebPushService.sendTest();
-      if (!mounted) return;
-      final debug = r['debug'];
-      final debugStr = debug == null ? '' : '\n[debug] $debug';
-      setState(() {
-        if (r['skipped'] == 'quiet_hours') {
-          _result =
-              '⏸ 방해금지 시간이라 발송 안 함. (방해금지 OFF 하고 다시 시도)$debugStr';
-        } else {
-          _result =
-              '✅ send_test: sent=${r['sent']}, failed=${r['failed']}, cleaned=${r['cleaned']}$debugStr';
-        }
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _result = '❌ send_test 실패: $e');
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  Future<void> _testScheduler() async {
-    setState(() {
-      _busy = true;
-      _result = null;
-    });
-    try {
-      final r = await WebPushService.testScheduler();
-      if (!mounted) return;
-      setState(() => _result =
-          '✅ test_scheduled: processed=${r['processed']}, failed=${r['failed']}, total=${r['total']}');
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _result = '❌ test_scheduled 실패: $e');
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.amber.shade50,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.amber.shade300),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.bug_report, size: 18, color: Colors.amber.shade800),
-              const SizedBox(width: 6),
-              Text(
-                '푸시 디버그',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.amber.shade900,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '알림이 안 올 때 발송 흐름을 직접 트리거해 결과를 확인합니다.',
-            style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _busy ? null : _sendTest,
-                  icon: const Icon(Icons.send, size: 16),
-                  label: const Text('즉시 푸시'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _busy ? null : _testScheduler,
-                  icon: const Icon(Icons.schedule_send, size: 16),
-                  label: const Text('스케줄러 테스트'),
-                ),
-              ),
-            ],
-          ),
-          if (_busy) ...[
-            const SizedBox(height: 10),
-            const LinearProgressIndicator(minHeight: 3),
-          ],
-          if (_result != null) ...[
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-              child: SelectableText(
-                _result!,
-                style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
-              ),
-            ),
-          ],
-        ],
-      ),
     );
   }
 }
