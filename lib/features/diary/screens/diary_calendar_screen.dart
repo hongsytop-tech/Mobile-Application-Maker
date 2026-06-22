@@ -41,10 +41,7 @@ class _DiaryCalendarScreenState extends ConsumerState<DiaryCalendarScreen> {
         icon: Icon(selectedDiary == null ? Icons.edit : Icons.edit_note),
         label: Text(selectedDiary == null ? '일기 쓰기' : '일기 수정'),
       ),
-      body: RefreshIndicator(
-        onRefresh: () => SyncManager.instance.pullOnLogin(),
-        child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
+      body: Column(
         children: [
           TableCalendar(
             firstDay: DateTime.utc(2020, 1, 1),
@@ -96,8 +93,7 @@ class _DiaryCalendarScreenState extends ConsumerState<DiaryCalendarScreen> {
             ),
           ),
           const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+          Expanded(
             child: _DiaryPreview(
               date: _selectedDay,
               diary: selectedDiary,
@@ -105,12 +101,13 @@ class _DiaryCalendarScreenState extends ConsumerState<DiaryCalendarScreen> {
             ),
           ),
         ],
-        ),
       ),
     );
   }
 }
 
+/// 선택된 날짜의 일기 미리보기.
+/// 일상과 감사 일기 두 섹션을 각각 독립적으로 스크롤할 수 있게 분할 표시.
 class _DiaryPreview extends StatelessWidget {
   final DateTime date;
   final Diary? diary;
@@ -122,82 +119,160 @@ class _DiaryPreview extends StatelessWidget {
     required this.onTap,
   });
 
+  List<String> _filter(List<String>? src) =>
+      (src ?? const []).where((s) => s.trim().isNotEmpty).toList();
+
   @override
   Widget build(BuildContext context) {
     final df = DateFormat('yyyy년 M월 d일 (E)', 'ko_KR');
+    final primary = Theme.of(context).colorScheme.primary;
+    final sentences = _filter(diary?.sentences);
+    final gratitudes = _filter(diary?.gratitudes);
+    final bothEmpty = sentences.isEmpty && gratitudes.isEmpty;
 
-    return Material(
-      color: Colors.grey.shade50,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.shade300),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                df.format(date),
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // 상단 날짜 헤더 (탭하면 편집)
+          Material(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(10),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: onTap,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.grey.shade300),
                 ),
-              ),
-              const SizedBox(height: 8),
-              if (diary == null || diary!.isEmpty)
-                Text(
-                  '아직 작성된 일기가 없어요.\n탭해서 작성해 보세요.',
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 13,
-                  ),
-                )
-              else ...[
-                Row(
+                child: Row(
                   children: [
-                    Icon(
-                      diary!.mode == DiaryMode.gratitude
-                          ? Icons.favorite
-                          : Icons.format_list_bulleted,
-                      size: 14,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      diary!.mode == DiaryMode.gratitude ? '감사 일기' : '일상',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: Theme.of(context).colorScheme.primary,
+                    Expanded(
+                      child: Text(
+                        df.format(date),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 14),
                       ),
                     ),
+                    Icon(Icons.chevron_right,
+                        size: 18, color: Colors.grey.shade500),
                   ],
                 ),
-                const SizedBox(height: 6),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: (diary!.mode == DiaryMode.gratitude
-                          ? diary!.gratitudes
-                          : diary!.sentences)
-                      .where((s) => s.trim().isNotEmpty)
-                      .map((s) => Padding(
-                            padding: const EdgeInsets.only(bottom: 4),
-                            child: Text('• $s',
-                                style: const TextStyle(
-                                    fontSize: 14, height: 1.5)),
-                          ))
-                      .toList(),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (bothEmpty)
+            Expanded(
+              child: Center(
+                child: Text(
+                  '아직 작성된 일기가 없어요.\n탭해서 작성해 보세요.',
+                  textAlign: TextAlign.center,
+                  style:
+                      TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                ),
+              ),
+            )
+          else ...[
+            // 두 섹션이 모두 있으면 50:50 으로 나눠 각각 독립 스크롤.
+            // 한 쪽만 있으면 그 섹션이 전체 공간을 차지.
+            if (sentences.isNotEmpty)
+              Expanded(
+                child: _Section(
+                  title: '일상',
+                  icon: Icons.format_list_bulleted,
+                  color: primary,
+                  items: sentences,
+                ),
+              ),
+            if (sentences.isNotEmpty && gratitudes.isNotEmpty)
+              const SizedBox(height: 12),
+            if (gratitudes.isNotEmpty)
+              Expanded(
+                child: _Section(
+                  title: '감사 일기',
+                  icon: Icons.favorite,
+                  color: Colors.pink.shade400,
+                  items: gratitudes,
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _Section extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final Color color;
+  final List<String> items;
+
+  const _Section({
+    required this.title,
+    required this.icon,
+    required this.color,
+    required this.items,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.04),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 6),
+            child: Row(
+              children: [
+                Icon(icon, size: 14, color: color),
+                const SizedBox(width: 6),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: color,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  '${items.length}',
+                  style: TextStyle(
+                      fontSize: 11, color: Colors.grey.shade500),
                 ),
               ],
-            ],
+            ),
           ),
-        ),
+          // 각 섹션 독립 스크롤 — RefreshIndicator 로 당겨서 새로고침도 가능.
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () => SyncManager.instance.pullOnLogin(),
+              child: ListView.builder(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+                itemCount: items.length,
+                itemBuilder: (context, i) => Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text(
+                    '• ${items[i]}',
+                    style: const TextStyle(fontSize: 14, height: 1.5),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
