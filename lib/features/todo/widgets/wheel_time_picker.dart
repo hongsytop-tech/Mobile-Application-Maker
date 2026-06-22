@@ -80,11 +80,16 @@ class _WheelTimePickerState extends State<_WheelTimePicker> {
   void initState() {
     super.initState();
     // 포커스 진입 시 전체 선택 → 한자리 새 입력으로 바로 덮어쓰기 가능
+    // 포커스 빠질 때는 텍스트의 현재 값을 먼저 _hour 에 반영(commit)한 뒤
+    // 두자리 표시로 정규화. 이렇게 해야 "확인" 누르기 직전 unfocus 가 일어나도
+    // 사용자가 친 값이 살아남는다.
     _hourFocus.addListener(() {
       if (_hourFocus.hasFocus) {
         _hourText.selection = TextSelection(
             baseOffset: 0, extentOffset: _hourText.text.length);
       } else {
+        final v = int.tryParse(_hourText.text.trim());
+        if (v != null) _hour = v.clamp(0, 23);
         _hourText.text = _two(_hour);
       }
     });
@@ -93,6 +98,8 @@ class _WheelTimePickerState extends State<_WheelTimePicker> {
         _minuteText.selection = TextSelection(
             baseOffset: 0, extentOffset: _minuteText.text.length);
       } else {
+        final v = int.tryParse(_minuteText.text.trim());
+        if (v != null) _minute = v.clamp(0, 59);
         _minuteText.text = _two(_minute);
       }
     });
@@ -137,26 +144,37 @@ class _WheelTimePickerState extends State<_WheelTimePicker> {
     }
   }
 
+  /// 입력 텍스트 + _hour/_minute 를 모두 고려해 최종 값을 산출하고 pop.
+  /// 텍스트를 _먼저_ 캡처해서, focus 이벤트 listener 가 텍스트를 리셋해도 영향 없게.
+  void _confirm() {
+    final hourStr = _hourText.text.trim();
+    final minuteStr = _minuteText.text.trim();
+    final h = (int.tryParse(hourStr) ?? _hour).clamp(0, 23);
+    final m = (int.tryParse(minuteStr) ?? _minute).clamp(0, 59);
+    Navigator.pop(context, (hour: h, minute: m));
+  }
+
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
     return SafeArea(
-      child: GestureDetector(
-        // 시트 안의 빈 공간 탭 → 키보드만 닫기 (시트는 안 닫힘)
-        onTap: () => FocusScope.of(context).unfocus(),
-        behavior: HitTestBehavior.opaque,
-        child: Padding(
+      child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 36,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 16),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
+            // 상단 핸들 — 탭하면 키보드만 닫기 (시트는 isDismissible:false 라 안 닫힘)
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => FocusScope.of(context).unfocus(),
+              child: Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             ),
             Text(widget.title,
@@ -236,14 +254,7 @@ class _WheelTimePickerState extends State<_WheelTimePicker> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: FilledButton(
-                    onPressed: () {
-                      // 확인 시 입력칸 텍스트를 다시 파싱 (한자리 입력도 확실히 반영)
-                      final h = int.tryParse(_hourText.text.trim());
-                      final m = int.tryParse(_minuteText.text.trim());
-                      final hour = (h ?? _hour).clamp(0, 23);
-                      final minute = (m ?? _minute).clamp(0, 59);
-                      Navigator.pop(context, (hour: hour, minute: minute));
-                    },
+                    onPressed: _confirm,
                     child: const Text('확인'),
                   ),
                 ),
@@ -251,7 +262,6 @@ class _WheelTimePickerState extends State<_WheelTimePicker> {
             ),
           ],
         ),
-      ),
       ),
     );
   }
@@ -302,6 +312,9 @@ class _WheelTimePickerState extends State<_WheelTimePicker> {
         keyboardType: TextInputType.number,
         textAlign: TextAlign.center,
         maxLength: 2,
+        // 키보드의 "완료" 키로 바로 확정 가능
+        textInputAction: TextInputAction.done,
+        onSubmitted: (_) => _confirm(),
         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
         decoration: const InputDecoration(
           counterText: '',
