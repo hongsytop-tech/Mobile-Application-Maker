@@ -118,6 +118,7 @@ class _TodoHomeScreenState extends ConsumerState<TodoHomeScreen> {
           );
         },
       ),
+      ),
     );
   }
 }
@@ -412,7 +413,6 @@ class _CategorySectionState extends ConsumerState<_CategorySection> {
           },
         );
       },
-      ),
       ),
     );
   }
