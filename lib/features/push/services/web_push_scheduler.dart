@@ -14,23 +14,33 @@ class WebPushScheduler {
 
   static Future<void> scheduleQuote(Quote q) async {
     if (!kIsWeb) return;
-    if (!q.hasSchedule) return;
     if (!SupabaseService.isAuthenticated) return;
-
-    // 이 문구의 기존 행 정리 후 반복 규칙 1행으로 재등록
-    await cancelQuote(q.id);
+    // 알림 끈 문구는 기존 행을 정리하고 종료.
+    if (!q.hasSchedule) {
+      await cancelQuote(q.id);
+      return;
+    }
 
     final first = _firstOccurrenceForQuote(q);
-    if (first == null) return;
+    if (first == null) {
+      await cancelQuote(q.id);
+      return;
+    }
 
     final recur = <String, dynamic>{};
     if (q.notifyMode == NotifyMode.interval) {
       final mins = q.intervalMinutesTotal;
-      if (mins == null) return;
+      if (mins == null) {
+        await cancelQuote(q.id);
+        return;
+      }
       recur['mode'] = 'interval';
       recur['intervalMinutes'] = mins;
     } else {
-      if (q.notifyHour == null || q.notifyMinute == null) return;
+      if (q.notifyHour == null || q.notifyMinute == null) {
+        await cancelQuote(q.id);
+        return;
+      }
       recur['mode'] = 'daily';
       recur['hour'] = q.notifyHour;
       recur['minute'] = q.notifyMinute;
@@ -118,16 +128,19 @@ class WebPushScheduler {
     if (!kIsWeb) return;
     if (!SupabaseService.isAuthenticated) return;
 
-    // 항상 기존 행 정리 후 조건 충족 시 재등록
-    await cancelTodo(item.id);
-
-    if (!item.notifyEnabled) return;
-    if (item.repeat == TodoRepeat.longterm) return;
-    // 즉시·장기목표는 완료되면 더 이상 알림 불필요
-    if (item.repeat == TodoRepeat.once && item.isCompletedNow) return;
+    // 알림 비활성/장기목표/완료된 once → 기존 행 정리하고 종료
+    if (!item.notifyEnabled ||
+        item.repeat == TodoRepeat.longterm ||
+        (item.repeat == TodoRepeat.once && item.isCompletedNow)) {
+      await cancelTodo(item.id);
+      return;
+    }
 
     final first = item.nextDeadline; // 모델의 다음 발송 시각 계산 재사용
-    if (first == null) return;
+    if (first == null) {
+      await cancelTodo(item.id);
+      return;
+    }
 
     final recur = <String, dynamic>{};
     switch (item.repeat) {
@@ -140,20 +153,27 @@ class WebPushScheduler {
         recur['minute'] = item.notifyMinute;
         break;
       case TodoRepeat.weekly:
-        if (item.weekDays.isEmpty) return;
+        if (item.weekDays.isEmpty) {
+          await cancelTodo(item.id);
+          return;
+        }
         recur['mode'] = 'weekly';
         recur['hour'] = item.notifyHour;
         recur['minute'] = item.notifyMinute;
         recur['weekdays'] = item.weekDays.toList()..sort();
         break;
       case TodoRepeat.monthly:
-        if (item.monthDay == null) return;
+        if (item.monthDay == null) {
+          await cancelTodo(item.id);
+          return;
+        }
         recur['mode'] = 'monthly';
         recur['hour'] = item.notifyHour;
         recur['minute'] = item.notifyMinute;
         recur['monthDay'] = item.monthDay;
         break;
       case TodoRepeat.longterm:
+        await cancelTodo(item.id);
         return;
     }
 
@@ -206,9 +226,10 @@ class WebPushScheduler {
       TodoCategory cat, List<TodoItem> itemsOfCat) async {
     if (!kIsWeb) return;
     if (!SupabaseService.isAuthenticated) return;
-
-    await cancelCategory(cat.id);
-    if (!cat.notifyEnabled) return;
+    if (!cat.notifyEnabled) {
+      await cancelCategory(cat.id);
+      return;
+    }
 
     final pending =
         itemsOfCat.where((i) => !i.isCompletedNow).map((i) => i.text).toList();
@@ -222,7 +243,10 @@ class WebPushScheduler {
     Map<String, dynamic> recur;
     if (cat.notifyMode == 'interval') {
       final mins = cat.notifyIntervalTotalMinutes;
-      if (mins < 1) return; // 잘못된 간격
+      if (mins < 1) {
+        await cancelCategory(cat.id);
+        return;
+      }
       first = now.add(Duration(minutes: mins));
       recur = {
         'mode': 'interval',
