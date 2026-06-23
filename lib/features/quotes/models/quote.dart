@@ -8,6 +8,7 @@ class Quote {
   final String id;
   final String text;
   final DateTime createdAt;
+  final DateTime updatedAt;
   final bool notifyEnabled;
 
   /// 알림 모드 (기본: daily)
@@ -31,6 +32,7 @@ class Quote {
     required this.id,
     required this.text,
     required this.createdAt,
+    required this.updatedAt,
     this.notifyEnabled = false,
     this.notifyMode = NotifyMode.daily,
     this.notifyHour,
@@ -90,6 +92,7 @@ class Quote {
 
   Quote copyWith({
     String? text,
+    DateTime? updatedAt,
     bool? notifyEnabled,
     NotifyMode? notifyMode,
     int? notifyHour,
@@ -106,6 +109,7 @@ class Quote {
       id: id,
       text: text ?? this.text,
       createdAt: createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
       notifyEnabled: notifyEnabled ?? this.notifyEnabled,
       notifyMode: notifyMode ?? this.notifyMode,
       notifyHour: clearDailyTime ? null : (notifyHour ?? this.notifyHour),
@@ -124,6 +128,7 @@ class Quote {
         'id': id,
         'text': text,
         'createdAt': createdAt.toIso8601String(),
+        'updatedAt': updatedAt.toIso8601String(),
         'notifyEnabled': notifyEnabled,
         'notifyMode': notifyMode.name,
         'notifyHour': notifyHour,
@@ -138,6 +143,8 @@ class Quote {
         id: j['id'] as String,
         text: j['text'] as String,
         createdAt: DateTime.parse(j['createdAt'] as String),
+        updatedAt: DateTime.parse(
+            j['updatedAt'] as String? ?? j['createdAt'] as String),
         notifyEnabled: j['notifyEnabled'] as bool? ?? false,
         notifyMode: NotifyMode.values.firstWhere(
           (m) => m.name == (j['notifyMode'] as String? ?? 'daily'),

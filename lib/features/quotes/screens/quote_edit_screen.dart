@@ -91,10 +91,12 @@ class _QuoteEditScreenState extends ConsumerState<QuoteEditScreen> {
       final notifier = ref.read(quotesProvider.notifier);
       final isDaily = _mode == NotifyMode.daily;
 
+      final now = DateTime.now();
       final draft = Quote(
         id: widget.quote?.id ?? 'draft',
         text: text,
-        createdAt: widget.quote?.createdAt ?? DateTime.now(),
+        createdAt: widget.quote?.createdAt ?? now,
+        updatedAt: now,
         notifyEnabled: _notifyEnabled,
         notifyMode: _mode,
         notifyHour: _notifyEnabled && isDaily ? _time!.hour : null,
@@ -109,6 +111,7 @@ class _QuoteEditScreenState extends ConsumerState<QuoteEditScreen> {
         await notifier.save(
           widget.quote!.copyWith(
             text: text,
+            updatedAt: now,
             notifyEnabled: _notifyEnabled,
             notifyMode: _mode,
             notifyHour: draft.notifyHour,

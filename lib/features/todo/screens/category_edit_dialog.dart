@@ -65,6 +65,7 @@ class _CategoryEditDialogState extends ConsumerState<_CategoryEditDialog> {
       await NotificationService.requestPermission();
     }
     final notifier = ref.read(todoCategoriesProvider.notifier);
+    final now = DateTime.now();
     if (_isNew) {
       final c = await notifier.add(name, _colorIndex);
       await notifier.save(c.copyWith(
@@ -74,6 +75,7 @@ class _CategoryEditDialogState extends ConsumerState<_CategoryEditDialog> {
         notifyMinute: _notifyMinute,
         notifyIntervalHours: _intervalHours,
         notifyIntervalMinutes: _intervalMinutes,
+        updatedAt: now,
       ));
     } else {
       await notifier.save(widget.category!.copyWith(
@@ -85,6 +87,7 @@ class _CategoryEditDialogState extends ConsumerState<_CategoryEditDialog> {
         notifyMinute: _notifyMinute,
         notifyIntervalHours: _intervalHours,
         notifyIntervalMinutes: _intervalMinutes,
+        updatedAt: now,
       ));
     }
     if (mounted) Navigator.of(context).pop();

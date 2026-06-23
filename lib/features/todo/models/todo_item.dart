@@ -42,6 +42,7 @@ class TodoItem {
   final DateTime? notifyDate;
 
   final DateTime createdAt;
+  final DateTime updatedAt;
 
   /// 완료 이력 (오래된 순)
   final List<DateTime> completions;
@@ -62,6 +63,7 @@ class TodoItem {
     this.notifyHour = 9,
     this.notifyMinute = 0,
     required this.createdAt,
+    required this.updatedAt,
     this.completions = const [],
     this.order = 0,
   });
@@ -183,6 +185,7 @@ class TodoItem {
     DateTime? notifyDate,
     int? notifyHour,
     int? notifyMinute,
+    DateTime? updatedAt,
     List<DateTime>? completions,
     int? order,
     bool clearMonthDay = false,
@@ -202,6 +205,7 @@ class TodoItem {
       notifyHour: notifyHour ?? this.notifyHour,
       notifyMinute: notifyMinute ?? this.notifyMinute,
       createdAt: createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
       completions: completions ?? this.completions,
       order: order ?? this.order,
     );
@@ -226,6 +230,7 @@ class TodoItem {
         'notifyHour': notifyHour,
         'notifyMinute': notifyMinute,
         'createdAt': createdAt.toIso8601String(),
+        'updatedAt': updatedAt.toIso8601String(),
         'completions': completions.map((d) => d.toIso8601String()).toList(),
         'order': order,
       };
@@ -252,6 +257,8 @@ class TodoItem {
         notifyHour: j['notifyHour'] as int? ?? 9,
         notifyMinute: j['notifyMinute'] as int? ?? 0,
         createdAt: DateTime.parse(j['createdAt'] as String),
+        updatedAt: DateTime.parse(
+            j['updatedAt'] as String? ?? j['createdAt'] as String),
         completions: ((j['completions'] as List?) ?? const [])
             .map((e) => DateTime.parse(e as String))
             .toList(),

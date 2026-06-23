@@ -37,6 +37,7 @@ class BooksNotifier extends AsyncNotifier<List<Book>> {
         existing.any((b) => b.isbn == r.isbn)) {
       return existing.firstWhere((b) => b.isbn == r.isbn);
     }
+    final now = DateTime.now();
     final book = Book(
       id: _uuid.v4(),
       title: r.title,
@@ -47,15 +48,17 @@ class BooksNotifier extends AsyncNotifier<List<Book>> {
       isbn: r.isbn,
       toc: const [],
       status: status,
-      addedAt: DateTime.now(),
+      addedAt: now,
+      updatedAt: now,
     );
     await _persist([...existing, book]);
     return book;
   }
 
   Future<void> updateBook(Book updated) async {
+    final stamped = updated.copyWith(updatedAt: DateTime.now());
     final list = (state.value ?? const <Book>[])
-        .map((b) => b.id == updated.id ? updated : b)
+        .map((b) => b.id == stamped.id ? stamped : b)
         .toList();
     await _persist(list);
   }

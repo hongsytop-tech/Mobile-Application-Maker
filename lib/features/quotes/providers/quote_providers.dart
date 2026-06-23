@@ -40,10 +40,12 @@ class QuotesNotifier extends AsyncNotifier<List<Quote>> {
     final minOrder = existing.isEmpty
         ? 0
         : existing.map((q) => q.order).reduce((a, b) => a < b ? a : b);
+    final now = DateTime.now();
     final q = Quote(
       id: _uuid.v4(),
       text: draft.text,
-      createdAt: DateTime.now(),
+      createdAt: now,
+      updatedAt: now,
       notifyEnabled: draft.notifyEnabled,
       notifyMode: draft.notifyMode,
       notifyHour: draft.notifyHour,
@@ -69,7 +71,7 @@ class QuotesNotifier extends AsyncNotifier<List<Quote>> {
     for (int i = 0; i < orderedIds.length; i++) {
       final q = byId[orderedIds[i]];
       if (q != null) {
-        updated.add(q.copyWith(order: i));
+        updated.add(q.copyWith(order: i, updatedAt: DateTime.now()));
         byId.remove(orderedIds[i]);
       }
     }
@@ -107,6 +109,7 @@ class QuotesNotifier extends AsyncNotifier<List<Quote>> {
       return q.copyWith(
         pinnedAt: q.isPinned ? null : DateTime.now(),
         clearPin: q.isPinned,
+        updatedAt: DateTime.now(),
       );
     }).toList();
     await _persist(updated);

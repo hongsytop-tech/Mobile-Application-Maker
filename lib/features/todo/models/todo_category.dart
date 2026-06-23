@@ -14,6 +14,7 @@ class TodoCategory {
   final String name;
   final int colorIndex;
   final DateTime createdAt;
+  final DateTime updatedAt;
   final int order;
   final bool collapsed;
 
@@ -32,6 +33,7 @@ class TodoCategory {
     required this.name,
     required this.colorIndex,
     required this.createdAt,
+    required this.updatedAt,
     required this.order,
     this.collapsed = false,
     this.notifyEnabled = false,
@@ -51,6 +53,7 @@ class TodoCategory {
   TodoCategory copyWith({
     String? name,
     int? colorIndex,
+    DateTime? updatedAt,
     int? order,
     bool? collapsed,
     bool? notifyEnabled,
@@ -65,6 +68,7 @@ class TodoCategory {
       name: name ?? this.name,
       colorIndex: colorIndex ?? this.colorIndex,
       createdAt: createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
       order: order ?? this.order,
       collapsed: collapsed ?? this.collapsed,
       notifyEnabled: notifyEnabled ?? this.notifyEnabled,
@@ -82,6 +86,7 @@ class TodoCategory {
         'name': name,
         'colorIndex': colorIndex,
         'createdAt': createdAt.toIso8601String(),
+        'updatedAt': updatedAt.toIso8601String(),
         'order': order,
         'collapsed': collapsed,
         'notifyEnabled': notifyEnabled,
@@ -97,6 +102,8 @@ class TodoCategory {
         name: j['name'] as String,
         colorIndex: j['colorIndex'] as int? ?? 0,
         createdAt: DateTime.parse(j['createdAt'] as String),
+        updatedAt: DateTime.parse(
+            j['updatedAt'] as String? ?? j['createdAt'] as String),
         order: j['order'] as int? ?? 0,
         collapsed: j['collapsed'] as bool? ?? false,
         notifyEnabled: j['notifyEnabled'] as bool? ?? false,

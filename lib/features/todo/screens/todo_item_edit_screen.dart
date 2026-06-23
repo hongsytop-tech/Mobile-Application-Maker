@@ -135,6 +135,7 @@ class _TodoItemEditScreenState extends ConsumerState<TodoItemEditScreen> {
         await NotificationService.requestPermission();
       }
 
+      final saveNow = DateTime.now();
       final draft = TodoItem(
         id: widget.item?.id ?? 'draft',
         categoryId: _categoryId,
@@ -147,7 +148,8 @@ class _TodoItemEditScreenState extends ConsumerState<TodoItemEditScreen> {
         notifyDate: _repeat == TodoRepeat.once ? _notifyDate : null,
         notifyHour: _notifyHour,
         notifyMinute: _notifyMinute,
-        createdAt: widget.item?.createdAt ?? DateTime.now(),
+        createdAt: widget.item?.createdAt ?? saveNow,
+        updatedAt: saveNow,
         completions: widget.item?.completions ?? const [],
       );
 
@@ -169,6 +171,7 @@ class _TodoItemEditScreenState extends ConsumerState<TodoItemEditScreen> {
           notifyHour: _notifyHour,
           notifyMinute: _notifyMinute,
           clearMonthDay: _repeat != TodoRepeat.monthly,
+          updatedAt: saveNow,
         ));
       }
       if (mounted) Navigator.of(context).pop();

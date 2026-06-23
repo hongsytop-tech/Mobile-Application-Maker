@@ -36,11 +36,13 @@ class TodoCategoriesNotifier extends AsyncNotifier<List<TodoCategory>> {
 
   Future<TodoCategory> add(String name, int colorIndex) async {
     final list = state.value ?? const <TodoCategory>[];
+    final now = DateTime.now();
     final c = TodoCategory(
       id: _uuid.v4(),
       name: name,
       colorIndex: colorIndex,
-      createdAt: DateTime.now(),
+      createdAt: now,
+      updatedAt: now,
       order: list.length,
     );
     await _persist([...list, c]);
@@ -68,7 +70,7 @@ class TodoCategoriesNotifier extends AsyncNotifier<List<TodoCategory>> {
     for (int i = 0; i < orderedIds.length; i++) {
       final c = byId[orderedIds[i]];
       if (c != null) {
-        updated.add(c.copyWith(order: i));
+        updated.add(c.copyWith(order: i, updatedAt: DateTime.now()));
         byId.remove(orderedIds[i]);
       }
     }
@@ -79,7 +81,7 @@ class TodoCategoriesNotifier extends AsyncNotifier<List<TodoCategory>> {
   Future<void> toggleCollapsed(String id) async {
     final list = (state.value ?? const <TodoCategory>[]).map((c) {
       if (c.id != id) return c;
-      return c.copyWith(collapsed: !c.collapsed);
+      return c.copyWith(collapsed: !c.collapsed, updatedAt: DateTime.now());
     }).toList();
     await _persist(list);
   }
@@ -121,6 +123,7 @@ class TodoItemsNotifier extends AsyncNotifier<List<TodoItem>> {
     final minOrder = inCat.isEmpty
         ? 0
         : inCat.map((i) => i.order).reduce((a, b) => a < b ? a : b);
+    final now = DateTime.now();
     final item = TodoItem(
       id: _uuid.v4(),
       categoryId: draft.categoryId,
@@ -133,7 +136,8 @@ class TodoItemsNotifier extends AsyncNotifier<List<TodoItem>> {
       notifyDate: draft.notifyDate,
       notifyHour: draft.notifyHour,
       notifyMinute: draft.notifyMinute,
-      createdAt: DateTime.now(),
+      createdAt: now,
+      updatedAt: now,
       order: minOrder - 1,
     );
     await _persist([...existing, item]);
@@ -150,7 +154,7 @@ class TodoItemsNotifier extends AsyncNotifier<List<TodoItem>> {
     for (int i = 0; i < orderedIds.length; i++) {
       final item = byId[orderedIds[i]];
       if (item != null && item.categoryId == categoryId) {
-        updated.add(item.copyWith(order: i));
+        updated.add(item.copyWith(order: i, updatedAt: DateTime.now()));
         byId.remove(orderedIds[i]);
       }
     }
@@ -192,6 +196,7 @@ class TodoItemsNotifier extends AsyncNotifier<List<TodoItem>> {
       notifyHour: item.notifyHour,
       notifyMinute: item.notifyMinute,
       createdAt: item.createdAt,
+      updatedAt: DateTime.now(),
       completions: item.completions,
       order: maxOrder,
     );
@@ -217,6 +222,7 @@ class TodoItemsNotifier extends AsyncNotifier<List<TodoItem>> {
     final insertIdx = catItems.indexWhere((i) => i.id == targetId);
     if (insertIdx < 0) return;
 
+    final now = DateTime.now();
     final movedSrc = TodoItem(
       id: src.id,
       categoryId: tgt.categoryId,
@@ -230,13 +236,14 @@ class TodoItemsNotifier extends AsyncNotifier<List<TodoItem>> {
       notifyHour: src.notifyHour,
       notifyMinute: src.notifyMinute,
       createdAt: src.createdAt,
+      updatedAt: now,
       completions: src.completions,
       order: 0, // 아래에서 재할당
     );
     final newCatSeq = [...catItems]..insert(insertIdx, movedSrc);
     final idMap = {
       for (int i = 0; i < newCatSeq.length; i++)
-        newCatSeq[i].id: newCatSeq[i].copyWith(order: i),
+        newCatSeq[i].id: newCatSeq[i].copyWith(order: i, updatedAt: now),
     };
     // movedSrc 는 copyWith 가 categoryId 를 못 바꾸니 따로 처리
     idMap[sourceId] = TodoItem(
@@ -252,6 +259,7 @@ class TodoItemsNotifier extends AsyncNotifier<List<TodoItem>> {
       notifyHour: movedSrc.notifyHour,
       notifyMinute: movedSrc.notifyMinute,
       createdAt: movedSrc.createdAt,
+      updatedAt: now,
       completions: movedSrc.completions,
       order: insertIdx,
     );
@@ -274,7 +282,8 @@ class TodoItemsNotifier extends AsyncNotifier<List<TodoItem>> {
     } else {
       newCompletions = [...item.completions, now];
     }
-    final updated = item.copyWith(completions: newCompletions);
+    final updated =
+        item.copyWith(completions: newCompletions, updatedAt: DateTime.now());
     final newList = [...list];
     newList[idx] = updated;
     await _persist(newList);
@@ -296,7 +305,8 @@ class TodoItemsNotifier extends AsyncNotifier<List<TodoItem>> {
         c.isAtSameMomentAs(completedAt));
     if (removeIdx < 0) return;
     newCompletions.removeAt(removeIdx);
-    final updated = item.copyWith(completions: newCompletions);
+    final updated =
+        item.copyWith(completions: newCompletions, updatedAt: DateTime.now());
     final newList = [...list];
     newList[idx] = updated;
     await _persist(newList);

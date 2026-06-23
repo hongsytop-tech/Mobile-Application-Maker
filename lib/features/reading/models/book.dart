@@ -30,6 +30,7 @@ class Book {
   final List<TocItem> toc;
   final BookStatus status;
   final DateTime addedAt;
+  final DateTime updatedAt;
   final DateTime? finishedAt;
 
   /// (구버전) 독서 노트 자유 서술 — 새 데이터는 [noteEntries] 사용.
@@ -57,6 +58,7 @@ class Book {
     required this.toc,
     required this.status,
     required this.addedAt,
+    required this.updatedAt,
     this.finishedAt,
     this.notes = '',
     this.noteEntries = const [],
@@ -76,6 +78,7 @@ class Book {
   Book copyWith({
     List<TocItem>? toc,
     BookStatus? status,
+    DateTime? updatedAt,
     DateTime? finishedAt,
     String? notes,
     List<BookNote>? noteEntries,
@@ -96,6 +99,7 @@ class Book {
       toc: toc ?? this.toc,
       status: status ?? this.status,
       addedAt: addedAt,
+      updatedAt: updatedAt ?? this.updatedAt,
       finishedAt: finishedAt ?? this.finishedAt,
       notes: notes ?? this.notes,
       noteEntries: noteEntries ?? this.noteEntries,
@@ -118,6 +122,7 @@ class Book {
         'toc': toc.map((e) => e.toJson()).toList(),
         'status': status.name,
         'addedAt': addedAt.toIso8601String(),
+        'updatedAt': updatedAt.toIso8601String(),
         'finishedAt': finishedAt?.toIso8601String(),
         'notes': notes,
         'noteEntries': noteEntries.map((e) => e.toJson()).toList(),
@@ -141,6 +146,8 @@ class Book {
             .toList(),
         status: BookStatus.values.byName(j['status'] as String? ?? 'reading'),
         addedAt: DateTime.parse(j['addedAt'] as String),
+        updatedAt: DateTime.parse(
+            j['updatedAt'] as String? ?? j['addedAt'] as String),
         finishedAt: j['finishedAt'] == null
             ? null
             : DateTime.parse(j['finishedAt'] as String),
