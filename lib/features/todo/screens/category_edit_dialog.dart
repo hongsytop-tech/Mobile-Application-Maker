@@ -30,10 +30,14 @@ class _CategoryEditDialogState extends ConsumerState<_CategoryEditDialog> {
   late final TextEditingController _ctrl;
   late int _colorIndex;
   late bool _notifyEnabled;
+  late String _notifyMode; // 'daily' | 'interval'
   late int _notifyHour;
   late int _notifyMinute;
+  late int _intervalHours;
+  late int _intervalMinutes;
 
   bool get _isNew => widget.category == null;
+  bool get _isInterval => _notifyMode == 'interval';
 
   @override
   void initState() {
@@ -41,8 +45,11 @@ class _CategoryEditDialogState extends ConsumerState<_CategoryEditDialog> {
     _ctrl = TextEditingController(text: widget.category?.name ?? '');
     _colorIndex = widget.category?.colorIndex ?? 0;
     _notifyEnabled = widget.category?.notifyEnabled ?? false;
+    _notifyMode = widget.category?.notifyMode ?? 'daily';
     _notifyHour = widget.category?.notifyHour ?? 9;
     _notifyMinute = widget.category?.notifyMinute ?? 0;
+    _intervalHours = widget.category?.notifyIntervalHours ?? 3;
+    _intervalMinutes = widget.category?.notifyIntervalMinutes ?? 0;
   }
 
   @override
@@ -62,16 +69,22 @@ class _CategoryEditDialogState extends ConsumerState<_CategoryEditDialog> {
       final c = await notifier.add(name, _colorIndex);
       await notifier.save(c.copyWith(
         notifyEnabled: _notifyEnabled,
+        notifyMode: _notifyMode,
         notifyHour: _notifyHour,
         notifyMinute: _notifyMinute,
+        notifyIntervalHours: _intervalHours,
+        notifyIntervalMinutes: _intervalMinutes,
       ));
     } else {
       await notifier.save(widget.category!.copyWith(
         name: name,
         colorIndex: _colorIndex,
         notifyEnabled: _notifyEnabled,
+        notifyMode: _notifyMode,
         notifyHour: _notifyHour,
         notifyMinute: _notifyMinute,
+        notifyIntervalHours: _intervalHours,
+        notifyIntervalMinutes: _intervalMinutes,
       ));
     }
     if (mounted) Navigator.of(context).pop();
@@ -87,6 +100,20 @@ class _CategoryEditDialogState extends ConsumerState<_CategoryEditDialog> {
       setState(() {
         _notifyHour = picked.hour;
         _notifyMinute = picked.minute;
+      });
+    }
+  }
+
+  Future<void> _pickInterval() async {
+    final picked = await pickWheelDuration(
+      context,
+      initialHours: _intervalHours,
+      initialMinutes: _intervalMinutes,
+    );
+    if (picked != null) {
+      setState(() {
+        _intervalHours = picked.hour;
+        _intervalMinutes = picked.minute;
       });
     }
   }
@@ -173,23 +200,56 @@ class _CategoryEditDialogState extends ConsumerState<_CategoryEditDialog> {
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('카테고리 알림', style: TextStyle(fontSize: 14)),
-            subtitle: const Text('매일 지정 시각에 미완료 항목 알림',
+            subtitle: const Text('미완료 항목을 모아서 푸시',
                 style: TextStyle(fontSize: 12)),
             value: _notifyEnabled,
             onChanged: (v) => setState(() => _notifyEnabled = v),
           ),
-          if (_notifyEnabled)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.access_time),
-              title: const Text('알림 시각'),
-              trailing: Text(
-                '${_notifyHour.toString().padLeft(2, '0')}:${_notifyMinute.toString().padLeft(2, '0')}',
-                style: const TextStyle(
-                    fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              onTap: _pickTime,
+          if (_notifyEnabled) ...[
+            const SizedBox(height: 4),
+            SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(
+                  value: 'daily',
+                  label: Text('매일 시각'),
+                  icon: Icon(Icons.schedule),
+                ),
+                ButtonSegment(
+                  value: 'interval',
+                  label: Text('반복 간격'),
+                  icon: Icon(Icons.repeat),
+                ),
+              ],
+              selected: {_notifyMode},
+              showSelectedIcon: false,
+              onSelectionChanged: (s) =>
+                  setState(() => _notifyMode = s.first),
             ),
+            if (_isInterval)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.timelapse),
+                title: const Text('반복 간격'),
+                trailing: Text(
+                  '${_intervalHours}시간 ${_intervalMinutes}분',
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                onTap: _pickInterval,
+              )
+            else
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.access_time),
+                title: const Text('알림 시각'),
+                trailing: Text(
+                  '${_notifyHour.toString().padLeft(2, '0')}:${_notifyMinute.toString().padLeft(2, '0')}',
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                onTap: _pickTime,
+              ),
+          ],
         ],
       ),
       ),

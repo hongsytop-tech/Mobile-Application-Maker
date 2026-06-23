@@ -217,11 +217,28 @@ class WebPushScheduler {
         : '미완료 ${pending.length}건\n• ${pending.take(8).join('\n• ')}'
             '${pending.length > 8 ? '\n…외 ${pending.length - 8}건' : ''}';
 
-    // 다음 발송 시각 (오늘 시각 지났으면 내일)
     final now = DateTime.now();
-    var first =
-        DateTime(now.year, now.month, now.day, cat.notifyHour, cat.notifyMinute);
-    if (!first.isAfter(now)) first = first.add(const Duration(days: 1));
+    DateTime first;
+    Map<String, dynamic> recur;
+    if (cat.notifyMode == 'interval') {
+      final mins = cat.notifyIntervalTotalMinutes;
+      if (mins < 1) return; // 잘못된 간격
+      first = now.add(Duration(minutes: mins));
+      recur = {
+        'mode': 'interval',
+        'intervalMinutes': mins,
+      };
+    } else {
+      // daily — 오늘 시각이 지났으면 내일
+      first = DateTime(
+          now.year, now.month, now.day, cat.notifyHour, cat.notifyMinute);
+      if (!first.isAfter(now)) first = first.add(const Duration(days: 1));
+      recur = {
+        'mode': 'daily',
+        'hour': cat.notifyHour,
+        'minute': cat.notifyMinute,
+      };
+    }
 
     final uid = SupabaseService.currentUser!.id;
     try {
@@ -233,11 +250,7 @@ class WebPushScheduler {
         'body': body,
         'scheduled_at': first.toUtc().toIso8601String(),
         'sent_at': null,
-        'recur': {
-          'mode': 'daily',
-          'hour': cat.notifyHour,
-          'minute': cat.notifyMinute,
-        },
+        'recur': recur,
       }, onConflict: 'user_id,kind,ref_id');
     } catch (e) {
       if (kDebugMode) print('scheduleCategory upsert failed: $e');

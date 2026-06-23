@@ -17,10 +17,15 @@ class TodoCategory {
   final int order;
   final bool collapsed;
 
-  /// 카테고리 단위 매일 알림 (미완료 항목 모아서 푸시)
+  /// 카테고리 단위 알림 (미완료 항목 모아서 푸시).
+  /// notifyMode = 'daily': notifyHour:notifyMinute 에 매일 1회
+  /// notifyMode = 'interval': notifyIntervalHours/Minutes 간격마다 반복
   final bool notifyEnabled;
+  final String notifyMode;
   final int notifyHour;
   final int notifyMinute;
+  final int notifyIntervalHours;
+  final int notifyIntervalMinutes;
 
   const TodoCategory({
     required this.id,
@@ -30,9 +35,15 @@ class TodoCategory {
     required this.order,
     this.collapsed = false,
     this.notifyEnabled = false,
+    this.notifyMode = 'daily',
     this.notifyHour = 9,
     this.notifyMinute = 0,
+    this.notifyIntervalHours = 3,
+    this.notifyIntervalMinutes = 0,
   });
+
+  int get notifyIntervalTotalMinutes =>
+      notifyIntervalHours * 60 + notifyIntervalMinutes;
 
   int get colorValue =>
       todoCategoryColors[colorIndex.clamp(0, todoCategoryColors.length - 1)];
@@ -43,8 +54,11 @@ class TodoCategory {
     int? order,
     bool? collapsed,
     bool? notifyEnabled,
+    String? notifyMode,
     int? notifyHour,
     int? notifyMinute,
+    int? notifyIntervalHours,
+    int? notifyIntervalMinutes,
   }) {
     return TodoCategory(
       id: id,
@@ -54,8 +68,12 @@ class TodoCategory {
       order: order ?? this.order,
       collapsed: collapsed ?? this.collapsed,
       notifyEnabled: notifyEnabled ?? this.notifyEnabled,
+      notifyMode: notifyMode ?? this.notifyMode,
       notifyHour: notifyHour ?? this.notifyHour,
       notifyMinute: notifyMinute ?? this.notifyMinute,
+      notifyIntervalHours: notifyIntervalHours ?? this.notifyIntervalHours,
+      notifyIntervalMinutes:
+          notifyIntervalMinutes ?? this.notifyIntervalMinutes,
     );
   }
 
@@ -67,8 +85,11 @@ class TodoCategory {
         'order': order,
         'collapsed': collapsed,
         'notifyEnabled': notifyEnabled,
+        'notifyMode': notifyMode,
         'notifyHour': notifyHour,
         'notifyMinute': notifyMinute,
+        'notifyIntervalHours': notifyIntervalHours,
+        'notifyIntervalMinutes': notifyIntervalMinutes,
       };
 
   factory TodoCategory.fromJson(Map<String, dynamic> j) => TodoCategory(
@@ -79,8 +100,11 @@ class TodoCategory {
         order: j['order'] as int? ?? 0,
         collapsed: j['collapsed'] as bool? ?? false,
         notifyEnabled: j['notifyEnabled'] as bool? ?? false,
+        notifyMode: j['notifyMode'] as String? ?? 'daily',
         notifyHour: j['notifyHour'] as int? ?? 9,
         notifyMinute: j['notifyMinute'] as int? ?? 0,
+        notifyIntervalHours: j['notifyIntervalHours'] as int? ?? 3,
+        notifyIntervalMinutes: j['notifyIntervalMinutes'] as int? ?? 0,
       );
 
   String toJsonString() => jsonEncode(toJson());

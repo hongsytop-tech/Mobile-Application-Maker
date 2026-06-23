@@ -236,7 +236,9 @@ class _CategorySectionState extends ConsumerState<_CategorySection> {
                                     size: 12, color: color),
                                 const SizedBox(width: 3),
                                 Text(
-                                  '매일 ${category.notifyHour.toString().padLeft(2, '0')}:${category.notifyMinute.toString().padLeft(2, '0')}',
+                                  category.notifyMode == 'interval'
+                                      ? '${category.notifyIntervalHours}시간 ${category.notifyIntervalMinutes}분마다'
+                                      : '매일 ${category.notifyHour.toString().padLeft(2, '0')}:${category.notifyMinute.toString().padLeft(2, '0')}',
                                   style: TextStyle(
                                       fontSize: 11,
                                       color: color,

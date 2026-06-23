@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// 스크롤 가능한 [child] 를 감싸면, 일정 이상 내려갔을 때 우하단에
+/// 스크롤 가능한 [child] 를 감싸면, 일정 이상 내려갔을 때 하단 중앙에
 /// "맨 위로" 버튼이 나타난다. ScrollController 를 직접 만들 필요 없이,
 /// NotificationListener 로 스크롤을 감지하고 Scrollable.maybeOf 로 위치를 잡는다.
 class ScrollToTop extends StatefulWidget {
@@ -8,14 +8,12 @@ class ScrollToTop extends StatefulWidget {
     required this.child,
     this.showOffset = 300,
     this.bottom = 16,
-    this.right = 16,
     super.key,
   });
 
   final Widget child;
   final double showOffset;
   final double bottom;
-  final double right;
 
   @override
   State<ScrollToTop> createState() => _ScrollToTopState();
@@ -55,17 +53,20 @@ class _ScrollToTopState extends State<ScrollToTop> {
         ),
         if (_show)
           Positioned(
-            right: widget.right,
+            left: 0,
+            right: 0,
             bottom: widget.bottom,
-            child: FloatingActionButton.small(
-              heroTag: null, // 여러 화면 동시 활성 시 hero 충돌 방지
-              tooltip: '맨 위로',
-              backgroundColor: Colors.white,
-              foregroundColor: Theme.of(context).colorScheme.primary,
-              elevation: 3,
-              shape: const CircleBorder(),
-              onPressed: _toTop,
-              child: const Icon(Icons.arrow_upward),
+            child: Center(
+              child: FloatingActionButton.small(
+                heroTag: null, // 여러 화면 동시 활성 시 hero 충돌 방지
+                tooltip: '맨 위로',
+                backgroundColor: Colors.white,
+                foregroundColor: Theme.of(context).colorScheme.primary,
+                elevation: 3,
+                shape: const CircleBorder(),
+                onPressed: _toTop,
+                child: const Icon(Icons.arrow_upward),
+              ),
             ),
           ),
       ],
