@@ -20,7 +20,12 @@ class _MemoEditScreenState extends ConsumerState<MemoEditScreen>
   bool _dirty = false;
   bool _saving = false;
 
-  bool get _isNew => widget.memo == null;
+  /// 처음 저장 시 생성된 메모. 이후 자동저장은 이 ID 에 update 로 들어가야
+  /// "자동저장이 일어날 때마다 새 메모가 만들어지는" 버그를 막을 수 있다.
+  Memo? _createdMemo;
+
+  bool get _isNew => widget.memo == null && _createdMemo == null;
+  Memo? get _currentExisting => widget.memo ?? _createdMemo;
 
   @override
   void initState() {
@@ -62,11 +67,14 @@ class _MemoEditScreenState extends ConsumerState<MemoEditScreen>
       final title = _titleCtrl.text.trim();
       final content = _contentCtrl.text;
       final notifier = ref.read(memosProvider.notifier);
-      if (_isNew) {
+      final existing = _currentExisting;
+      if (existing == null) {
+        // 진짜 신규 — 첫 저장. 만들어진 메모를 기억해 이후 자동저장은 update 로.
         if (title.isEmpty && content.isEmpty) return;
-        await notifier.add(title: title, content: content);
+        final created = await notifier.add(title: title, content: content);
+        _createdMemo = created;
       } else {
-        await notifier.save(widget.memo!.copyWith(
+        await notifier.save(existing.copyWith(
           title: title,
           content: content,
           updatedAt: DateTime.now(),

@@ -25,7 +25,11 @@ class _BookNoteEditScreenState extends ConsumerState<BookNoteEditScreen>
   bool _dirty = false;
   bool _saving = false;
 
-  bool get _isNew => widget.existing == null;
+  /// 처음 저장 시 생성된 노트 — 이후 자동저장은 이 ID 에 update.
+  BookNote? _createdNote;
+
+  bool get _isNew => widget.existing == null && _createdNote == null;
+  BookNote? get _currentExisting => widget.existing ?? _createdNote;
 
   @override
   void initState() {
@@ -66,18 +70,20 @@ class _BookNoteEditScreenState extends ConsumerState<BookNoteEditScreen>
       final location = _locationCtrl.text.trim();
       final content = _contentCtrl.text.trim();
       final notifier = ref.read(booksProvider.notifier);
-      if (_isNew) {
+      final existing = _currentExisting;
+      if (existing == null) {
         // 둘 다 비어있으면 저장 생략 (빈 노트 방지)
         if (location.isEmpty && content.isEmpty) return;
-        await notifier.addNoteEntry(
+        final created = await notifier.addNoteEntry(
           widget.bookId,
           content: content,
           location: location,
         );
+        _createdNote = created;
       } else {
         await notifier.updateNoteEntry(
           widget.bookId,
-          widget.existing!.copyWith(
+          existing.copyWith(
             content: content,
             location: location,
             updatedAt: DateTime.now(),
