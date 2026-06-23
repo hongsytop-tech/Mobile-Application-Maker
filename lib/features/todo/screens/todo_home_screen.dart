@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../auth/services/sync_manager.dart';
-import '../../../shared/widgets/scroll_to_top_fab.dart';
+import '../../../shared/widgets/scroll_to_top.dart';
 import '../models/todo_category.dart';
 import '../models/todo_item.dart';
 import '../providers/todo_providers.dart';
@@ -41,8 +41,6 @@ class _TodoHomeScreenState extends ConsumerState<TodoHomeScreen> {
     final itemsByCat = ref.watch(todoItemsByCategoryProvider);
 
     return Scaffold(
-      floatingActionButton:
-          ScrollToTopFab(controller: _scrollCtrl, heroTag: 'todoTop'),
       appBar: AppBar(
         title: const Text('To do'),
         actions: [
@@ -62,7 +60,8 @@ class _TodoHomeScreenState extends ConsumerState<TodoHomeScreen> {
           ),
         ],
       ),
-      body: asyncCats.when(
+      body: ScrollToTop(
+        child: asyncCats.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('오류: $e')),
         data: (categories) {
@@ -413,6 +412,7 @@ class _CategorySectionState extends ConsumerState<_CategorySection> {
           },
         );
       },
+      ),
       ),
     );
   }

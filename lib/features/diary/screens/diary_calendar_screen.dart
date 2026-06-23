@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../../auth/services/sync_manager.dart';
+import '../../../shared/widgets/scroll_to_top.dart';
 import '../models/diary.dart';
 import '../providers/diary_providers.dart';
 import 'diary_edit_screen.dart';
@@ -20,32 +21,6 @@ class _DiaryCalendarScreenState extends ConsumerState<DiaryCalendarScreen> {
   DateTime _focusedDay = DateTime.now();
   DateTime _selectedDay = Diary.normalize(DateTime.now());
   CalendarFormat _format = CalendarFormat.month;
-  // 일상/감사 두 섹션 각각의 ScrollController.
-  final ScrollController _sentencesCtrl = ScrollController();
-  final ScrollController _gratitudesCtrl = ScrollController();
-
-  @override
-  void dispose() {
-    _sentencesCtrl.dispose();
-    _gratitudesCtrl.dispose();
-    super.dispose();
-  }
-
-  bool _anyScrolledDown() {
-    bool offset(ScrollController c) =>
-        c.hasClients && c.offset > 200;
-    return offset(_sentencesCtrl) || offset(_gratitudesCtrl);
-  }
-
-  Future<void> _scrollBothToTop() async {
-    for (final c in [_sentencesCtrl, _gratitudesCtrl]) {
-      if (c.hasClients) {
-        c.animateTo(0,
-            duration: const Duration(milliseconds: 350),
-            curve: Curves.easeOutCubic);
-      }
-    }
-  }
 
   void _openEditor(DateTime date) {
     Navigator.of(context).push(
@@ -62,24 +37,10 @@ class _DiaryCalendarScreenState extends ConsumerState<DiaryCalendarScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('일기')),
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          _DiaryTopFab(
-            sentencesCtrl: _sentencesCtrl,
-            gratitudesCtrl: _gratitudesCtrl,
-            onPressed: _scrollBothToTop,
-            isVisible: _anyScrolledDown,
-          ),
-          const SizedBox(height: 12),
-          FloatingActionButton.extended(
-            heroTag: 'diaryEdit',
-            onPressed: () => _openEditor(_selectedDay),
-            icon: Icon(selectedDiary == null ? Icons.edit : Icons.edit_note),
-            label: Text(selectedDiary == null ? '일기 쓰기' : '일기 수정'),
-          ),
-        ],
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _openEditor(_selectedDay),
+        icon: Icon(selectedDiary == null ? Icons.edit : Icons.edit_note),
+        label: Text(selectedDiary == null ? '일기 쓰기' : '일기 수정'),
       ),
       body: Column(
         children: [
@@ -138,8 +99,6 @@ class _DiaryCalendarScreenState extends ConsumerState<DiaryCalendarScreen> {
               date: _selectedDay,
               diary: selectedDiary,
               onTap: () => _openEditor(_selectedDay),
-              sentencesCtrl: _sentencesCtrl,
-              gratitudesCtrl: _gratitudesCtrl,
             ),
           ),
         ],
@@ -154,15 +113,11 @@ class _DiaryPreview extends StatelessWidget {
   final DateTime date;
   final Diary? diary;
   final VoidCallback onTap;
-  final ScrollController? sentencesCtrl;
-  final ScrollController? gratitudesCtrl;
 
   const _DiaryPreview({
     required this.date,
     required this.diary,
     required this.onTap,
-    this.sentencesCtrl,
-    this.gratitudesCtrl,
   });
 
   List<String> _filter(List<String>? src) =>
@@ -228,24 +183,26 @@ class _DiaryPreview extends StatelessWidget {
             // 한 쪽만 있으면 그 섹션이 전체 공간을 차지.
             if (sentences.isNotEmpty)
               Expanded(
-                child: _Section(
-                  title: '일상',
-                  icon: Icons.format_list_bulleted,
-                  color: primary,
-                  items: sentences,
-                  controller: sentencesCtrl,
+                child: ScrollToTop(
+                  child: _Section(
+                    title: '일상',
+                    icon: Icons.format_list_bulleted,
+                    color: primary,
+                    items: sentences,
+                  ),
                 ),
               ),
             if (sentences.isNotEmpty && gratitudes.isNotEmpty)
               const SizedBox(height: 12),
             if (gratitudes.isNotEmpty)
               Expanded(
-                child: _Section(
-                  title: '감사 일기',
-                  icon: Icons.favorite,
-                  color: Colors.pink.shade400,
-                  items: gratitudes,
-                  controller: gratitudesCtrl,
+                child: ScrollToTop(
+                  child: _Section(
+                    title: '감사 일기',
+                    icon: Icons.favorite,
+                    color: Colors.pink.shade400,
+                    items: gratitudes,
+                  ),
                 ),
               ),
           ],
@@ -260,14 +217,12 @@ class _Section extends StatelessWidget {
   final IconData icon;
   final Color color;
   final List<String> items;
-  final ScrollController? controller;
 
   const _Section({
     required this.title,
     required this.icon,
     required this.color,
     required this.items,
-    this.controller,
   });
 
   @override
@@ -309,7 +264,6 @@ class _Section extends StatelessWidget {
             child: RefreshIndicator(
               onRefresh: () => SyncManager.instance.pullOnLogin(),
               child: ListView.builder(
-                controller: controller,
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
                 itemCount: items.length,
@@ -329,65 +283,3 @@ class _Section extends StatelessWidget {
   }
 }
 
-/// 일기 캘린더 전용 "맨 위로" FAB — 두 섹션 컨트롤러를 모두 감시,
-/// 어느 한 쪽이라도 스크롤 내려가 있으면 노출.
-class _DiaryTopFab extends StatefulWidget {
-  final ScrollController sentencesCtrl;
-  final ScrollController gratitudesCtrl;
-  final VoidCallback onPressed;
-  final bool Function() isVisible;
-
-  const _DiaryTopFab({
-    required this.sentencesCtrl,
-    required this.gratitudesCtrl,
-    required this.onPressed,
-    required this.isVisible,
-  });
-
-  @override
-  State<_DiaryTopFab> createState() => _DiaryTopFabState();
-}
-
-class _DiaryTopFabState extends State<_DiaryTopFab> {
-  bool _show = false;
-
-  @override
-  void initState() {
-    super.initState();
-    widget.sentencesCtrl.addListener(_onChange);
-    widget.gratitudesCtrl.addListener(_onChange);
-  }
-
-  @override
-  void dispose() {
-    widget.sentencesCtrl.removeListener(_onChange);
-    widget.gratitudesCtrl.removeListener(_onChange);
-    super.dispose();
-  }
-
-  void _onChange() {
-    final next = widget.isVisible();
-    if (next != _show) setState(() => _show = next);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      ignoring: !_show,
-      child: AnimatedOpacity(
-        opacity: _show ? 1.0 : 0.0,
-        duration: const Duration(milliseconds: 180),
-        child: FloatingActionButton.small(
-          heroTag: 'diaryTop',
-          tooltip: '맨 위로',
-          onPressed: widget.onPressed,
-          backgroundColor: Colors.white,
-          foregroundColor: Theme.of(context).colorScheme.primary,
-          elevation: 3,
-          shape: const CircleBorder(),
-          child: const Icon(Icons.arrow_upward),
-        ),
-      ),
-    );
-  }
-}

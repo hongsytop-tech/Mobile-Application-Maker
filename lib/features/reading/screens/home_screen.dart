@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../auth/services/sync_manager.dart';
-import '../../../shared/widgets/scroll_to_top_fab.dart';
+import '../../../shared/widgets/scroll_to_top.dart';
 import '../../recommend/screens/book_recommend_detail_screen.dart';
 import '../../recommend/screens/book_recommend_settings_screen.dart';
 import '../../recommend/services/book_recommend_service.dart';
@@ -23,20 +23,11 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen>
     with SingleTickerProviderStateMixin {
-  late final TabController _tab = TabController(length: 3, vsync: this)
-    ..addListener(() {
-      // 탭 전환 시 그 탭의 FAB 표시 상태(맨 위로 노출 여부) 갱신
-      if (mounted) setState(() {});
-    });
-  final List<ScrollController> _scrollCtrls =
-      List.generate(3, (_) => ScrollController());
+  late final TabController _tab = TabController(length: 3, vsync: this);
 
   @override
   void dispose() {
     _tab.dispose();
-    for (final c in _scrollCtrls) {
-      c.dispose();
-    }
     super.dispose();
   }
 
@@ -53,22 +44,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final asyncBooks = ref.watch(booksProvider);
 
     return Scaffold(
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          ScrollToTopFab(
-            controller: _scrollCtrls[_tab.index],
-            heroTag: 'readingTop',
-          ),
-          const SizedBox(height: 12),
-          FloatingActionButton.extended(
-            heroTag: 'readingAdd',
-            onPressed: () => _openSearch(),
-            icon: const Icon(Icons.add),
-            label: const Text('책 추가'),
-          ),
-        ],
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _openSearch(),
+        icon: const Icon(Icons.add),
+        label: const Text('책 추가'),
       ),
       appBar: AppBar(
         title: const Text('내 책장'),
@@ -117,18 +96,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   children: [
               _BookList(
                 books: reading,
-                scrollController: _scrollCtrls[0],
                 emptyText: '아직 읽고 있는 책이 없어요.\n오른쪽 아래 "+ 책 추가" 버튼으로 검색해서 담아보세요.',
               ),
               _BookList(
                 books: finished,
-                scrollController: _scrollCtrls[1],
                 emptyText: '완독한 책이 표시됩니다.',
                 showProgress: false,
               ),
               _BookList(
                 books: wishlist,
-                scrollController: _scrollCtrls[2],
                 emptyText: '읽고 싶은 책을 위시리스트에 담아보세요.\n"+ 책 추가" 로 검색 후 "위시리스트 담기"를 누르면 됩니다.',
                 showProgress: false,
               ),
@@ -216,13 +192,11 @@ class _BookList extends ConsumerWidget {
   final List<Book> books;
   final String emptyText;
   final bool showProgress;
-  final ScrollController? scrollController;
 
   const _BookList({
     required this.books,
     required this.emptyText,
     this.showProgress = true,
-    this.scrollController,
   });
 
   static final _won = NumberFormat('#,###');
@@ -230,10 +204,10 @@ class _BookList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (books.isEmpty) {
-      return RefreshIndicator(
+      return ScrollToTop(
+        child: RefreshIndicator(
         onRefresh: () => SyncManager.instance.pullOnLogin(),
         child: ListView(
-          controller: scrollController,
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
             SizedBox(
@@ -251,13 +225,14 @@ class _BookList extends ConsumerWidget {
             ),
           ],
         ),
+        ),
       );
     }
     final df = DateFormat('yyyy.MM.dd');
-    return RefreshIndicator(
+    return ScrollToTop(
+      child: RefreshIndicator(
       onRefresh: () => SyncManager.instance.pullOnLogin(),
       child: ListView.separated(
-      controller: scrollController,
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(0, 8, 0, 88),
       itemCount: books.length,
@@ -376,6 +351,7 @@ class _BookList extends ConsumerWidget {
           ),
         );
       },
+      ),
       ),
     );
   }

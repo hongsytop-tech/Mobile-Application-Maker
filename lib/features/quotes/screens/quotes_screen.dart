@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../auth/services/sync_manager.dart';
-import '../../../shared/widgets/scroll_to_top_fab.dart';
+import '../../../shared/widgets/scroll_to_top.dart';
 import '../../recommend/screens/recommend_settings_screen.dart';
 import '../../recommend/services/quote_recommend_service.dart';
 import '../models/quote.dart';
@@ -59,27 +59,19 @@ class _QuotesScreenState extends ConsumerState<QuotesScreen> {
           const SizedBox(width: 4),
         ],
       ),
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          ScrollToTopFab(controller: _scrollCtrl, heroTag: 'quotesTop'),
-          const SizedBox(height: 12),
-          FloatingActionButton.extended(
-            heroTag: 'quotesAdd',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const QuoteEditScreen()),
-            ),
-            icon: const Icon(Icons.add),
-            label: const Text('문구 추가'),
-          ),
-        ],
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const QuoteEditScreen()),
+        ),
+        icon: const Icon(Icons.add),
+        label: const Text('문구 추가'),
       ),
       body: Column(
         children: [
           const _TodayQuoteCard(),
           Expanded(
-            child: RefreshIndicator(
+            child: ScrollToTop(
+              child: RefreshIndicator(
         onRefresh: () => SyncManager.instance.pullOnLogin(),
         child: asyncQuotes.when(
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -136,6 +128,7 @@ class _QuotesScreenState extends ConsumerState<QuotesScreen> {
             );
           },
         ),
+            ),
             ),
           ),
         ],

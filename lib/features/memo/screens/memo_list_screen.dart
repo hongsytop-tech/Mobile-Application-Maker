@@ -4,53 +4,32 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../auth/services/sync_manager.dart';
-import '../../../shared/widgets/scroll_to_top_fab.dart';
+import '../../../shared/widgets/scroll_to_top.dart';
 import '../models/memo.dart';
 import '../providers/memo_providers.dart';
 import '../services/memo_url_helper.dart'
     if (dart.library.html) '../services/memo_url_helper_web.dart';
 import 'memo_edit_screen.dart';
 
-class MemoListScreen extends ConsumerStatefulWidget {
+class MemoListScreen extends ConsumerWidget {
   const MemoListScreen({super.key});
 
   @override
-  ConsumerState<MemoListScreen> createState() => _MemoListScreenState();
-}
-
-class _MemoListScreenState extends ConsumerState<MemoListScreen> {
-  final ScrollController _scrollCtrl = ScrollController();
-
-  @override
-  void dispose() {
-    _scrollCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final asyncMemos = ref.watch(memosProvider);
     final sorted = ref.watch(sortedMemosProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('메모')),
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          ScrollToTopFab(controller: _scrollCtrl, heroTag: 'memoTop'),
-          const SizedBox(height: 12),
-          FloatingActionButton.extended(
-            heroTag: 'memoAdd',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const MemoEditScreen()),
-            ),
-            icon: const Icon(Icons.add),
-            label: const Text('새 메모'),
-          ),
-        ],
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const MemoEditScreen()),
+        ),
+        icon: const Icon(Icons.add),
+        label: const Text('새 메모'),
       ),
-      body: RefreshIndicator(
+      body: ScrollToTop(
+        child: RefreshIndicator(
         onRefresh: () => SyncManager.instance.pullOnLogin(),
         child: asyncMemos.when(
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -58,7 +37,6 @@ class _MemoListScreenState extends ConsumerState<MemoListScreen> {
           data: (_) {
             if (sorted.isEmpty) {
               return ListView(
-                controller: _scrollCtrl,
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: [
                   SizedBox(
@@ -86,7 +64,6 @@ class _MemoListScreenState extends ConsumerState<MemoListScreen> {
               );
             }
             return ListView.separated(
-              controller: _scrollCtrl,
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(12, 12, 12, 88),
               itemCount: sorted.length,
@@ -94,6 +71,7 @@ class _MemoListScreenState extends ConsumerState<MemoListScreen> {
               itemBuilder: (context, i) => _MemoCard(memo: sorted[i]),
             );
           },
+        ),
         ),
       ),
     );
