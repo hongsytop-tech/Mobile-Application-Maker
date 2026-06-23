@@ -112,15 +112,27 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           const SizedBox(height: 28),
 
           // ---- 소셜 로그인 ----
-          _SocialButton(
-            label: 'Google로 시작하기',
-            color: Colors.white,
-            textColor: Colors.black87,
-            border: true,
-            icon: const _GoogleIcon(),
-            enabled: !_busy,
-            onTap: _googleSubmit,
-          ),
+          // Google 은 키가 설정된 경우에만 활성화. 아니면 카카오/네이버처럼 "(준비 중)".
+          if (SupabaseService.isGoogleConfigured)
+            _SocialButton(
+              label: 'Google로 시작하기',
+              color: Colors.white,
+              textColor: Colors.black87,
+              border: true,
+              icon: const _GoogleIcon(),
+              enabled: !_busy,
+              onTap: _googleSubmit,
+            )
+          else
+            _SocialButton(
+              label: 'Google로 시작하기 (준비 중)',
+              color: Colors.white,
+              textColor: Colors.black87,
+              border: true,
+              icon: const _GoogleIcon(),
+              enabled: false,
+              onTap: () => _comingSoon('Google'),
+            ),
           const SizedBox(height: 8),
           _SocialButton(
             label: '카카오로 시작하기 (준비 중)',
