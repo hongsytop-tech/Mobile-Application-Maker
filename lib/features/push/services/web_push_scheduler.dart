@@ -38,6 +38,8 @@ class WebPushScheduler {
 
     final uid = SupabaseService.currentUser!.id;
     try {
+      // sent_at 은 upsert payload 에서 제외 — cron 발송 이력을 보존하기 위함.
+      // 신규 insert 시에는 컬럼 default(NULL) 적용, 기존 행 update 시에는 보존.
       await SupabaseService.client.from('scheduled_pushes').upsert({
         'user_id': uid,
         'kind': _kind,
@@ -45,7 +47,6 @@ class WebPushScheduler {
         'title': '📝 오늘의 문구',
         'body': q.text,
         'scheduled_at': first.toUtc().toIso8601String(),
-        'sent_at': null,
         'recur': recur,
       }, onConflict: 'user_id,kind,ref_id');
     } catch (e) {
@@ -165,7 +166,6 @@ class WebPushScheduler {
         'title': '🗒️ 할 일 알림',
         'body': item.text,
         'scheduled_at': first.toUtc().toIso8601String(),
-        'sent_at': null,
         'recur': recur.isEmpty ? null : recur,
       }, onConflict: 'user_id,kind,ref_id');
     } catch (e) {
@@ -249,7 +249,6 @@ class WebPushScheduler {
         'title': '📋 ${cat.name}',
         'body': body,
         'scheduled_at': first.toUtc().toIso8601String(),
-        'sent_at': null,
         'recur': recur,
       }, onConflict: 'user_id,kind,ref_id');
     } catch (e) {
