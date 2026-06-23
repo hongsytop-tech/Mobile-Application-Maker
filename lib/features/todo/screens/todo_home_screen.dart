@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../auth/services/sync_manager.dart';
+import '../../../shared/widgets/scroll_to_top_fab.dart';
 import '../models/todo_category.dart';
 import '../models/todo_item.dart';
 import '../providers/todo_providers.dart';
@@ -40,6 +41,8 @@ class _TodoHomeScreenState extends ConsumerState<TodoHomeScreen> {
     final itemsByCat = ref.watch(todoItemsByCategoryProvider);
 
     return Scaffold(
+      floatingActionButton:
+          ScrollToTopFab(controller: _scrollCtrl, heroTag: 'todoTop'),
       appBar: AppBar(
         title: const Text('To do'),
         actions: [

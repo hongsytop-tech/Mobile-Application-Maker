@@ -14,6 +14,7 @@ import '../../todo/providers/todo_providers.dart';
 import '../../update/services/web_update_detector_stub.dart'
     if (dart.library.html) '../../update/services/web_update_detector_web.dart';
 import '../../recommend/providers/recommend_providers.dart';
+import '../../../shared/widgets/scroll_to_top_fab.dart';
 import '../../../shell/menu_settings_provider.dart';
 import '../../../shell/menu_settings_screen.dart';
 import '../providers/auth_providers.dart';
@@ -32,6 +33,13 @@ class ProfileScreen extends ConsumerStatefulWidget {
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _busy = false;
   String? _statusMsg;
+  final ScrollController _scrollCtrl = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
 
   Future<void> _backup() async {
     setState(() {
@@ -144,6 +152,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('내 정보 · 백업')),
+      floatingActionButton:
+          ScrollToTopFab(controller: _scrollCtrl, heroTag: 'profileTop'),
       body: RefreshIndicator(
         onRefresh: () => SyncManager.instance.pullOnLogin(),
         child: userAsync.when(
@@ -152,6 +162,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         data: (user) {
           if (user == null) {
             return ListView(
+              controller: _scrollCtrl,
               physics: const AlwaysScrollableScrollPhysics(),
               children: [
                 SizedBox(
@@ -162,6 +173,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             );
           }
           return ListView(
+            controller: _scrollCtrl,
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(20),
             children: [
