@@ -1,0 +1,44 @@
+name: Cleanup old artifacts
+
+on:
+  # 수동 실행: Actions 탭 → "Cleanup old artifacts" → "Run workflow"
+  workflow_dispatch:
+    inputs:
+      keep:
+        description: '남길 최신 artifact 개수'
+        default: '5'
+        required: true
+  # 매주 일요일 03:17 UTC 자동 실행 (= KST 월요일 12:17)
+  schedule:
+    - cron: '17 3 * * 0'
+
+permissions:
+  actions: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const keep = parseInt(context.payload.inputs?.keep ?? '5', 10);
+            const all = await github.paginate(
+              github.rest.actions.listArtifactsForRepo,
+              { owner: context.repo.owner, repo: context.repo.repo, per_page: 100 });
+            // 최신순 정렬 후 앞 N개 보존, 나머지 삭제
+            all.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            const toDelete = all.slice(keep);
+            core.info(`총 ${all.length}개 중 ${keep}개 보존, ${toDelete.length}개 삭제 예정`);
+            let freed = 0;
+            for (const a of toDelete) {
+              try {
+                await github.rest.actions.deleteArtifact({
+                  owner: context.repo.owner, repo: context.repo.repo, artifact_id: a.id });
+                freed += a.size_in_bytes;
+                core.info(`삭제: #${a.id} ${a.name} (${(a.size_in_bytes/1024/1024).toFixed(1)}MB, ${a.created_at})`);
+              } catch (e) {
+                core.warning(`삭제 실패 #${a.id}: ${e.message}`);
+              }
+            }
+            core.info(`완료. 절약 용량: ${(freed/1024/1024).toFixed(1)} MB`);
