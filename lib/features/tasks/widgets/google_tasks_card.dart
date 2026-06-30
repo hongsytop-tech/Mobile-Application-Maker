@@ -55,9 +55,7 @@ class _GoogleTasksCardState extends ConsumerState<GoogleTasksCard> {
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
-    if (!GoogleTasksService.isConfigured) {
-      return const SizedBox.shrink();
-    }
+    final configured = GoogleTasksService.isConfigured;
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -88,6 +86,14 @@ class _GoogleTasksCardState extends ConsumerState<GoogleTasksCard> {
             '운전 중 "Hey Google, 할 일 추가해줘"로 적어둔 일정을 메모로 가져옵니다.',
             style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
           ),
+          if (!configured) ...[
+            const SizedBox(height: 6),
+            Text(
+              '⚠️ 구글 클라이언트 ID(GOOGLE_WEB_CLIENT_ID)가 설정되지 않았습니다. '
+              'GitHub Secret 등록 후 재배포가 필요합니다.',
+              style: TextStyle(fontSize: 11, color: Colors.orange.shade800),
+            ),
+          ],
           if (_msg != null) ...[
             const SizedBox(height: 8),
             Text(
@@ -101,7 +107,7 @@ class _GoogleTasksCardState extends ConsumerState<GoogleTasksCard> {
           ],
           const SizedBox(height: 10),
           FilledButton.icon(
-            onPressed: _busy ? null : _import,
+            onPressed: (_busy || !configured) ? null : _import,
             icon: _busy
                 ? const SizedBox(
                     width: 14,
