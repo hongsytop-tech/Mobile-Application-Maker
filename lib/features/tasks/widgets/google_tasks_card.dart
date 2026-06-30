@@ -18,6 +18,15 @@ class _GoogleTasksCardState extends ConsumerState<GoogleTasksCard> {
   bool _busy = false;
   String? _msg;
 
+  @override
+  void initState() {
+    super.initState();
+    // 버튼 탭 시 즉시 팝업이 뜨도록 GIS 스크립트를 미리 로드.
+    if (GoogleTasksService.isConfigured) {
+      GoogleTasksService.preload();
+    }
+  }
+
   Future<void> _import() async {
     setState(() {
       _busy = true;

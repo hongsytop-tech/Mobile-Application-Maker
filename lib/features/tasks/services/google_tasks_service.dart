@@ -2,8 +2,9 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
+
+import 'tasks_token.dart';
 
 /// Google Tasks 한 건.
 class GoogleTask {
@@ -45,47 +46,33 @@ class GoogleTasksService {
   static const _scope = 'https://www.googleapis.com/auth/tasks.readonly';
   static const _base = 'https://tasks.googleapis.com/tasks/v1';
 
-  // Supabase 로그인용 GoogleSignIn 과 섞이지 않도록 Tasks 전용 인스턴스를 따로 둔다.
-  static GoogleSignIn? _gsi;
-
-  static GoogleSignIn _signIn() {
-    final webClientId = dotenv.maybeGet('GOOGLE_WEB_CLIENT_ID') ?? '';
-    if (webClientId.isEmpty) {
-      throw const GoogleTasksException(
-          'GOOGLE_WEB_CLIENT_ID 가 설정되지 않았습니다. (docs/SUPABASE_SETUP.md 참고)');
-    }
-    return _gsi ??= GoogleSignIn(
-      // 웹은 clientId, 네이티브는 serverClientId 를 사용한다.
-      clientId: kIsWeb ? webClientId : null,
-      serverClientId: kIsWeb ? null : webClientId,
-      scopes: const [_scope],
-    );
-  }
+  static String get _clientId =>
+      dotenv.maybeGet('GOOGLE_WEB_CLIENT_ID') ?? '';
 
   static bool get isConfigured {
-    final id = dotenv.maybeGet('GOOGLE_WEB_CLIENT_ID') ?? '';
+    final id = _clientId;
     return id.isNotEmpty && !id.startsWith('your_');
   }
 
-  /// Tasks 읽기 권한으로 로그인하고 access token 을 받는다.
+  /// GIS 스크립트를 미리 로드해 둔다 (버튼 탭 시 즉시 팝업).
+  static Future<void> preload() async {
+    try {
+      await preloadTasksAuth();
+    } catch (_) {}
+  }
+
+  /// Tasks 읽기 권한 access token 을 받는다 (웹: GIS 토큰 클라이언트).
   static Future<String> _accessToken() async {
-    final gsi = _signIn();
-    var account = await gsi.signInSilently();
-    account ??= await gsi.signIn();
-    if (account == null) {
-      throw const GoogleTasksException('취소됨');
+    final clientId = _clientId;
+    if (clientId.isEmpty) {
+      throw const GoogleTasksException(
+          'GOOGLE_WEB_CLIENT_ID 가 설정되지 않았습니다.');
     }
-    // 스코프가 아직 승인되지 않았으면 명시적으로 요청 (웹 GIS 대응).
-    final granted = await gsi.requestScopes(const [_scope]);
-    if (!granted) {
-      throw const GoogleTasksException('Tasks 읽기 권한이 거부되었습니다.');
+    try {
+      return await getTasksAccessToken(clientId, _scope);
+    } catch (e) {
+      throw GoogleTasksException(e.toString().replaceFirst('Exception: ', ''));
     }
-    final auth = await account.authentication;
-    final token = auth.accessToken;
-    if (token == null || token.isEmpty) {
-      throw const GoogleTasksException('Google access token 을 받지 못했습니다.');
-    }
-    return token;
   }
 
   /// 모든 task list 의 미완료(needsAction) 항목을 한꺼번에 가져온다.
@@ -133,15 +120,5 @@ class GoogleTasksService {
       }
     }
     return all;
-  }
-
-  /// Tasks 연결 해제 (선택).
-  static Future<void> disconnect() async {
-    try {
-      await _gsi?.disconnect();
-    } catch (_) {}
-    try {
-      await _gsi?.signOut();
-    } catch (_) {}
   }
 }
