@@ -498,15 +498,15 @@ class _ItemTileState extends ConsumerState<_ItemTile> {
                 // 토글 직후 리스트가 재구성되어 widget.item 이 다른 항목으로
                 // 바뀔 수 있으니 클릭한 시점의 항목을 로컬 변수에 캡처.
                 final clicked = item;
-                final wasOnce = clicked.repeat == TodoRepeat.once;
                 final wasDone = clicked.isCompletedNow;
                 // 토글 후 이 위젯이 unmount 될 수 있으니 messenger·notifier 를 미리 캡처
                 // (unmount 된 ref 로는 read 가 동작하지 않아 실행취소가 무산되던 문제)
                 final messenger = ScaffoldMessenger.of(context);
                 final notifier = ref.read(todoItemsProvider.notifier);
                 await notifier.toggleComplete(clicked.id);
-                // 수시(once) 항목을 방금 "완료"로 바꾼 경우만 → 10초 Undo 스낵바
-                if (!wasOnce || wasDone) return;
+                // 방금 "완료"로 바꾼 경우 → 항목이 목록에서 사라지므로 10초 Undo 스낵바.
+                // (완료를 "취소"한 경우(wasDone)는 스낵바 없음)
+                if (wasDone) return;
                 messenger.hideCurrentSnackBar();
                 messenger.showSnackBar(
                   SnackBar(

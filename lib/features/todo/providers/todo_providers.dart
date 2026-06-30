@@ -393,17 +393,18 @@ class TodoItemsNotifier extends AsyncNotifier<List<TodoItem>> {
 }
 
 /// 카테고리별로 그룹화된 항목 (카테고리 순서대로)
-/// 즉시(once) 항목은 완료되면 목록에서 제외 → 완료 기록 캘린더에서만 확인.
-/// 반복(매일/주간/월간)·장기목표는 그대로 유지.
+/// 완료된 항목은 목록에서 제외 → 완료 기록 캘린더에서만 확인.
+/// - 수시(once)·장기목표(longterm): 완료하면 영구히 사라짐.
+/// - 매일/주간/월간 반복: 완료한 그 날(주/달)에는 사라지고, 다음 주기가 되면
+///   isCompletedNow 가 다시 false 가 되어 목록에 자동 재생성된다.
 final todoItemsByCategoryProvider =
     Provider<Map<String, List<TodoItem>>>((ref) {
   final items = ref.watch(todoItemsProvider).value ?? const <TodoItem>[];
   final map = <String, List<TodoItem>>{};
   for (final i in items) {
-    if (i.repeat == TodoRepeat.once && i.isCompletedNow) continue;
+    if (i.isCompletedNow) continue;
     map.putIfAbsent(i.categoryId, () => []).add(i);
   }
-  // 완료 여부와 무관하게 수동 순서(order) 유지 → 체크해도 제자리에 표시.
   for (final entry in map.entries) {
     entry.value.sort((a, b) => a.order.compareTo(b.order));
   }
