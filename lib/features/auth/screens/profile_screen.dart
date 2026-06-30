@@ -14,6 +14,7 @@ import '../../todo/providers/todo_providers.dart';
 import '../../update/services/web_update_detector_stub.dart'
     if (dart.library.html) '../../update/services/web_update_detector_web.dart';
 import '../../recommend/providers/recommend_providers.dart';
+import '../../tasks/widgets/google_tasks_card.dart';
 import '../../../shared/widgets/scroll_to_top.dart';
 import '../../../shell/menu_settings_provider.dart';
 import '../../../shell/menu_settings_screen.dart';
@@ -207,6 +208,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               const _NotificationOptionsCard(),
               const SizedBox(height: 12),
               _MenuEditCard(),
+              const SizedBox(height: 12),
+              const GoogleTasksCard(),
               if (kIsWeb) ...[
                 const SizedBox(height: 12),
                 const _UpdateCheckCard(),
