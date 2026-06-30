@@ -5,6 +5,7 @@ import 'package:table_calendar/table_calendar.dart';
 
 import '../models/todo_category.dart';
 import '../providers/todo_providers.dart';
+import 'todo_search_screen.dart';
 
 /// 날짜별로 그날 완료한 체크리스트를 카테고리별로 모아보는 캘린더.
 class TodoCompletionCalendarScreen extends ConsumerStatefulWidget {
@@ -36,7 +37,18 @@ class _TodoCompletionCalendarScreenState
     final catOrder = [...cats]..sort((a, b) => a.order.compareTo(b.order));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('완료 기록')),
+      appBar: AppBar(
+        title: const Text('완료 기록'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            tooltip: '검색',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const TodoSearchScreen()),
+            ),
+          ),
+        ],
+      ),
       body: ListView(
         children: [
           TableCalendar(

@@ -10,6 +10,7 @@ import '../providers/memo_providers.dart';
 import '../services/memo_url_helper.dart'
     if (dart.library.html) '../services/memo_url_helper_web.dart';
 import 'memo_edit_screen.dart';
+import 'memo_search_screen.dart';
 
 class MemoListScreen extends ConsumerWidget {
   const MemoListScreen({super.key});
@@ -20,7 +21,18 @@ class MemoListScreen extends ConsumerWidget {
     final sorted = ref.watch(sortedMemosProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('메모')),
+      appBar: AppBar(
+        title: const Text('메모'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            tooltip: '검색',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const MemoSearchScreen()),
+            ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const MemoEditScreen()),

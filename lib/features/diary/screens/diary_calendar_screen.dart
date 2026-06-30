@@ -8,6 +8,7 @@ import '../../../shared/widgets/scroll_to_top.dart';
 import '../models/diary.dart';
 import '../providers/diary_providers.dart';
 import 'diary_edit_screen.dart';
+import 'diary_search_screen.dart';
 
 class DiaryCalendarScreen extends ConsumerStatefulWidget {
   const DiaryCalendarScreen({super.key});
@@ -36,7 +37,18 @@ class _DiaryCalendarScreenState extends ConsumerState<DiaryCalendarScreen> {
     );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('일기')),
+      appBar: AppBar(
+        title: const Text('일기'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            tooltip: '검색',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const DiarySearchScreen()),
+            ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openEditor(_selectedDay),
         icon: Icon(selectedDiary == null ? Icons.edit : Icons.edit_note),
