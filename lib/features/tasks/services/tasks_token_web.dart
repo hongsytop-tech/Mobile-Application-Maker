@@ -88,14 +88,13 @@ Future<String> getTasksAccessToken(String clientId, String scope,
   );
 
   final client = js_util.callMethod(oauth2, 'initTokenClient', [config]);
-  if (silent) {
-    // 조용한 재발급 — 동의가 살아있으면 팝업 없이 토큰 발급.
-    final override = js_util.newObject<Object>();
-    js_util.setProperty(override, 'prompt', '');
-    js_util.callMethod(client, 'requestAccessToken', [override]);
-  } else {
-    js_util.callMethod(client, 'requestAccessToken', []);
-  }
+  // prompt:'' → 이미 동의한 계정이면 계정 선택·동의 화면을 건너뛰고 바로 토큰.
+  // (최초 1회는 GIS 가 필요 시 동의 화면을 띄운다.)
+  // silent(앱 시작·제스처 없음)에서 동의가 필요하면 팝업이 차단되어
+  // error_callback 으로 조용히 실패한다.
+  final override = js_util.newObject<Object>();
+  js_util.setProperty(override, 'prompt', '');
+  js_util.callMethod(client, 'requestAccessToken', [override]);
 
   return completer.future;
 }
