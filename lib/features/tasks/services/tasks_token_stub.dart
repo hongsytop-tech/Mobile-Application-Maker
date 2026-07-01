@@ -2,6 +2,6 @@
 Future<void> preloadTasksAuth() async {}
 
 Future<String> getTasksAccessToken(String clientId, String scope,
-    {bool silent = false}) async {
+    {bool silent = false, String? hint}) async {
   throw UnsupportedError('Google Tasks 연동은 웹(PWA)에서만 지원됩니다.');
 }

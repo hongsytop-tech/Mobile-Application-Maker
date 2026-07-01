@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
+import '../../auth/services/supabase_service.dart';
 import 'tasks_token.dart';
 
 /// Google Tasks 한 건.
@@ -68,8 +69,11 @@ class GoogleTasksService {
       throw const GoogleTasksException(
           'GOOGLE_WEB_CLIENT_ID 가 설정되지 않았습니다.');
     }
+    // 앱 로그인 이메일을 계정 힌트로 사용 → 계정 선택 화면 생략 + 조용한 재발급.
+    final hint = SupabaseService.currentUser?.email;
     try {
-      return await getTasksAccessToken(clientId, _scope, silent: silent);
+      return await getTasksAccessToken(clientId, _scope,
+          silent: silent, hint: hint);
     } catch (e) {
       throw GoogleTasksException(e.toString().replaceFirst('Exception: ', ''));
     }

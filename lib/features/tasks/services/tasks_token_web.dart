@@ -44,7 +44,7 @@ bool _hasGis() {
 /// [silent] 이면 prompt:'' 로 요청 → 동의가 살아있으면 팝업 없이 토큰,
 /// 동의가 필요하면 팝업 없이 error_callback 으로 조용히 실패한다(앱 시작 시 사용).
 Future<String> getTasksAccessToken(String clientId, String scope,
-    {bool silent = false}) async {
+    {bool silent = false, String? hint}) async {
   await _ensureGisLoaded();
   final completer = Completer<String>();
 
@@ -55,6 +55,10 @@ Future<String> getTasksAccessToken(String clientId, String scope,
   final config = js_util.newObject<Object>();
   js_util.setProperty(config, 'client_id', clientId);
   js_util.setProperty(config, 'scope', scope);
+  // 계정 힌트 → 계정 선택 화면을 건너뛰고, 조용한 재발급을 가능케 함.
+  if (hint != null && hint.isNotEmpty) {
+    js_util.setProperty(config, 'hint', hint);
+  }
   js_util.setProperty(
     config,
     'callback',
