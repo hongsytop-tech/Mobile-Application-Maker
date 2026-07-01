@@ -7,3 +7,7 @@ verify_jwt = false
 # 게이트웨이 JWT 검증을 켜면 cron 의 secret 호출이 "Invalid JWT" 로 차단되므로 끈다.
 [functions.web-push]
 verify_jwt = false
+
+# google-tasks 도 자체 인증 (sync_all=SCHEDULER_SECRET, 그 외=user JWT).
+[functions.google-tasks]
+verify_jwt = false

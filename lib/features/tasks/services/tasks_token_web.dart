@@ -98,3 +98,50 @@ Future<String> getTasksAccessToken(String clientId, String scope,
 
   return completer.future;
 }
+
+/// GIS 코드 클라이언트로 offline 인증 코드를 받는다(백엔드 자동 동기화 연동용).
+/// 이 코드를 서버가 refresh_token 으로 교환한다. 버튼 등 제스처에서 호출.
+Future<String> getTasksAuthCode(String clientId, String scope,
+    {String? hint}) async {
+  await _ensureGisLoaded();
+  final completer = Completer<String>();
+
+  final google = js_util.getProperty(html.window, 'google');
+  final accounts = js_util.getProperty(google, 'accounts');
+  final oauth2 = js_util.getProperty(accounts, 'oauth2');
+
+  final config = js_util.newObject<Object>();
+  js_util.setProperty(config, 'client_id', clientId);
+  js_util.setProperty(config, 'scope', scope);
+  js_util.setProperty(config, 'ux_mode', 'popup');
+  if (hint != null && hint.isNotEmpty) {
+    js_util.setProperty(config, 'hint', hint);
+  }
+  js_util.setProperty(
+    config,
+    'callback',
+    js_util.allowInterop((resp) {
+      if (completer.isCompleted) return;
+      final code = js_util.getProperty(resp, 'code');
+      if (code is String && code.isNotEmpty) {
+        completer.complete(code);
+      } else {
+        final err = js_util.getProperty(resp, 'error');
+        completer.completeError(Exception('인증 코드를 받지 못했습니다: $err'));
+      }
+    }),
+  );
+  js_util.setProperty(
+    config,
+    'error_callback',
+    js_util.allowInterop((err) {
+      if (completer.isCompleted) return;
+      completer.completeError(
+          Exception('인증이 취소되었거나 오류가 발생했습니다'));
+    }),
+  );
+
+  final client = js_util.callMethod(oauth2, 'initCodeClient', [config]);
+  js_util.callMethod(client, 'requestCode', []);
+  return completer.future;
+}

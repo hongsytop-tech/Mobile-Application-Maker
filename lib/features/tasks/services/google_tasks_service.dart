@@ -62,6 +62,57 @@ class GoogleTasksService {
     } catch (_) {}
   }
 
+  // ---- 백엔드 자동 동기화 (google-tasks Edge Function) ----
+
+  /// 자동 연동 켜기 — offline 인증코드를 받아 서버에 refresh_token 저장.
+  /// 반환: 연동 직후 즉시 가져온 개수.
+  static Future<int> connectAuto() async {
+    final clientId = _clientId;
+    if (clientId.isEmpty) {
+      throw const GoogleTasksException('GOOGLE_WEB_CLIENT_ID 가 설정되지 않았습니다.');
+    }
+    final hint = SupabaseService.currentUser?.email;
+    final String code;
+    try {
+      code = await getTasksAuthCode(clientId, _scope, hint: hint);
+    } catch (e) {
+      throw GoogleTasksException(e.toString().replaceFirst('Exception: ', ''));
+    }
+    final res = await SupabaseService.client.functions.invoke(
+      'google-tasks',
+      body: {'action': 'connect', 'code': code},
+    );
+    final data = res.data;
+    if (data is Map && data['ok'] == true) {
+      return (data['imported'] as num?)?.toInt() ?? 0;
+    }
+    final err = data is Map ? data['error'] : 'unknown';
+    throw GoogleTasksException('연동 실패: $err');
+  }
+
+  /// 자동 연동 상태 조회.
+  static Future<bool> isAutoLinked() async {
+    if (!SupabaseService.isAuthenticated) return false;
+    try {
+      final res = await SupabaseService.client.functions.invoke(
+        'google-tasks',
+        body: {'action': 'status'},
+      );
+      final data = res.data;
+      return data is Map && data['linked'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// 자동 연동 해제.
+  static Future<void> disconnectAuto() async {
+    await SupabaseService.client.functions.invoke(
+      'google-tasks',
+      body: {'action': 'disconnect'},
+    );
+  }
+
   /// Tasks 읽기 권한 access token 을 받는다 (웹: GIS 토큰 클라이언트).
   static Future<String> _accessToken({bool silent = false}) async {
     final clientId = _clientId;

@@ -5,8 +5,9 @@ import '../../memo/providers/memo_providers.dart';
 import '../services/google_tasks_service.dart';
 import '../services/tasks_importer.dart';
 
-/// 마이페이지의 "구글 Tasks 가져오기" 카드.
-/// 운전 중 음성으로 Google Tasks 에 적어둔 일정을 메모로 가져온다.
+/// 마이페이지의 "구글 Tasks 연동" 카드.
+/// - 자동 연동: 서버가 15분마다 Google Tasks 를 확인해 메모로 추가 (앱 안 열어도 동작)
+/// - 지금 가져오기: 즉시 1회 가져오기 (클라이언트)
 class GoogleTasksCard extends ConsumerStatefulWidget {
   const GoogleTasksCard({super.key});
 
@@ -16,24 +17,38 @@ class GoogleTasksCard extends ConsumerStatefulWidget {
 
 class _GoogleTasksCardState extends ConsumerState<GoogleTasksCard> {
   bool _busy = false;
+  bool _checkingLink = true;
+  bool _linked = false;
   String? _msg;
 
   @override
   void initState() {
     super.initState();
-    // 버튼 탭 시 즉시 팝업이 뜨도록 GIS 스크립트를 미리 로드.
     if (GoogleTasksService.isConfigured) {
       GoogleTasksService.preload();
+      _refreshLinkStatus();
+    } else {
+      _checkingLink = false;
     }
   }
 
-  Future<void> _import() async {
+  Future<void> _refreshLinkStatus() async {
+    final linked = await GoogleTasksService.isAutoLinked();
+    if (mounted) {
+      setState(() {
+        _linked = linked;
+        _checkingLink = false;
+      });
+    }
+  }
+
+  /// 즉시 1회 가져오기 (클라이언트 토큰 방식).
+  Future<void> _importNow() async {
     setState(() {
       _busy = true;
       _msg = null;
     });
     try {
-      // 메모 로드 완료 보장 (미로드 상태에서 add 하면 기존 메모 유실 위험)
       await ref.read(memosProvider.future);
       final r = await TasksImporter.importNew(ref.read(memosProvider.notifier));
       setState(() {
@@ -49,6 +64,48 @@ class _GoogleTasksCardState extends ConsumerState<GoogleTasksCard> {
       setState(() => _msg = '가져오기 실패: ${e.message}');
     } catch (e) {
       setState(() => _msg = '가져오기 실패: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// 자동 연동 켜기 (백엔드 refresh_token 저장).
+  Future<void> _connectAuto() async {
+    setState(() {
+      _busy = true;
+      _msg = null;
+    });
+    try {
+      final imported = await GoogleTasksService.connectAuto();
+      // 연동 직후 서버가 즉시 넣은 메모를 반영하려면 클라우드에서 pull 필요.
+      setState(() {
+        _linked = true;
+        _msg = imported > 0
+            ? '✅ 자동 연동됨 — 방금 $imported건을 가져왔어요. 15분마다 자동으로 가져옵니다.'
+            : '✅ 자동 연동됨 — 이제 15분마다 자동으로 가져옵니다.';
+      });
+    } on GoogleTasksException catch (e) {
+      setState(() => _msg = '연동 실패: ${e.message}');
+    } catch (e) {
+      setState(() => _msg = '연동 실패: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _disconnectAuto() async {
+    setState(() {
+      _busy = true;
+      _msg = null;
+    });
+    try {
+      await GoogleTasksService.disconnectAuto();
+      setState(() {
+        _linked = false;
+        _msg = '자동 연동을 해제했어요.';
+      });
+    } catch (e) {
+      setState(() => _msg = '해제 실패: $e');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -74,13 +131,17 @@ class _GoogleTasksCardState extends ConsumerState<GoogleTasksCard> {
               Icon(Icons.checklist_rtl, size: 18, color: Colors.grey.shade700),
               const SizedBox(width: 6),
               Text(
-                '구글 Tasks 가져오기',
+                '구글 Tasks 연동',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: Colors.grey.shade700,
                 ),
               ),
+              if (_linked) ...[
+                const SizedBox(width: 6),
+                Icon(Icons.check_circle, size: 15, color: Colors.green.shade600),
+              ],
             ],
           ),
           const SizedBox(height: 6),
@@ -96,6 +157,11 @@ class _GoogleTasksCardState extends ConsumerState<GoogleTasksCard> {
               style: TextStyle(fontSize: 11, color: Colors.orange.shade800),
             ),
           ],
+          if (_linked) ...[
+            const SizedBox(height: 6),
+            Text('✅ 자동 연동됨 — 앱을 열지 않아도 15분마다 자동으로 가져옵니다.',
+                style: TextStyle(fontSize: 11, color: primary)),
+          ],
           if (_msg != null) ...[
             const SizedBox(height: 8),
             Text(
@@ -108,16 +174,39 @@ class _GoogleTasksCardState extends ConsumerState<GoogleTasksCard> {
             ),
           ],
           const SizedBox(height: 10),
-          FilledButton.icon(
-            onPressed: (_busy || !configured) ? null : _import,
-            icon: _busy
-                ? const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.download, size: 18),
-            label: Text(_busy ? '가져오는 중...' : '지금 가져오기'),
+          if (_checkingLink)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(4),
+                child: SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            )
+          else if (!_linked)
+            FilledButton.icon(
+              onPressed: (_busy || !configured) ? null : _connectAuto,
+              icon: _busy
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.sync, size: 18),
+              label: Text(_busy ? '연동 중...' : '자동 연동 켜기'),
+            )
+          else
+            OutlinedButton.icon(
+              onPressed: _busy ? null : _disconnectAuto,
+              icon: const Icon(Icons.link_off, size: 18),
+              label: const Text('자동 연동 해제'),
+            ),
+          const SizedBox(height: 6),
+          TextButton.icon(
+            onPressed: (_busy || !configured) ? null : _importNow,
+            icon: const Icon(Icons.download, size: 16),
+            label: const Text('지금 즉시 가져오기'),
           ),
         ],
       ),
