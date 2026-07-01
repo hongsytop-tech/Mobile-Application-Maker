@@ -198,9 +198,13 @@ async function runDue(admin: any) {
         continue;
       }
 
+      // 카테고리 알림은 발송 시점의 현재 미완료 목록으로 본문을 재계산한다.
+      // (저장된 body 는 앱이 마지막으로 스케줄한 시점의 스냅샷이라 오래됨)
+      const body = await resolveBody(admin, p);
+
       const payload = JSON.stringify({
         title: p.title,
-        body: p.body,
+        body,
         url: p.url || 'https://hongsytop-tech.github.io/Mobile-Application-Maker/',
         tag: `${p.kind}-${p.id}`,
         vibrate,
@@ -399,6 +403,61 @@ function isoWeekday(ms: number): number {
   return wd === 0 ? 7 : wd; // 1=Mon..7=Sun
 }
 
+
+/// 발송 시점의 실제 본문을 결정한다.
+/// todo_category 는 현재 user_data.todo_items 로 미완료 목록을 다시 계산해
+/// "오래된 스냅샷 본문"이 아니라 지금 상태를 반영한다. 그 외는 저장된 body 사용.
+async function resolveBody(admin: any, p: any): Promise<string> {
+  if (p.kind !== 'todo_category' || !p.ref_id) return p.body;
+  try {
+    const { data: ud } = await admin
+      .from('user_data')
+      .select('todo_items')
+      .eq('user_id', p.user_id)
+      .maybeSingle();
+    const raw: string[] = Array.isArray(ud?.todo_items) ? ud.todo_items : [];
+    const items = raw
+      .map((s) => {
+        try {
+          return typeof s === 'string' ? JSON.parse(s) : s;
+        } catch {
+          return null;
+        }
+      })
+      .filter((x) => x != null);
+    const pending = items
+      .filter((it: any) => it.categoryId === p.ref_id && !isCompletedNow(it))
+      .sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0))
+      .map((it: any) => String(it.text ?? '').trim())
+      .filter((t: string) => t.length > 0);
+
+    if (pending.length === 0) return '미완료 항목이 없어요. 잘하고 있어요! 🎉';
+    const head = pending.slice(0, 8).join('\n• ');
+    const extra = pending.length > 8 ? `\n…외 ${pending.length - 8}건` : '';
+    return `미완료 ${pending.length}건\n• ${head}${extra}`;
+  } catch (_) {
+    return p.body; // 실패 시 저장된 본문으로 폴백
+  }
+}
+
+/// 앱의 TodoItem.isCompletedNow 와 동일한 판정 (KST 기준).
+function isCompletedNow(item: any): boolean {
+  const comps: string[] = Array.isArray(item.completions) ? item.completions : [];
+  if (comps.length === 0) return false;
+  const repeat = item.repeat ?? 'once';
+  if (repeat === 'once' || repeat === 'longterm') return true;
+  // daily/weekly/monthly: 오늘(KST) 완료했으면 true
+  const last = new Date(comps[comps.length - 1]).getTime();
+  return isSameDayKST(last, Date.now());
+}
+
+function isSameDayKST(aMs: number, bMs: number): boolean {
+  const a = new Date(aMs + KST_OFFSET);
+  const b = new Date(bMs + KST_OFFSET);
+  return a.getUTCFullYear() === b.getUTCFullYear() &&
+    a.getUTCMonth() === b.getUTCMonth() &&
+    a.getUTCDate() === b.getUTCDate();
+}
 
 function j(status: number, payload: unknown) {
   return new Response(JSON.stringify(payload), {
