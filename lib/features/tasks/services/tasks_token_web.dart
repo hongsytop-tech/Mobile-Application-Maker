@@ -41,7 +41,10 @@ bool _hasGis() {
 
 /// GIS 토큰 클라이언트로 [scope] 권한의 access token 을 받는다.
 /// 버튼 onPressed 등 사용자 제스처 컨텍스트에서 호출해야 팝업이 차단되지 않는다.
-Future<String> getTasksAccessToken(String clientId, String scope) async {
+/// [silent] 이면 prompt:'' 로 요청 → 동의가 살아있으면 팝업 없이 토큰,
+/// 동의가 필요하면 팝업 없이 error_callback 으로 조용히 실패한다(앱 시작 시 사용).
+Future<String> getTasksAccessToken(String clientId, String scope,
+    {bool silent = false}) async {
   await _ensureGisLoaded();
   final completer = Completer<String>();
 
@@ -81,7 +84,14 @@ Future<String> getTasksAccessToken(String clientId, String scope) async {
   );
 
   final client = js_util.callMethod(oauth2, 'initTokenClient', [config]);
-  js_util.callMethod(client, 'requestAccessToken', []);
+  if (silent) {
+    // 조용한 재발급 — 동의가 살아있으면 팝업 없이 토큰 발급.
+    final override = js_util.newObject<Object>();
+    js_util.setProperty(override, 'prompt', '');
+    js_util.callMethod(client, 'requestAccessToken', [override]);
+  } else {
+    js_util.callMethod(client, 'requestAccessToken', []);
+  }
 
   return completer.future;
 }

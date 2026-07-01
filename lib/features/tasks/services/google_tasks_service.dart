@@ -62,22 +62,22 @@ class GoogleTasksService {
   }
 
   /// Tasks 읽기 권한 access token 을 받는다 (웹: GIS 토큰 클라이언트).
-  static Future<String> _accessToken() async {
+  static Future<String> _accessToken({bool silent = false}) async {
     final clientId = _clientId;
     if (clientId.isEmpty) {
       throw const GoogleTasksException(
           'GOOGLE_WEB_CLIENT_ID 가 설정되지 않았습니다.');
     }
     try {
-      return await getTasksAccessToken(clientId, _scope);
+      return await getTasksAccessToken(clientId, _scope, silent: silent);
     } catch (e) {
       throw GoogleTasksException(e.toString().replaceFirst('Exception: ', ''));
     }
   }
 
   /// 모든 task list 의 미완료(needsAction) 항목을 한꺼번에 가져온다.
-  static Future<List<GoogleTask>> fetchActiveTasks() async {
-    final token = await _accessToken();
+  static Future<List<GoogleTask>> fetchActiveTasks({bool silent = false}) async {
+    final token = await _accessToken(silent: silent);
     final headers = {'Authorization': 'Bearer $token'};
 
     // 1) task list 목록

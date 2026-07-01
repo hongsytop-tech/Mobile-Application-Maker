@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,6 +7,8 @@ import '../features/memo/providers/memo_providers.dart';
 import '../features/memo/screens/memo_edit_screen.dart';
 import '../features/memo/services/memo_url_helper.dart'
     if (dart.library.html) '../features/memo/services/memo_url_helper_web.dart';
+import '../features/tasks/services/google_tasks_service.dart';
+import '../features/tasks/services/tasks_importer.dart';
 import '../features/update/widgets/update_banner.dart';
 import '../features/update/widgets/web_update_banner.dart';
 import 'app_tabs.dart';
@@ -46,6 +49,7 @@ class _ShellScaffoldState extends ConsumerState<_ShellScaffold> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _handleKakaoCallback();
       _handleMemoDeepLink();
+      _autoImportTasks();
     });
   }
 
@@ -94,6 +98,31 @@ class _ShellScaffoldState extends ConsumerState<_ShellScaffold> {
         content: Text(msg),
         duration: const Duration(seconds: 5),
       ));
+  }
+
+  /// 앱 시작 시 구글 Tasks 를 조용히(팝업 없이) 메모로 가져온다.
+  /// 동의가 살아있으면 자동, 필요 시엔 조용히 실패(마이페이지 버튼으로 재허용).
+  Future<void> _autoImportTasks() async {
+    if (!kIsWeb) return;
+    if (!GoogleTasksService.isConfigured) return;
+    try {
+      // 메모 로드 완료를 먼저 보장 (미로드 상태 add → 기존 메모 유실 방지)
+      await ref.read(memosProvider.future);
+      final r = await TasksImporter.importNew(
+        ref.read(memosProvider.notifier),
+        silent: true,
+      );
+      if (r.imported > 0 && mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(
+            content: Text('🗒️ 구글 Tasks에서 ${r.imported}건을 메모로 가져왔어요'),
+            duration: const Duration(seconds: 3),
+          ));
+      }
+    } catch (_) {
+      // 조용히 무시 — 앱 시작을 방해하지 않는다.
+    }
   }
 
   Future<void> _handleMemoDeepLink() async {

@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../memo/providers/memo_providers.dart';
 import '../services/google_tasks_service.dart';
-import '../services/tasks_import_store.dart';
+import '../services/tasks_importer.dart';
 
 /// 마이페이지의 "구글 Tasks 가져오기" 카드.
 /// 운전 중 음성으로 Google Tasks 에 적어둔 일정을 메모로 가져온다.
@@ -33,25 +33,18 @@ class _GoogleTasksCardState extends ConsumerState<GoogleTasksCard> {
       _msg = null;
     });
     try {
-      final tasks = await GoogleTasksService.fetchActiveTasks();
-      final imported = await TasksImportStore.loadImportedIds();
-
-      final fresh = tasks.where((t) => !imported.contains(t.id)).toList();
-      if (fresh.isEmpty) {
-        setState(() => _msg = tasks.isEmpty
-            ? '가져올 Tasks 항목이 없어요.'
-            : '새로 가져올 항목이 없어요. (이미 ${tasks.length}건 가져옴)');
-        return;
-      }
-
-      final notifier = ref.read(memosProvider.notifier);
-      for (final t in fresh) {
-        // 제목 = Task 제목, 내용 = Task 메모(notes)
-        await notifier.add(title: t.title, content: t.notes);
-      }
-      await TasksImportStore.addImportedIds(fresh.map((t) => t.id));
-
-      setState(() => _msg = '✅ ${fresh.length}건을 메모로 가져왔어요.');
+      // 메모 로드 완료 보장 (미로드 상태에서 add 하면 기존 메모 유실 위험)
+      await ref.read(memosProvider.future);
+      final r = await TasksImporter.importNew(ref.read(memosProvider.notifier));
+      setState(() {
+        if (r.imported > 0) {
+          _msg = '✅ ${r.imported}건을 메모로 가져왔어요.';
+        } else if (r.total == 0) {
+          _msg = '가져올 Tasks 항목이 없어요.';
+        } else {
+          _msg = '새로 가져올 항목이 없어요. (이미 ${r.total}건 가져옴)';
+        }
+      });
     } on GoogleTasksException catch (e) {
       setState(() => _msg = '가져오기 실패: ${e.message}');
     } catch (e) {
