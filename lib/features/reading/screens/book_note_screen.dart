@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/book.dart';
@@ -110,6 +111,37 @@ class _BookNoteEditScreenState extends ConsumerState<BookNoteEditScreen>
     return list.where((b) => b.id == widget.bookId).firstOrNull;
   }
 
+  Future<void> _copyContent() async {
+    final sel = _contentCtrl.selection;
+    final text = _contentCtrl.text;
+    final hasSel = sel.isValid && !sel.isCollapsed;
+    final toCopy = hasSel ? sel.textInside(text) : text;
+    if (toCopy.isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: toCopy));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(hasSel ? '선택한 내용을 복사했어요' : '전체 내용을 복사했어요'),
+        duration: const Duration(milliseconds: 900),
+      ));
+    }
+  }
+
+  Future<void> _pasteContent() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final pasteText = data?.text;
+    if (pasteText == null || pasteText.isEmpty) return;
+    final text = _contentCtrl.text;
+    final sel = _contentCtrl.selection;
+    final start = sel.isValid ? sel.start : text.length;
+    final end = sel.isValid ? sel.end : text.length;
+    final newText = text.replaceRange(start, end, pasteText);
+    _contentCtrl.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(offset: start + pasteText.length),
+    );
+    if (!_contentFocus.hasFocus) _contentFocus.requestFocus();
+  }
+
   @override
   Widget build(BuildContext context) {
     final bookTitle = _findBook()?.title ?? '독서노트';
@@ -125,6 +157,16 @@ class _BookNoteEditScreenState extends ConsumerState<BookNoteEditScreen>
           title: Text(_isNew ? '새 노트 — $bookTitle' : '노트 — $bookTitle',
               maxLines: 1, overflow: TextOverflow.ellipsis),
           actions: [
+            IconButton(
+              icon: const Icon(Icons.copy_all_outlined),
+              tooltip: '복사 (선택 없으면 전체)',
+              onPressed: _copyContent,
+            ),
+            IconButton(
+              icon: const Icon(Icons.content_paste),
+              tooltip: '붙여넣기',
+              onPressed: _pasteContent,
+            ),
             IconButton(
               icon: const Icon(Icons.save),
               tooltip: '저장',

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/memo.dart';
@@ -95,6 +96,40 @@ class _MemoEditScreenState extends ConsumerState<MemoEditScreen>
     }
   }
 
+  /// 복사 — 선택 영역이 있으면 선택분, 없으면 내용 전체를 클립보드로.
+  /// (CanvasKit 모바일 웹에서 선택 툴바가 안 떠 복사가 안 되던 문제 우회)
+  Future<void> _copyContent() async {
+    final sel = _contentCtrl.selection;
+    final text = _contentCtrl.text;
+    final hasSel = sel.isValid && !sel.isCollapsed;
+    final toCopy = hasSel ? sel.textInside(text) : text;
+    if (toCopy.isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: toCopy));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(hasSel ? '선택한 내용을 복사했어요' : '전체 내용을 복사했어요'),
+        duration: const Duration(milliseconds: 900),
+      ));
+    }
+  }
+
+  /// 붙여넣기 — 클립보드 텍스트를 현재 커서/선택 위치에 삽입.
+  Future<void> _pasteContent() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final pasteText = data?.text;
+    if (pasteText == null || pasteText.isEmpty) return;
+    final text = _contentCtrl.text;
+    final sel = _contentCtrl.selection;
+    final start = sel.isValid ? sel.start : text.length;
+    final end = sel.isValid ? sel.end : text.length;
+    final newText = text.replaceRange(start, end, pasteText);
+    _contentCtrl.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(offset: start + pasteText.length),
+    );
+    if (!_contentFocus.hasFocus) _contentFocus.requestFocus();
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -109,6 +144,16 @@ class _MemoEditScreenState extends ConsumerState<MemoEditScreen>
         appBar: AppBar(
           title: Text(_isNew ? '새 메모' : '메모 편집'),
           actions: [
+            IconButton(
+              icon: const Icon(Icons.copy_all_outlined),
+              tooltip: '복사 (선택 없으면 전체)',
+              onPressed: _copyContent,
+            ),
+            IconButton(
+              icon: const Icon(Icons.content_paste),
+              tooltip: '붙여넣기',
+              onPressed: _pasteContent,
+            ),
             IconButton(
               icon: const Icon(Icons.save),
               tooltip: '저장',
