@@ -145,6 +145,22 @@ class _TodoCompletionCalendarScreenState
     await ref.read(todoItemsProvider.notifier).remove(e.item.id);
   }
 
+  /// 이 완료 기록 1건만 제거 → 항목을 미완료로 복구.
+  /// (매일/주간/월간이면 해당 주기의 할 일 목록에 다시 나타남)
+  Future<void> _restoreToIncomplete(CompletedEntry e) async {
+    await ref
+        .read(todoItemsProvider.notifier)
+        .removeCompletion(e.item.id, e.completedAt);
+    if (mounted) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: Text('"${e.item.text}" 미완료로 복구했어요'),
+          duration: const Duration(seconds: 2),
+        ));
+    }
+  }
+
   Widget _categoryGroup(TodoCategory cat, List<CompletedEntry> list) {
     return _categoryGroupRaw(cat.name, Color(cat.colorValue), list);
   }
@@ -188,6 +204,15 @@ class _TodoCompletionCalendarScreenState
                     Text(tf.format(e.completedAt),
                         style: TextStyle(
                             fontSize: 12, color: Colors.grey.shade500)),
+                    InkWell(
+                      onTap: () => _restoreToIncomplete(e),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Padding(
+                        padding: const EdgeInsets.all(6),
+                        child: Icon(Icons.undo,
+                            size: 18, color: Colors.blue.shade400),
+                      ),
+                    ),
                     InkWell(
                       onTap: () => _confirmDelete(e),
                       borderRadius: BorderRadius.circular(16),
