@@ -446,17 +446,15 @@ function isCompletedNow(item: any): boolean {
   if (comps.length === 0) return false;
   const repeat = item.repeat ?? 'once';
   if (repeat === 'once' || repeat === 'longterm') return true;
-  // daily/weekly/monthly: 오늘(KST) 완료했으면 true
-  const last = new Date(comps[comps.length - 1]).getTime();
-  return isSameDayKST(last, Date.now());
-}
-
-function isSameDayKST(aMs: number, bMs: number): boolean {
-  const a = new Date(aMs + KST_OFFSET);
-  const b = new Date(bMs + KST_OFFSET);
-  return a.getUTCFullYear() === b.getUTCFullYear() &&
-    a.getUTCMonth() === b.getUTCMonth() &&
-    a.getUTCDate() === b.getUTCDate();
+  // daily/weekly/monthly: 오늘(KST) 완료했으면 true.
+  // 완료 시각은 앱이 기기 로컬(KST) 시각을 오프셋 없이 저장한다
+  // (예: "2026-07-02T14:30:00.058"). Deno(UTC)의 new Date() 로 파싱하면
+  // 9시간 어긋나므로, 날짜부(YYYY-MM-DD)만 잘라 KST 오늘과 직접 비교한다.
+  const lastStr = String(comps[comps.length - 1]);
+  const compDate = lastStr.length >= 10 ? lastStr.substring(0, 10) : lastStr;
+  const todayKST =
+    new Date(Date.now() + KST_OFFSET).toISOString().substring(0, 10);
+  return compDate === todayKST;
 }
 
 function j(status: number, payload: unknown) {
