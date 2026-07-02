@@ -97,6 +97,14 @@ jobs:
                 -webkit-touch-callout: none;
                 -webkit-tap-highlight-color: transparent;
               }
+              /* 텍스트 입력 요소에서는 선택·복사·붙여넣기를 허용한다.
+                 (전역 user-select:none 이 Flutter 웹 텍스트필드의 선택/클립보드를
+                  막아 메모 등에서 범위지정·복사·붙여넣기가 안 되던 문제 해결) */
+              input, textarea, [contenteditable="true"], .flt-text-editing {
+                -webkit-user-select: text !important;
+                user-select: text !important;
+                -webkit-touch-callout: default !important;
+              }
             </style>
           '''
           if 'apple-mobile-web-app-capable' not in html:
