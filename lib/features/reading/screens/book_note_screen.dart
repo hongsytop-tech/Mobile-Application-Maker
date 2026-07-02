@@ -105,25 +105,6 @@ class _BookNoteEditScreenState extends ConsumerState<BookNoteEditScreen>
     }
   }
 
-  void _padToTapAndFocus(Offset localPosition) {
-    const topPadding = 16.0;
-    const lineHeight = 24.0;
-    final relativeY = localPosition.dy - topPadding;
-    if (relativeY > 0) {
-      final tappedLine = (relativeY / lineHeight).floor();
-      final currentLines = _contentCtrl.text.split('\n').length;
-      if (tappedLine >= currentLines) {
-        final extra = tappedLine - currentLines + 1;
-        final newText = _contentCtrl.text + ('\n' * extra);
-        _contentCtrl.value = TextEditingValue(
-          text: newText,
-          selection: TextSelection.collapsed(offset: newText.length),
-        );
-      }
-    }
-    if (!_contentFocus.hasFocus) _contentFocus.requestFocus();
-  }
-
   Book? _findBook() {
     final list = ref.read(booksProvider).value ?? const <Book>[];
     return list.where((b) => b.id == widget.bookId).firstOrNull;
@@ -174,31 +155,27 @@ class _BookNoteEditScreenState extends ConsumerState<BookNoteEditScreen>
               ),
               const SizedBox(height: 12),
               // 내용 입력 (남은 공간 전체)
+              // (모바일 복사 버튼 탭까지 가로채 선택이 풀리던 Listener 제거)
               Expanded(
-                child: Listener(
-                  behavior: HitTestBehavior.translucent,
-                  onPointerDown: (event) =>
-                      _padToTapAndFocus(event.localPosition),
-                  child: TextField(
-                    controller: _contentCtrl,
-                    focusNode: _contentFocus,
-                    maxLines: null,
-                    expands: true,
-                    decoration: const InputDecoration(
-                      labelText: '내용',
-                      hintText: '인상 깊은 문구나 떠오른 생각을 적어보세요...',
-                      border: OutlineInputBorder(),
-                      alignLabelWithHint: true,
-                    ),
-                    keyboardType: TextInputType.multiline,
-                    textInputAction: TextInputAction.newline,
-                    textAlignVertical: TextAlignVertical.top,
-                    autocorrect: false,
-                    enableSuggestions: false,
-                    enableIMEPersonalizedLearning: false,
-                    magnifierConfiguration:
-                        TextMagnifierConfiguration.disabled,
+                child: TextField(
+                  controller: _contentCtrl,
+                  focusNode: _contentFocus,
+                  maxLines: null,
+                  expands: true,
+                  decoration: const InputDecoration(
+                    labelText: '내용',
+                    hintText: '인상 깊은 문구나 떠오른 생각을 적어보세요...',
+                    border: OutlineInputBorder(),
+                    alignLabelWithHint: true,
                   ),
+                  keyboardType: TextInputType.multiline,
+                  textInputAction: TextInputAction.newline,
+                  textAlignVertical: TextAlignVertical.top,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  enableIMEPersonalizedLearning: false,
+                  magnifierConfiguration:
+                      TextMagnifierConfiguration.disabled,
                 ),
               ),
             ],

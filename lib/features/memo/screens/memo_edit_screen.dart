@@ -95,31 +95,6 @@ class _MemoEditScreenState extends ConsumerState<MemoEditScreen>
     }
   }
 
-  void _padToTapAndFocus(Offset localPosition) {
-    // OutlineInputBorder 기본 vertical padding 대략값
-    const topPadding = 16.0;
-    // 기본 본문 글꼴 기준 한 줄 높이 근사값
-    const lineHeight = 24.0;
-
-    final relativeY = localPosition.dy - topPadding;
-    if (relativeY > 0) {
-      final tappedLine = (relativeY / lineHeight).floor();
-      final currentLines = _contentCtrl.text.split('\n').length;
-      if (tappedLine >= currentLines) {
-        // 탭한 줄까지 빈 줄로 채워서 커서가 그 위치로 가게 함
-        final extra = tappedLine - currentLines + 1;
-        final newText = _contentCtrl.text + ('\n' * extra);
-        _contentCtrl.value = TextEditingValue(
-          text: newText,
-          selection: TextSelection.collapsed(offset: newText.length),
-        );
-      }
-    }
-    if (!_contentFocus.hasFocus) {
-      _contentFocus.requestFocus();
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -158,36 +133,30 @@ class _MemoEditScreenState extends ConsumerState<MemoEditScreen>
                 magnifierConfiguration: TextMagnifierConfiguration.disabled,
               ),
               const Divider(height: 16),
-              // expands:true 로 본문 TextField 가 남은 세로 공간 전체를 채워서,
-              // 입력되지 않은 빈 줄을 탭해도 그 위치에 포커스가 잡힌다.
+              // expands:true 로 본문 TextField 가 남은 세로 공간 전체를 채운다.
+              // (예전엔 Listener 로 빈 곳 탭→커서이동을 했으나, 모바일에서
+              //  복사 버튼 탭까지 가로채 선택이 풀려 복사가 안 되던 문제로 제거)
               Expanded(
-                child: Listener(
-                  // GestureDetector 는 TextField 내부 제스처와 경합해서
-                  // onTapDown 이 묻히는 경우가 있어 Listener.onPointerDown 사용.
-                  behavior: HitTestBehavior.translucent,
-                  onPointerDown: (event) =>
-                      _padToTapAndFocus(event.localPosition),
-                  child: TextField(
-                    controller: _contentCtrl,
-                    focusNode: _contentFocus,
-                    maxLines: null,
-                    expands: true,
-                    decoration: const InputDecoration(
-                      hintText: '내용을 입력하세요...',
-                      border: OutlineInputBorder(),
-                      alignLabelWithHint: true,
-                    ),
-                    keyboardType: TextInputType.multiline,
-                    textInputAction: TextInputAction.newline,
-                    textAlignVertical: TextAlignVertical.top,
-                    // 한글 IME 가 커서를 다음 줄로 밀어내는 문제 회피.
-                    autocorrect: false,
-                    enableSuggestions: false,
-                    enableIMEPersonalizedLearning: false,
-                    // CanvasKit 렌더러에서 선택 돋보기가 사라지지 않는 버그 회피.
-                    magnifierConfiguration:
-                        TextMagnifierConfiguration.disabled,
+                child: TextField(
+                  controller: _contentCtrl,
+                  focusNode: _contentFocus,
+                  maxLines: null,
+                  expands: true,
+                  decoration: const InputDecoration(
+                    hintText: '내용을 입력하세요...',
+                    border: OutlineInputBorder(),
+                    alignLabelWithHint: true,
                   ),
+                  keyboardType: TextInputType.multiline,
+                  textInputAction: TextInputAction.newline,
+                  textAlignVertical: TextAlignVertical.top,
+                  // 한글 IME 가 커서를 다음 줄로 밀어내는 문제 회피.
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  enableIMEPersonalizedLearning: false,
+                  // CanvasKit 렌더러에서 선택 돋보기가 사라지지 않는 버그 회피.
+                  magnifierConfiguration:
+                      TextMagnifierConfiguration.disabled,
                 ),
               ),
             ],
