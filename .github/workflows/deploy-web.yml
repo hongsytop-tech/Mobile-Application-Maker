@@ -91,19 +91,12 @@ jobs:
             <meta name="theme-color" content="#3F51B5">
             <link rel="apple-touch-icon" href="icons/Icon-192.png">
             <style>
+              /* 탭 하이라이트만 제거. user-select:none / touch-callout:none 은
+                 넣지 않는다 — CanvasKit UI 는 canvas 라 어차피 선택 대상이 아니고,
+                 전역 user-select:none 이 오히려 텍스트필드의 선택·복사·붙여넣기
+                 툴바를 막아 모바일에서 복사가 안 되던 문제가 있었다. */
               html, body {
-                -webkit-user-select: none;
-                user-select: none;
-                -webkit-touch-callout: none;
                 -webkit-tap-highlight-color: transparent;
-              }
-              /* 텍스트 입력 요소에서는 선택·복사·붙여넣기를 허용한다.
-                 (전역 user-select:none 이 Flutter 웹 텍스트필드의 선택/클립보드를
-                  막아 메모 등에서 범위지정·복사·붙여넣기가 안 되던 문제 해결) */
-              input, textarea, [contenteditable="true"], .flt-text-editing {
-                -webkit-user-select: text !important;
-                user-select: text !important;
-                -webkit-touch-callout: default !important;
               }
             </style>
           '''
