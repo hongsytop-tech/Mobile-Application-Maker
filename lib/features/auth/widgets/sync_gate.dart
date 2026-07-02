@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../shell/menu_settings_provider.dart';
 import '../../diary/providers/diary_providers.dart';
+import '../../memo/providers/memo_providers.dart';
 import '../../push/providers/notification_settings_providers.dart';
 import '../../push/services/web_push_scheduler.dart';
 import '../../recommend/providers/recommend_providers.dart';
@@ -30,7 +31,8 @@ class SyncGate extends ConsumerStatefulWidget {
   ConsumerState<SyncGate> createState() => _SyncGateState();
 }
 
-class _SyncGateState extends ConsumerState<SyncGate> {
+class _SyncGateState extends ConsumerState<SyncGate>
+    with WidgetsBindingObserver {
   String? _lastUserId;
   bool _pulling = false;
   StreamSubscription<DateTime>? _pullSub;
@@ -38,6 +40,7 @@ class _SyncGateState extends ConsumerState<SyncGate> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // 백그라운드에서 복귀 시 자동 pull 이 끝나면 provider 무효화 + reschedule
     _pullSub = SyncManager.instance.pullCompleted.listen((_) {
       _refreshFromPulledData();
@@ -46,8 +49,19 @@ class _SyncGateState extends ConsumerState<SyncGate> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _pullSub?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // 앱이 포그라운드로 돌아올 때 클라우드를 다시 내려받는다.
+    // (백엔드가 Google Tasks 를 15분마다 클라우드 메모에 쌓으므로,
+    //  앱 복귀 시 pull 하면 새 메모가 자동으로 보인다. 10초 throttle 내장)
+    if (state == AppLifecycleState.resumed) {
+      SyncManager.instance.pullIfStale();
+    }
   }
 
   void _refreshFromPulledData() {
@@ -57,6 +71,9 @@ class _SyncGateState extends ConsumerState<SyncGate> {
     ref.invalidate(diariesProvider);
     ref.invalidate(todoCategoriesProvider);
     ref.invalidate(todoItemsProvider);
+    // 메모도 무효화 — 백엔드가 Google Tasks 를 클라우드 메모에 추가하므로
+    // pull 후 메모 목록이 갱신되어야 새 항목이 보인다.
+    ref.invalidate(memosProvider);
     // 알림 옵션 + 메뉴 설정 + 추천 알림 설정도 다른 기기의 변경분을 즉시 반영
     ref.invalidate(notificationSettingsProvider);
     ref.invalidate(menuSettingsProvider);
