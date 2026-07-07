@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/memo.dart';
 import '../providers/memo_providers.dart';
+import '../services/memo_markup.dart';
 
 class MemoEditScreen extends ConsumerStatefulWidget {
   final Memo? memo;
@@ -16,7 +17,7 @@ class MemoEditScreen extends ConsumerStatefulWidget {
 class _MemoEditScreenState extends ConsumerState<MemoEditScreen>
     with WidgetsBindingObserver {
   late final TextEditingController _titleCtrl;
-  late final TextEditingController _contentCtrl;
+  late final RichMemoEditingController _contentCtrl;
   final FocusNode _contentFocus = FocusNode();
   bool _dirty = false;
   bool _saving = false;
@@ -33,7 +34,7 @@ class _MemoEditScreenState extends ConsumerState<MemoEditScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _titleCtrl = TextEditingController(text: widget.memo?.title ?? '');
-    _contentCtrl = TextEditingController(text: widget.memo?.content ?? '');
+    _contentCtrl = RichMemoEditingController(text: widget.memo?.content ?? '');
     _titleCtrl.addListener(_markDirty);
     _contentCtrl.addListener(_markDirty);
   }
@@ -130,6 +131,12 @@ class _MemoEditScreenState extends ConsumerState<MemoEditScreen>
     if (!_contentFocus.hasFocus) _contentFocus.requestFocus();
   }
 
+  /// 선택 영역(없으면 커서 위치)에 서식 마커를 토글 적용.
+  void _applyFmt(String mark) {
+    _contentCtrl.value = applyMemoMarker(_contentCtrl.value, mark);
+    if (!_contentFocus.hasFocus) _contentFocus.requestFocus();
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -178,6 +185,27 @@ class _MemoEditScreenState extends ConsumerState<MemoEditScreen>
                 magnifierConfiguration: TextMagnifierConfiguration.disabled,
               ),
               const Divider(height: 16),
+              // 서식 툴바 (선택 영역에 진하게/기울임/밑줄 토글)
+              Row(
+                children: [
+                  _FmtButton(
+                    icon: Icons.format_bold,
+                    tooltip: '진하게',
+                    onTap: () => _applyFmt('**'),
+                  ),
+                  _FmtButton(
+                    icon: Icons.format_italic,
+                    tooltip: '기울임',
+                    onTap: () => _applyFmt('*'),
+                  ),
+                  _FmtButton(
+                    icon: Icons.format_underlined,
+                    tooltip: '밑줄',
+                    onTap: () => _applyFmt('__'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
               // expands:true 로 본문 TextField 가 남은 세로 공간 전체를 채운다.
               // (예전엔 Listener 로 빈 곳 탭→커서이동을 했으나, 모바일에서
               //  복사 버튼 탭까지 가로채 선택이 풀려 복사가 안 되던 문제로 제거)
@@ -208,6 +236,28 @@ class _MemoEditScreenState extends ConsumerState<MemoEditScreen>
           ),
         ),
       ),
+    );
+  }
+}
+
+class _FmtButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+  const _FmtButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      icon: Icon(icon, size: 22),
+      tooltip: tooltip,
+      visualDensity: VisualDensity.compact,
+      color: Colors.grey.shade700,
+      onPressed: onTap,
     );
   }
 }

@@ -9,6 +9,7 @@ import '../models/memo.dart';
 import '../providers/memo_providers.dart';
 import '../services/memo_url_helper.dart'
     if (dart.library.html) '../services/memo_url_helper_web.dart';
+import '../services/memo_markup.dart';
 import 'memo_edit_screen.dart';
 import 'memo_search_screen.dart';
 
@@ -257,12 +258,18 @@ class _MemoCard extends ConsumerWidget {
               ),
               if (preview.isNotEmpty) ...[
                 const SizedBox(height: 6),
-                Text(
-                  preview,
+                Text.rich(
+                  TextSpan(
+                    children: memoSpans(
+                      preview,
+                      TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade700,
+                          height: 1.4),
+                    ),
+                  ),
                   maxLines: 4,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      fontSize: 13, color: Colors.grey.shade700, height: 1.4),
                 ),
               ],
               const SizedBox(height: 8),
