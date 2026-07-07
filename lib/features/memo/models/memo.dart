@@ -8,6 +8,9 @@ class Memo {
   final DateTime updatedAt;
   final int order;
 
+  /// 상단 고정 시각 (null이면 미고정). 문구 메뉴와 동일한 방식.
+  final DateTime? pinnedAt;
+
   const Memo({
     required this.id,
     required this.title,
@@ -15,13 +18,18 @@ class Memo {
     required this.createdAt,
     required this.updatedAt,
     this.order = 0,
+    this.pinnedAt,
   });
+
+  bool get isPinned => pinnedAt != null;
 
   Memo copyWith({
     String? title,
     String? content,
     DateTime? updatedAt,
     int? order,
+    DateTime? pinnedAt,
+    bool clearPin = false,
   }) =>
       Memo(
         id: id,
@@ -30,6 +38,7 @@ class Memo {
         createdAt: createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
         order: order ?? this.order,
+        pinnedAt: clearPin ? null : (pinnedAt ?? this.pinnedAt),
       );
 
   Map<String, dynamic> toJson() => {
@@ -39,6 +48,7 @@ class Memo {
         'createdAt': createdAt.toIso8601String(),
         'updatedAt': updatedAt.toIso8601String(),
         'order': order,
+        'pinnedAt': pinnedAt?.toIso8601String(),
       };
 
   factory Memo.fromJson(Map<String, dynamic> j) => Memo(
@@ -51,6 +61,9 @@ class Memo {
         order: j['order'] as int? ??
             -DateTime.parse(j['createdAt'] as String)
                 .millisecondsSinceEpoch,
+        pinnedAt: j['pinnedAt'] == null
+            ? null
+            : DateTime.parse(j['pinnedAt'] as String),
       );
 
   String toJsonString() => jsonEncode(toJson());

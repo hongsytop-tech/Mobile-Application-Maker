@@ -66,11 +66,38 @@ class MemosNotifier extends AsyncNotifier<List<Memo>> {
     updated.addAll(byId.values);
     await _persist(updated);
   }
+
+  Future<void> togglePin(String id) async {
+    final list = (state.value ?? const <Memo>[]);
+    final now = DateTime.now();
+    final updated = list.map((m) {
+      if (m.id != id) return m;
+      return m.copyWith(
+        pinnedAt: m.isPinned ? null : now,
+        clearPin: m.isPinned,
+        updatedAt: now,
+      );
+    }).toList();
+    await _persist(updated);
+  }
 }
 
-/// 정렬된 메모 (order asc — 최근 추가가 위)
-final sortedMemosProvider = Provider<List<Memo>>((ref) {
+/// 고정·미고정으로 분리된 정렬 결과 (문구 메뉴와 동일).
+class SortedMemos {
+  final List<Memo> pinned;
+  final List<Memo> others;
+  const SortedMemos({required this.pinned, required this.others});
+
+  int get total => pinned.length + others.length;
+  bool get isEmpty => total == 0;
+}
+
+/// 고정된 것 우선, 각 그룹 안에서는 order asc.
+final sortedMemosProvider = Provider<SortedMemos>((ref) {
   final list = ref.watch(memosProvider).value ?? const <Memo>[];
-  final sorted = [...list]..sort((a, b) => a.order.compareTo(b.order));
-  return sorted;
+  final pinned = list.where((m) => m.isPinned).toList()
+    ..sort((a, b) => a.order.compareTo(b.order));
+  final others = list.where((m) => !m.isPinned).toList()
+    ..sort((a, b) => a.order.compareTo(b.order));
+  return SortedMemos(pinned: pinned, others: others);
 });
