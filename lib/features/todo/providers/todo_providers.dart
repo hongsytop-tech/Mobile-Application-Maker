@@ -313,6 +313,27 @@ class TodoItemsNotifier extends AsyncNotifier<List<TodoItem>> {
     if (kIsWeb) await WebPushScheduler.scheduleTodo(updated);
   }
 
+  /// 특정 날짜에 완료 기록을 추가한다 (캘린더에서 지난 날짜의 미완료 항목 체크용).
+  /// 그 날 이미 완료했으면 무시. 시각은 그 날짜의 현재 시:분:초로 기록.
+  Future<void> completeOnDate(String id, DateTime date) async {
+    final list = state.value ?? const <TodoItem>[];
+    final idx = list.indexWhere((i) => i.id == id);
+    if (idx < 0) return;
+    final item = list[idx];
+    if (item.completions.any((c) => _sameDay(c, date))) return;
+    final now = DateTime.now();
+    final ts = DateTime(
+        date.year, date.month, date.day, now.hour, now.minute, now.second);
+    final newCompletions = [...item.completions, ts]
+      ..sort((a, b) => a.compareTo(b));
+    final updated =
+        item.copyWith(completions: newCompletions, updatedAt: now);
+    final newList = [...list];
+    newList[idx] = updated;
+    await _persist(newList);
+    if (kIsWeb) await WebPushScheduler.scheduleTodo(updated);
+  }
+
   Future<void> remove(String id) async {
     final list = state.value ?? const <TodoItem>[];
     final target = list.where((i) => i.id == id).firstOrNull;

@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../models/todo_category.dart';
+import '../models/todo_item.dart';
 import '../providers/todo_providers.dart';
 import 'todo_search_screen.dart';
 
@@ -35,6 +36,27 @@ class _TodoCompletionCalendarScreenState
       grouped.putIfAbsent(e.item.categoryId, () => []).add(e);
     }
     final catOrder = [...cats]..sort((a, b) => a.order.compareTo(b.order));
+
+    // 이 날 완료하지 않은 "매일 반복" 항목 (오늘 이전 날짜에만 표시).
+    final allItems = ref.watch(todoItemsProvider).value ?? const <TodoItem>[];
+    final now = DateTime.now();
+    final selNorm =
+        DateTime(_selectedDay.year, _selectedDay.month, _selectedDay.day);
+    final todayNorm = DateTime(now.year, now.month, now.day);
+    final showIncomplete = !selNorm.isAfter(todayNorm);
+    final incomplete = showIncomplete
+        ? allItems.where((i) {
+            if (i.repeat != TodoRepeat.daily) return false;
+            final created = DateTime(
+                i.createdAt.year, i.createdAt.month, i.createdAt.day);
+            if (created.isAfter(selNorm)) return false; // 생성 전 날짜엔 미표시
+            return !i.completions.any((c) => _sameDay(c, selNorm));
+          }).toList()
+        : const <TodoItem>[];
+    final incGrouped = <String, List<TodoItem>>{};
+    for (final i in incomplete) {
+      incGrouped.putIfAbsent(i.categoryId, () => []).add(i);
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -113,7 +135,84 @@ class _TodoCompletionCalendarScreenState
               .where((e) => !catById.containsKey(e.key))
               .map((e) => _categoryGroupRaw('(삭제된 카테고리)',
                   Colors.grey, e.value)),
+
+          // 이 날 안 한 매일 할 일 (체크하면 위 완료 목록으로 이동)
+          if (showIncomplete && incomplete.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+              child: Row(
+                children: [
+                  Icon(Icons.checklist, size: 18, color: Colors.grey.shade700),
+                  const SizedBox(width: 6),
+                  Text(
+                    '이 날 안 한 매일 할 일 (${incomplete.length})',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                ],
+              ),
+            ),
+            ...catOrder
+                .where((c) => incGrouped.containsKey(c.id))
+                .map((c) => _incompleteGroup(
+                    c.name, Color(c.colorValue), incGrouped[c.id]!, selNorm)),
+            ...incGrouped.entries
+                .where((e) => !catById.containsKey(e.key))
+                .map((e) => _incompleteGroup(
+                    '(삭제된 카테고리)', Colors.grey, e.value, selNorm)),
+          ],
           const SizedBox(height: 40),
+        ],
+      ),
+    );
+  }
+
+  bool _sameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  /// 이 날 미완료인 매일 항목 그룹 — 체크박스로 그 날짜 완료 처리.
+  Widget _incompleteGroup(
+      String name, Color color, List<TodoItem> list, DateTime date) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+              ),
+              const SizedBox(width: 8),
+              Text(name,
+                  style: TextStyle(fontWeight: FontWeight.bold, color: color)),
+            ],
+          ),
+          const SizedBox(height: 2),
+          ...list.map((item) => InkWell(
+                onTap: () => ref
+                    .read(todoItemsProvider.notifier)
+                    .completeOnDate(item.id, date),
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    children: [
+                      Icon(Icons.radio_button_unchecked,
+                          size: 18, color: Colors.grey.shade400),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(item.text,
+                            style: const TextStyle(fontSize: 14)),
+                      ),
+                    ],
+                  ),
+                ),
+              )),
         ],
       ),
     );
