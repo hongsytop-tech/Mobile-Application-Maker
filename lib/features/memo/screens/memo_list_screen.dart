@@ -300,7 +300,14 @@ class _FolderTile extends ConsumerWidget {
                     Text('$count',
                         style: TextStyle(
                             fontSize: 13, color: Colors.grey.shade600)),
-                    const SizedBox(width: 4),
+                    // 이름 변경/삭제 메뉴 버튼
+                    IconButton(
+                      icon: Icon(Icons.more_vert,
+                          size: 20, color: Colors.grey.shade500),
+                      tooltip: '폴더 메뉴',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => _menu(context, ref),
+                    ),
                     Icon(Icons.chevron_right,
                         size: 20, color: Colors.grey.shade400),
                   ],
