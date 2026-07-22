@@ -384,7 +384,14 @@ class _TodoItemEditScreenState extends ConsumerState<TodoItemEditScreen> {
                     title: const Text('알림 받기'),
                     subtitle: const Text('지정한 날짜·시각에 푸시 알림'),
                     value: _notifyEnabled,
-                    onChanged: (v) => setState(() => _notifyEnabled = v),
+                    onChanged: (v) => setState(() {
+                      _notifyEnabled = v;
+                      // 알림을 켜는 순간 날짜를 오늘로 기본 설정.
+                      if (v) {
+                        final now = DateTime.now();
+                        _notifyDate = DateTime(now.year, now.month, now.day);
+                      }
+                    }),
                   ),
                   if (_notifyEnabled) ...[
                     const Divider(height: 1),
