@@ -70,8 +70,8 @@ Deno.serve(async (req) => {
 
   try {
     switch (action) {
-      // 디버그용 액션(send_test/test_scheduled) 은 UI 제거에 맞춰 제거.
-      // 의도치 않은 테스트 알림이 발송되는 것을 방지.
+      case 'send_test':
+        return await sendTest(admin, user.id);
       default:
         return j(400, { error: 'unknown_action' });
     }
@@ -79,6 +79,52 @@ Deno.serve(async (req) => {
     return j(500, { error: 'internal', detail: String(e) });
   }
 });
+
+/// 호출한 사용자의 모든 구독으로 즉시 테스트 알림을 보낸다 (수신 검증용).
+async function sendTest(admin: any, userId: string) {
+  if (!VAPID_PUBLIC || !VAPID_PRIVATE) return j(500, { error: 'vapid_not_configured' });
+  const { data: subs } = await admin
+    .from('web_push_subscriptions')
+    .select('*')
+    .eq('user_id', userId);
+  if (!subs || subs.length === 0) return j(200, { ok: true, subscriptions: 0, sent: 0 });
+
+  const payload = JSON.stringify({
+    title: '🔔 테스트 알림',
+    body: '이 알림이 보이면 정상 수신되는 거예요.',
+    url: 'https://hongsytop-tech.github.io/Mobile-Application-Maker/',
+    tag: 'test-push',
+    vibrate: [200, 100, 200],
+  });
+
+  let sent = 0;
+  const results: any[] = [];
+  const expiredIds: string[] = [];
+  for (const s of subs) {
+    try {
+      await webpush.sendNotification(
+        { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+        payload,
+      );
+      sent++;
+      results.push({ sub: s.id.slice(0, 8), ok: true });
+    } catch (e: any) {
+      const status = e?.statusCode;
+      results.push({ sub: s.id.slice(0, 8), ok: false, status });
+      if (status === 404 || status === 410) expiredIds.push(s.id);
+    }
+  }
+  if (expiredIds.length > 0) {
+    await admin.from('web_push_subscriptions').delete().in('id', expiredIds);
+  }
+  return j(200, {
+    ok: true,
+    subscriptions: subs.length,
+    sent,
+    expired: expiredIds.length,
+    results,
+  });
+}
 
 async function runDue(admin: any) {
   if (!VAPID_PUBLIC || !VAPID_PRIVATE) {

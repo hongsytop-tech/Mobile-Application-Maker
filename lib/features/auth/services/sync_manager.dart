@@ -142,6 +142,12 @@ class SyncManager {
         DateTime.now().difference(_lastPullAt!) < maxAge) {
       return;
     }
+    // 복귀 시 pull 전에 미전송 로컬 변경을 먼저 클라우드로 올린다.
+    // 이게 없으면 방금 만든 변경(예: 알림 예약)이 pull(=클라우드로 로컬 덮어쓰기)에
+    // 지워지고, 뒤이은 재스케줄이 서버 예약까지 삭제한다.
+    if (_dirty && _hasPulledOnce) {
+      await _flush();
+    }
     await pullOnLogin();
   }
 

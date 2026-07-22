@@ -159,6 +159,41 @@ class WebPushService {
     }
   }
 
+  /// 문제 해결용 강제 재구독 — 브라우저 구독을 해제한 뒤 현재 VAPID 키로
+  /// 새로 구독해서 DB 행을 최신으로 교체한다. (stale/불일치 구독 복구)
+  static Future<WebPushEnableResult> forceResubscribe() async {
+    if (!kIsWeb) return WebPushEnableResult.unsupported();
+    try {
+      // 기존(잠재적 stale) 구독을 브라우저·DB 양쪽에서 정리
+      await _cleanupCurrentDeviceSubscription();
+    } catch (_) {}
+    // 새로 구독 (opt-out 도 해제됨)
+    return enable();
+  }
+
+  /// 즉시 테스트 알림 발송 (예약과 무관하게 수신을 직접 검증).
+  /// 반환: (구독수, 발송성공수) 또는 오류 메시지.
+  static Future<({int subscriptions, int sent, String? error})> sendTest() async {
+    if (!SupabaseService.isAuthenticated) {
+      return (subscriptions: 0, sent: 0, error: '로그인이 필요합니다');
+    }
+    try {
+      final res = await SupabaseService.client.functions
+          .invoke('web-push', body: {'action': 'send_test'});
+      final data = res.data;
+      if (data is Map && data['ok'] == true) {
+        return (
+          subscriptions: (data['subscriptions'] as num?)?.toInt() ?? 0,
+          sent: (data['sent'] as num?)?.toInt() ?? 0,
+          error: null,
+        );
+      }
+      return (subscriptions: 0, sent: 0, error: '발송 실패: ${data is Map ? data['error'] : data}');
+    } catch (e) {
+      return (subscriptions: 0, sent: 0, error: '$e');
+    }
+  }
+
   /// 구독 해제 + DB 정리 (이 기기의 endpoint 만).
   /// 사용자가 명시적으로 끈 것이므로 opt-out 기록 →
   /// 다음 앱 시작 시 이 기기에서는 자동 재구독되지 않음.

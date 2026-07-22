@@ -68,6 +68,46 @@ class _WebPushCardState extends State<WebPushCard> {
   }
 
 
+  Future<void> _sendTest() async {
+    setState(() {
+      _busy = true;
+      _msg = null;
+    });
+    final r = await WebPushService.sendTest();
+    if (mounted) {
+      if (r.error != null) {
+        _msg = '❌ 테스트 발송 실패: ${r.error}';
+      } else if (r.subscriptions == 0) {
+        _msg = '구독이 없어요. 먼저 "알림 다시 설정"을 눌러 재등록하세요.';
+      } else if (r.sent > 0) {
+        _msg = '📨 테스트 알림을 보냈어요 (${r.sent}/${r.subscriptions}). '
+            '잠시 후 기기에 뜨는지 확인하세요. 안 뜨면 "알림 다시 설정"을 눌러주세요.';
+      } else {
+        _msg = '⚠️ 발송했지만 성공한 구독이 0개예요. "알림 다시 설정"으로 재등록이 필요합니다.';
+      }
+      setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _forceResubscribe() async {
+    setState(() {
+      _busy = true;
+      _msg = null;
+    });
+    final r = await WebPushService.forceResubscribe();
+    if (mounted) {
+      if (r.ok) {
+        _msg = '✅ 알림을 다시 등록했어요. 이제 "테스트 알림"으로 확인해보세요.';
+      } else if (r.unsupported) {
+        _msg = '이 브라우저/플랫폼에서는 웹 푸시가 지원되지 않습니다.';
+      } else {
+        _msg = '❌ ${r.error}';
+      }
+    }
+    await _refresh();
+    if (mounted) setState(() => _busy = false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
@@ -110,6 +150,30 @@ class _WebPushCardState extends State<WebPushCard> {
           if (_msg != null) ...[
             const SizedBox(height: 10),
             Text(_msg!, style: const TextStyle(fontSize: 12)),
+          ],
+          // 문제 해결 도구 (모바일 웹 + 권한 미차단일 때만)
+          if (_canToggle && !_loading) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _busy ? null : _sendTest,
+                    icon: const Icon(Icons.send, size: 16),
+                    label: const Text('테스트 알림', style: TextStyle(fontSize: 12)),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _busy ? null : _forceResubscribe,
+                    icon: const Icon(Icons.refresh, size: 16),
+                    label: const Text('알림 다시 설정',
+                        style: TextStyle(fontSize: 12)),
+                  ),
+                ),
+              ],
+            ),
           ],
         ],
       ),
