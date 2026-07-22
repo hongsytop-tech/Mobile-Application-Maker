@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../shell/menu_settings_provider.dart';
 import '../../diary/providers/diary_providers.dart';
+import '../../memo/providers/memo_folder_providers.dart';
 import '../../memo/providers/memo_providers.dart';
 import '../../push/providers/notification_settings_providers.dart';
 import '../../push/services/web_push_scheduler.dart';
@@ -74,6 +75,8 @@ class _SyncGateState extends ConsumerState<SyncGate>
     // 메모도 무효화 — 백엔드가 Google Tasks 를 클라우드 메모에 추가하므로
     // pull 후 메모 목록이 갱신되어야 새 항목이 보인다.
     ref.invalidate(memosProvider);
+    // 메모 폴더도 무효화 (다른 기기에서 만든 폴더가 pull 후 바로 보이도록)
+    ref.invalidate(memoFoldersProvider);
     // 알림 옵션 + 메뉴 설정 + 추천 알림 설정도 다른 기기의 변경분을 즉시 반영
     ref.invalidate(notificationSettingsProvider);
     ref.invalidate(menuSettingsProvider);
