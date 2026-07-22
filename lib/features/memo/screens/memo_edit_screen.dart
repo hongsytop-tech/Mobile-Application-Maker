@@ -8,7 +8,10 @@ import '../services/memo_markup.dart';
 
 class MemoEditScreen extends ConsumerStatefulWidget {
   final Memo? memo;
-  const MemoEditScreen({super.key, this.memo});
+
+  /// 새 메모를 이 폴더 소속으로 만들 때 지정.
+  final String? folderId;
+  const MemoEditScreen({super.key, this.memo, this.folderId});
 
   @override
   ConsumerState<MemoEditScreen> createState() => _MemoEditScreenState();
@@ -73,7 +76,8 @@ class _MemoEditScreenState extends ConsumerState<MemoEditScreen>
       if (existing == null) {
         // 진짜 신규 — 첫 저장. 만들어진 메모를 기억해 이후 자동저장은 update 로.
         if (title.isEmpty && content.isEmpty) return;
-        final created = await notifier.add(title: title, content: content);
+        final created = await notifier.add(
+            title: title, content: content, folderId: widget.folderId);
         _createdMemo = created;
       } else {
         await notifier.save(existing.copyWith(

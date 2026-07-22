@@ -22,7 +22,8 @@ class MemosNotifier extends AsyncNotifier<List<Memo>> {
     await ref.read(memoStorageProvider).saveAll(list);
   }
 
-  Future<Memo> add({String title = '', String content = ''}) async {
+  Future<Memo> add(
+      {String title = '', String content = '', String? folderId}) async {
     final existing = state.value ?? const <Memo>[];
     final minOrder = existing.isEmpty
         ? 0
@@ -35,9 +36,37 @@ class MemosNotifier extends AsyncNotifier<List<Memo>> {
       createdAt: now,
       updatedAt: now,
       order: minOrder - 1,
+      folderId: folderId,
     );
     await _persist([...existing, memo]);
     return memo;
+  }
+
+  /// 메모를 폴더로 이동 (folderId=null 이면 폴더에서 빼기).
+  Future<void> setFolder(String memoId, String? folderId) async {
+    final list = (state.value ?? const <Memo>[]);
+    final now = DateTime.now();
+    final updated = list.map((m) {
+      if (m.id != memoId) return m;
+      return m.copyWith(
+        folderId: folderId,
+        clearFolder: folderId == null,
+        updatedAt: now,
+      );
+    }).toList();
+    await _persist(updated);
+  }
+
+  /// 폴더 삭제 시 그 폴더 안 메모들을 루트로 빼낸다.
+  Future<void> unfileFolder(String folderId) async {
+    final list = (state.value ?? const <Memo>[]);
+    final now = DateTime.now();
+    final updated = list
+        .map((m) => m.folderId == folderId
+            ? m.copyWith(clearFolder: true, updatedAt: now)
+            : m)
+        .toList();
+    await _persist(updated);
   }
 
   Future<void> save(Memo updated) async {
@@ -92,12 +121,26 @@ class SortedMemos {
   bool get isEmpty => total == 0;
 }
 
-/// 고정된 것 우선, 각 그룹 안에서는 order asc.
-final sortedMemosProvider = Provider<SortedMemos>((ref) {
+/// 특정 폴더(folderId=null 이면 루트/미분류) 안의 메모를 고정·미고정으로 분리·정렬.
+final sortedMemosProvider =
+    Provider.family<SortedMemos, String?>((ref, folderId) {
   final list = ref.watch(memosProvider).value ?? const <Memo>[];
-  final pinned = list.where((m) => m.isPinned).toList()
+  final inScope = list.where((m) => m.folderId == folderId);
+  final pinned = inScope.where((m) => m.isPinned).toList()
     ..sort((a, b) => a.order.compareTo(b.order));
-  final others = list.where((m) => !m.isPinned).toList()
+  final others = inScope.where((m) => !m.isPinned).toList()
     ..sort((a, b) => a.order.compareTo(b.order));
   return SortedMemos(pinned: pinned, others: others);
+});
+
+/// 폴더별 메모 개수 (루트 제외).
+final memoCountByFolderProvider = Provider<Map<String, int>>((ref) {
+  final list = ref.watch(memosProvider).value ?? const <Memo>[];
+  final counts = <String, int>{};
+  for (final m in list) {
+    if (m.folderId != null) {
+      counts[m.folderId!] = (counts[m.folderId!] ?? 0) + 1;
+    }
+  }
+  return counts;
 });

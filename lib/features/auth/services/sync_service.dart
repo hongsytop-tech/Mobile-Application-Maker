@@ -10,6 +10,7 @@ const _listKeyMap = <String, String>{
   'todo_categories_v1': 'todo_categories',
   'todo_items_v1': 'todo_items',
   'memos_v1': 'memos',
+  'memo_folders_v1': 'memo_folders',
 };
 
 /// 단일 String으로 저장되는 설정 키들 (settings jsonb에 한꺼번에 저장)
@@ -52,6 +53,7 @@ class SyncService {
       todoCategories: lists['todo_categories']!,
       todoItems: lists['todo_items']!,
       memos: lists['memos']!,
+      memoFolders: lists['memo_folders']!,
       settings: settings,
     );
 

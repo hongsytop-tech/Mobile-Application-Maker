@@ -11,6 +11,9 @@ class Memo {
   /// 상단 고정 시각 (null이면 미고정). 문구 메뉴와 동일한 방식.
   final DateTime? pinnedAt;
 
+  /// 소속 폴더 id (null 이면 폴더 없음 = 루트).
+  final String? folderId;
+
   const Memo({
     required this.id,
     required this.title,
@@ -19,6 +22,7 @@ class Memo {
     required this.updatedAt,
     this.order = 0,
     this.pinnedAt,
+    this.folderId,
   });
 
   bool get isPinned => pinnedAt != null;
@@ -30,6 +34,8 @@ class Memo {
     int? order,
     DateTime? pinnedAt,
     bool clearPin = false,
+    String? folderId,
+    bool clearFolder = false,
   }) =>
       Memo(
         id: id,
@@ -39,6 +45,7 @@ class Memo {
         updatedAt: updatedAt ?? this.updatedAt,
         order: order ?? this.order,
         pinnedAt: clearPin ? null : (pinnedAt ?? this.pinnedAt),
+        folderId: clearFolder ? null : (folderId ?? this.folderId),
       );
 
   Map<String, dynamic> toJson() => {
@@ -49,6 +56,7 @@ class Memo {
         'updatedAt': updatedAt.toIso8601String(),
         'order': order,
         'pinnedAt': pinnedAt?.toIso8601String(),
+        'folderId': folderId,
       };
 
   factory Memo.fromJson(Map<String, dynamic> j) => Memo(
@@ -64,6 +72,7 @@ class Memo {
         pinnedAt: j['pinnedAt'] == null
             ? null
             : DateTime.parse(j['pinnedAt'] as String),
+        folderId: j['folderId'] as String?,
       );
 
   String toJsonString() => jsonEncode(toJson());
