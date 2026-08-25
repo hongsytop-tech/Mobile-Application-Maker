@@ -29,6 +29,39 @@ class _QuotesScreenState extends ConsumerState<QuotesScreen> {
     super.dispose();
   }
 
+  /// 추가 시 목표 / 동기부여 문구 선택 후 편집 화면으로.
+  Future<void> _chooseAndAdd() async {
+    final primary = Theme.of(context).colorScheme.primary;
+    final isGoal = await showModalBottomSheet<bool>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            ListTile(
+              leading: Icon(Icons.flag, color: primary),
+              title: const Text('목표'),
+              subtitle: const Text('이루고 싶은 목표를 적어요'),
+              onTap: () => Navigator.pop(ctx, true),
+            ),
+            ListTile(
+              leading: Icon(Icons.format_quote, color: Colors.grey.shade700),
+              title: const Text('동기부여 문구'),
+              subtitle: const Text('기억하고 싶은 문구를 적어요'),
+              onTap: () => Navigator.pop(ctx, false),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (isGoal == null || !mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => QuoteEditScreen(isGoal: isGoal)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final asyncQuotes = ref.watch(quotesProvider);
@@ -60,11 +93,9 @@ class _QuotesScreenState extends ConsumerState<QuotesScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const QuoteEditScreen()),
-        ),
+        onPressed: _chooseAndAdd,
         icon: const Icon(Icons.add),
-        label: const Text('문구 추가'),
+        label: const Text('추가'),
       ),
       body: Column(
         children: [
@@ -104,25 +135,33 @@ class _QuotesScreenState extends ConsumerState<QuotesScreen> {
                 padding: const EdgeInsets.fromLTRB(12, 12, 12, 88),
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: [
-                if (sorted.pinned.isNotEmpty) ...[
-                  _SectionLabel(
-                    icon: Icons.push_pin,
-                    text: '고정됨 (${sorted.pinned.length})',
-                  ),
-                  const SizedBox(height: 8),
-                  _DraggableQuoteList(quotes: sorted.pinned),
-                ],
-                if (sorted.pinned.isNotEmpty &&
-                    sorted.others.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  _SectionLabel(
-                    icon: Icons.history,
-                    text: '전체 (${sorted.others.length})',
-                  ),
-                  const SizedBox(height: 8),
-                ],
-                  if (sorted.others.isNotEmpty)
+                  // 목표 → 고정됨 → 전체 (전체엔 목표·고정 제외)
+                  if (sorted.goals.isNotEmpty) ...[
+                    _SectionLabel(
+                      icon: Icons.flag,
+                      text: '목표 (${sorted.goals.length})',
+                    ),
+                    const SizedBox(height: 8),
+                    _DraggableQuoteList(quotes: sorted.goals),
+                    const SizedBox(height: 12),
+                  ],
+                  if (sorted.pinned.isNotEmpty) ...[
+                    _SectionLabel(
+                      icon: Icons.push_pin,
+                      text: '고정됨 (${sorted.pinned.length})',
+                    ),
+                    const SizedBox(height: 8),
+                    _DraggableQuoteList(quotes: sorted.pinned),
+                    const SizedBox(height: 12),
+                  ],
+                  if (sorted.others.isNotEmpty) ...[
+                    _SectionLabel(
+                      icon: Icons.format_quote,
+                      text: '전체 (${sorted.others.length})',
+                    ),
+                    const SizedBox(height: 8),
                     _DraggableQuoteList(quotes: sorted.others),
+                  ],
                 ],
               ),
             );

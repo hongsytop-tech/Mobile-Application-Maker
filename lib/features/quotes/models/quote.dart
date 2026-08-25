@@ -28,6 +28,9 @@ class Quote {
   /// 수동 정렬 순서 (작을수록 위). 기본값은 fromJson에서 createdAt 기반 음수로 대체.
   final int order;
 
+  /// 목표 여부 — true 면 "목표" 섹션에 표시(문구와 분리).
+  final bool isGoal;
+
   const Quote({
     required this.id,
     required this.text,
@@ -41,6 +44,7 @@ class Quote {
     this.intervalMinutes,
     this.pinnedAt,
     this.order = 0,
+    this.isGoal = false,
   });
 
   bool get isPinned => pinnedAt != null;
@@ -101,6 +105,7 @@ class Quote {
     int? intervalMinutes,
     DateTime? pinnedAt,
     int? order,
+    bool? isGoal,
     bool clearDailyTime = false,
     bool clearInterval = false,
     bool clearPin = false,
@@ -121,6 +126,7 @@ class Quote {
           clearInterval ? null : (intervalMinutes ?? this.intervalMinutes),
       pinnedAt: clearPin ? null : (pinnedAt ?? this.pinnedAt),
       order: order ?? this.order,
+      isGoal: isGoal ?? this.isGoal,
     );
   }
 
@@ -137,6 +143,7 @@ class Quote {
         'intervalMinutes': intervalMinutes,
         'pinnedAt': pinnedAt?.toIso8601String(),
         'order': order,
+        'isGoal': isGoal,
       };
 
   factory Quote.fromJson(Map<String, dynamic> j) => Quote(
@@ -160,6 +167,7 @@ class Quote {
         order: j['order'] as int? ??
             -DateTime.parse(j['createdAt'] as String)
                 .millisecondsSinceEpoch,
+        isGoal: j['isGoal'] as bool? ?? false,
       );
 
   String toJsonString() => jsonEncode(toJson());

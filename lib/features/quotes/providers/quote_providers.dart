@@ -53,6 +53,7 @@ class QuotesNotifier extends AsyncNotifier<List<Quote>> {
       intervalHours: draft.intervalHours,
       intervalMinutes: draft.intervalMinutes,
       order: minOrder - 1,
+      isGoal: draft.isGoal,
     );
     await _persist([...existing, q]);
     if (q.hasSchedule) {
@@ -116,23 +117,27 @@ class QuotesNotifier extends AsyncNotifier<List<Quote>> {
   }
 }
 
-/// 고정·미고정으로 분리된 정렬 결과.
+/// 목표·고정·전체로 분리된 정렬 결과.
+/// 우선순위: 목표(isGoal) → 고정됨(pinned, 목표 제외) → 전체(목표·고정 모두 제외).
 class SortedQuotes {
+  final List<Quote> goals;
   final List<Quote> pinned;
   final List<Quote> others;
 
-  const SortedQuotes({required this.pinned, required this.others});
+  const SortedQuotes(
+      {required this.goals, required this.pinned, required this.others});
 
-  int get total => pinned.length + others.length;
+  int get total => goals.length + pinned.length + others.length;
   bool get isEmpty => total == 0;
 }
 
-/// 고정된 것 우선, 각 그룹 안에서는 최신순.
 final sortedQuotesProvider = Provider<SortedQuotes>((ref) {
   final all = ref.watch(quotesProvider).value ?? const <Quote>[];
-  final pinned = all.where((q) => q.isPinned).toList()
+  final goals = all.where((q) => q.isGoal).toList()
     ..sort((a, b) => a.order.compareTo(b.order));
-  final others = all.where((q) => !q.isPinned).toList()
+  final pinned = all.where((q) => !q.isGoal && q.isPinned).toList()
     ..sort((a, b) => a.order.compareTo(b.order));
-  return SortedQuotes(pinned: pinned, others: others);
+  final others = all.where((q) => !q.isGoal && !q.isPinned).toList()
+    ..sort((a, b) => a.order.compareTo(b.order));
+  return SortedQuotes(goals: goals, pinned: pinned, others: others);
 });

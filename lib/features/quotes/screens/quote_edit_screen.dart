@@ -9,7 +9,10 @@ import '../services/notification_service.dart';
 class QuoteEditScreen extends ConsumerStatefulWidget {
   /// null이면 신규 작성
   final Quote? quote;
-  const QuoteEditScreen({super.key, this.quote});
+
+  /// 새로 만들 때 목표로 만들지 여부 (기존 편집 시엔 무시).
+  final bool isGoal;
+  const QuoteEditScreen({super.key, this.quote, this.isGoal = false});
 
   @override
   ConsumerState<QuoteEditScreen> createState() => _QuoteEditScreenState();
@@ -103,6 +106,7 @@ class _QuoteEditScreenState extends ConsumerState<QuoteEditScreen> {
         notifyMinute: _notifyEnabled && isDaily ? _time!.minute : null,
         intervalHours: _notifyEnabled && !isDaily ? _intervalHours : null,
         intervalMinutes: _notifyEnabled && !isDaily ? _intervalMinutes : null,
+        isGoal: widget.quote?.isGoal ?? widget.isGoal,
       );
 
       if (_isNew) {
@@ -133,7 +137,11 @@ class _QuoteEditScreenState extends ConsumerState<QuoteEditScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isNew ? '문구 추가' : '문구 편집'),
+        title: Text(() {
+          final goal = widget.quote?.isGoal ?? widget.isGoal;
+          if (_isNew) return goal ? '목표 추가' : '문구 추가';
+          return goal ? '목표 편집' : '문구 편집';
+        }()),
         actions: [
           TextButton(
             onPressed: _saving ? null : _save,
