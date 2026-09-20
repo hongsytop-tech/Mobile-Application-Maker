@@ -40,7 +40,7 @@ class ExerciseLogsNotifier extends AsyncNotifier<List<ExerciseLog>> {
     await _persist([...(state.value ?? const <ExerciseLog>[]), log]);
   }
 
-  Future<void> update(String id, {String? type, List<int>? reps}) async {
+  Future<void> editLog(String id, {String? type, List<int>? reps}) async {
     final list = state.value ?? const <ExerciseLog>[];
     final now = DateTime.now();
     final updated = list
