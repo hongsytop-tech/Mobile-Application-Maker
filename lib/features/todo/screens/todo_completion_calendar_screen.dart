@@ -3,9 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
+import '../models/exercise_log.dart';
 import '../models/todo_category.dart';
 import '../models/todo_item.dart';
+import '../providers/exercise_log_providers.dart';
 import '../providers/todo_providers.dart';
+import '../widgets/exercise_log_dialog.dart';
 import 'todo_search_screen.dart';
 
 /// 날짜별로 그날 완료한 체크리스트를 카테고리별로 모아보는 캘린더.
@@ -57,6 +60,10 @@ class _TodoCompletionCalendarScreenState
     for (final i in incomplete) {
       incGrouped.putIfAbsent(i.categoryId, () => []).add(i);
     }
+
+    // 이 날의 운동 기록
+    final dateKey = DateFormat('yyyy-MM-dd').format(_selectedDay);
+    final exerciseLogs = ref.watch(exerciseLogsByDayProvider(dateKey));
 
     return Scaffold(
       appBar: AppBar(
@@ -136,6 +143,36 @@ class _TodoCompletionCalendarScreenState
               .map((e) => _categoryGroupRaw('(삭제된 카테고리)',
                   Colors.grey, e.value)),
 
+          // 운동 기록 섹션
+          const SizedBox(height: 8),
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
+            child: Row(
+              children: [
+                const Icon(Icons.fitness_center, size: 18),
+                const SizedBox(width: 6),
+                Text('운동 기록 (${exerciseLogs.length})',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 16)),
+                const Spacer(),
+                TextButton.icon(
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('운동 기록'),
+                  onPressed: () => _addExercise(dateKey),
+                ),
+              ],
+            ),
+          ),
+          if (exerciseLogs.isEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+              child: Text('이 날 기록한 운동이 없어요. "운동 기록"으로 추가하세요.',
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+            )
+          else
+            ...exerciseLogs.map(_exerciseTile),
+
           // 이 날 안 한 매일 할 일 (체크하면 위 완료 목록으로 이동)
           if (showIncomplete && incomplete.isNotEmpty) ...[
             const SizedBox(height: 8),
@@ -171,6 +208,55 @@ class _TodoCompletionCalendarScreenState
 
   bool _sameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
+
+  Future<void> _addExercise(String dateKey) async {
+    final result = await showExerciseLogDialog(context);
+    if (result == null) return;
+    await ref.read(exerciseLogsProvider.notifier).add(
+          dateKey: dateKey,
+          type: result.type,
+          reps: result.reps,
+        );
+  }
+
+  Widget _exerciseTile(ExerciseLog log) {
+    final setsText = log.reps.join(', ');
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 2, 8, 2),
+      child: Row(
+        children: [
+          Icon(Icons.fitness_center, size: 16, color: Colors.indigo.shade300),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text.rich(
+              TextSpan(children: [
+                TextSpan(
+                    text: log.type,
+                    style: const TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w600)),
+                TextSpan(
+                    text: '  ${log.sets}세트'
+                        '${setsText.isNotEmpty ? ' ($setsText)' : ''}'
+                        '  · 총 ${log.totalReps}회',
+                    style:
+                        TextStyle(fontSize: 13, color: Colors.grey.shade700)),
+              ]),
+            ),
+          ),
+          InkWell(
+            onTap: () =>
+                ref.read(exerciseLogsProvider.notifier).remove(log.id),
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.all(6),
+              child: Icon(Icons.delete_outline,
+                  size: 18, color: Colors.grey.shade500),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   /// 이 날 미완료인 매일 항목 그룹 — 체크박스로 그 날짜 완료 처리.
   Widget _incompleteGroup(

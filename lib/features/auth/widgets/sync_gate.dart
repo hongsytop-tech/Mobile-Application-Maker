@@ -18,6 +18,7 @@ import '../../quotes/models/quote.dart';
 import '../../quotes/providers/quote_providers.dart';
 import '../../quotes/services/quote_rotation_service.dart';
 import '../../reading/providers/book_providers.dart';
+import '../../todo/providers/exercise_log_providers.dart';
 import '../../todo/providers/todo_providers.dart';
 import '../providers/auth_providers.dart';
 import '../services/sync_manager.dart';
@@ -72,6 +73,7 @@ class _SyncGateState extends ConsumerState<SyncGate>
     ref.invalidate(diariesProvider);
     ref.invalidate(todoCategoriesProvider);
     ref.invalidate(todoItemsProvider);
+    ref.invalidate(exerciseLogsProvider);
     // 메모도 무효화 — 백엔드가 Google Tasks 를 클라우드 메모에 추가하므로
     // pull 후 메모 목록이 갱신되어야 새 항목이 보인다.
     ref.invalidate(memosProvider);
