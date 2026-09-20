@@ -219,41 +219,56 @@ class _TodoCompletionCalendarScreenState
         );
   }
 
+  Future<void> _editExercise(ExerciseLog log) async {
+    final result = await showExerciseLogDialog(context, initial: log);
+    if (result == null) return;
+    await ref.read(exerciseLogsProvider.notifier).editLog(
+          log.id,
+          type: result.type,
+          reps: result.reps,
+        );
+  }
+
   Widget _exerciseTile(ExerciseLog log) {
     final setsText = log.reps.join(', ');
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 2, 8, 2),
-      child: Row(
-        children: [
-          Icon(Icons.fitness_center, size: 16, color: Colors.indigo.shade300),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text.rich(
-              TextSpan(children: [
-                TextSpan(
-                    text: log.type,
-                    style: const TextStyle(
-                        fontSize: 14, fontWeight: FontWeight.w600)),
-                TextSpan(
-                    text: '  ${log.sets}세트'
-                        '${setsText.isNotEmpty ? ' ($setsText)' : ''}'
-                        '  · 총 ${log.totalReps}회',
-                    style:
-                        TextStyle(fontSize: 13, color: Colors.grey.shade700)),
-              ]),
+    return InkWell(
+      onTap: () => _editExercise(log),
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 2, 8, 2),
+        child: Row(
+          children: [
+            Icon(Icons.fitness_center, size: 16, color: Colors.indigo.shade300),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text.rich(
+                TextSpan(children: [
+                  TextSpan(
+                      text: log.type,
+                      style: const TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.w600)),
+                  TextSpan(
+                      text: '  ${log.sets}세트'
+                          '${setsText.isNotEmpty ? ' ($setsText)' : ''}'
+                          '  · 총 ${log.totalReps}회',
+                      style:
+                          TextStyle(fontSize: 13, color: Colors.grey.shade700)),
+                ]),
+              ),
             ),
-          ),
-          InkWell(
-            onTap: () =>
-                ref.read(exerciseLogsProvider.notifier).remove(log.id),
-            borderRadius: BorderRadius.circular(16),
-            child: Padding(
-              padding: const EdgeInsets.all(6),
-              child: Icon(Icons.delete_outline,
-                  size: 18, color: Colors.grey.shade500),
+            Icon(Icons.edit_outlined, size: 16, color: Colors.grey.shade400),
+            InkWell(
+              onTap: () =>
+                  ref.read(exerciseLogsProvider.notifier).remove(log.id),
+              borderRadius: BorderRadius.circular(16),
+              child: Padding(
+                padding: const EdgeInsets.all(6),
+                child: Icon(Icons.delete_outline,
+                    size: 18, color: Colors.grey.shade500),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

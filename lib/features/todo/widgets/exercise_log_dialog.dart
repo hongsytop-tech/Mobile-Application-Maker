@@ -11,26 +11,48 @@ class ExerciseLogInput {
 }
 
 /// 운동 종류 선택 + 세트별 횟수 입력 다이얼로그.
+/// [initial] 을 주면 그 값으로 채워 "수정" 모드로 연다.
 /// 저장 시 [ExerciseLogInput] 반환, 취소 시 null.
-Future<ExerciseLogInput?> showExerciseLogDialog(BuildContext context) {
+Future<ExerciseLogInput?> showExerciseLogDialog(BuildContext context,
+    {ExerciseLog? initial}) {
   return showDialog<ExerciseLogInput>(
     context: context,
-    builder: (_) => const _ExerciseLogDialog(),
+    builder: (_) => _ExerciseLogDialog(initial: initial),
   );
 }
 
 class _ExerciseLogDialog extends StatefulWidget {
-  const _ExerciseLogDialog();
+  final ExerciseLog? initial;
+  const _ExerciseLogDialog({this.initial});
 
   @override
   State<_ExerciseLogDialog> createState() => _ExerciseLogDialogState();
 }
 
 class _ExerciseLogDialogState extends State<_ExerciseLogDialog> {
-  String _type = kExerciseTypes.first;
-  // 세트별 횟수 입력 컨트롤러 (기본 1세트)
-  final List<TextEditingController> _setCtrls = [TextEditingController()];
+  late String _type;
+  late final List<TextEditingController> _setCtrls;
   String? _error;
+
+  bool get _isEdit => widget.initial != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final init = widget.initial;
+    // 종류: 초기값이 기본 목록에 있으면 그걸로, 없으면 첫 항목
+    _type = (init != null && kExerciseTypes.contains(init.type))
+        ? init.type
+        : (init?.type.isNotEmpty == true ? init!.type : kExerciseTypes.first);
+    // 세트: 초기값 있으면 그 횟수들로, 없으면 빈 1세트
+    if (init != null && init.reps.isNotEmpty) {
+      _setCtrls = [
+        for (final r in init.reps) TextEditingController(text: '$r'),
+      ];
+    } else {
+      _setCtrls = [TextEditingController()];
+    }
+  }
 
   @override
   void dispose() {
@@ -74,7 +96,7 @@ class _ExerciseLogDialogState extends State<_ExerciseLogDialog> {
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
     return AlertDialog(
-      title: const Text('운동 기록'),
+      title: Text(_isEdit ? '운동 기록 수정' : '운동 기록'),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
